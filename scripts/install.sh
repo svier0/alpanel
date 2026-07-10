@@ -2,7 +2,7 @@
 
 DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/refs/heads/master/scripts/install.sh"
 PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alpanel-linux-amd64"
-ALP_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alp-linux-amd64"
+ALP_DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/refs/heads/master/scripts/alp.sh"
 
 if wget --spider --timeout=1 --tries=1 -q https://www.google.com > /dev/null 2>&1; then
     REPO_URL="/etc/apk/repositories"
@@ -92,7 +92,7 @@ rc-service alpanel start
 echo "================================"
 echo " Alpanel 安装完成"
 echo "================================"
-echo "面板地址: http://$(wget -q -O- ifconfig.me):$PANEL_PORT"
+echo "面板地址: http://$(wget -q -O- ifconfig.me/ip):$PANEL_PORT"
 echo "账号: $PANEL_USER"
 echo "密码: $PANEL_PASSWORD"
 echo "================================"

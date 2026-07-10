@@ -8,21 +8,30 @@ Developed using Rust.
 
 ```
 alpanel/
-├── cli/        alp CLI tool
 ├── backend/    Rust + Axum backend
 ├── frontend/   Vue 3 + Vite frontend
-└── scripts/    Install & init scripts
+└── scripts/    Management scripts (alp.sh) & install scripts
 ```
 
 ## Development
 
 ```bash
-# Cli
-cd cli && cargo run
-
 # Backend
 cd backend && cargo run
 
 # Frontend
 cd frontend && bun install && bun run dev
 ```
+
+## Management (alp.sh)
+
+The `scripts/alp.sh` script provides panel service management on the server:
+
+| Command    | Action             |
+|------------|--------------------|
+| `alp 11`   | Start panel        |
+| `alp 12`   | Stop panel         |
+| `alp 13`   | Restart panel      |
+| `alp 21`   | Change username    |
+| `alp 22`   | Change password    |
+| `alp 31`   | Change port        |
