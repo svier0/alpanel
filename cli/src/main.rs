@@ -173,13 +173,24 @@ fn set_username() {
     update_env("PANEL_USER", &val);
 }
 
+fn read_password(prompt: &str) -> String {
+    print!("{}", prompt);
+    io::stdout().flush().unwrap();
+    let _ = Command::new("stty").args(["-echo"]).status();
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    let _ = Command::new("stty").args(["echo"]).status();
+    println!();
+    input.trim().to_string()
+}
+
 fn set_password() {
-    let pw = rpassword::prompt_password("请输入新登录密码: ").unwrap();
+    let pw = read_password("请输入新登录密码:");
     if pw.is_empty() {
         eprintln!("密码不能为空");
         std::process::exit(1);
     }
-    let confirm = rpassword::prompt_password("请再次输入新登录密码: ").unwrap();
+    let confirm = read_password("请再次输入新登录密码:");
     if pw != confirm {
         eprintln!("两次输入的密码不一致");
         std::process::exit(1);
