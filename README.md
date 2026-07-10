@@ -10,7 +10,7 @@ Developed using Rust.
 sudo wget -O install.sh https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && sudo bash install.sh
 ```
 
-中国大陆用户：
+For users in China:
 
 ```bash
 sudo wget -O install.sh https://gh-proxy.com/https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && sudo bash install.sh
