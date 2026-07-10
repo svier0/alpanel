@@ -12,8 +12,9 @@ fn main() {
     match args.len() {
         1 => help(),
         2 => match args[1].as_str() {
-            "10" => stop(),
             "11" => start(),
+            "12" => stop(),
+            "13" => restart(),
             "21" => set_username(),
             "22" => set_password(),
             "31" => set_port(),
@@ -35,8 +36,9 @@ fn help() {
     println!("Alpanel 面板管理工具");
     println!();
     println!("  alp        显示此帮助菜单");
-    println!("  alp 10     停止面板服务");
     println!("  alp 11     启动面板服务");
+    println!("  alp 12     停止面板服务");
+    println!("  alp 13     重启面板服务");
     println!("  alp 21     修改登录账号");
     println!("  alp 22     修改登录密码");
     println!("  alp 31     修改面板端口");
@@ -162,6 +164,39 @@ fn start() {
     });
 
     println!("面板服务已启动 (PID: {})", child.id());
+}
+
+fn restart() {
+    let pid_str = fs::read_to_string(PID_FILE).ok();
+    if let Some(pid_str) = pid_str {
+        if let Ok(pid) = pid_str.trim().parse::<u32>() {
+            let alive = Command::new("kill")
+                .args(["-0", &pid.to_string()])
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false);
+            if alive {
+                let _ = Command::new("kill").arg(pid.to_string()).status();
+                let _ = fs::remove_file(PID_FILE);
+                println!("面板服务已停止");
+            }
+        }
+    }
+
+    let child = Command::new(PANEL_BIN)
+        .arg("serve")
+        .spawn()
+        .unwrap_or_else(|e| {
+            eprintln!("启动面板服务失败: {} (路径: {})", e, PANEL_BIN);
+            std::process::exit(1);
+        });
+
+    fs::write(PID_FILE, child.id().to_string()).unwrap_or_else(|e| {
+        eprintln!("写入 PID 文件失败: {}", e);
+        std::process::exit(1);
+    });
+
+    println!("面板服务已重启 (PID: {})", child.id());
 }
 
 fn set_username() {
