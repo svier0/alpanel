@@ -3,12 +3,23 @@ name = "alpanel"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
 tower = "0.5"
+dotenvy = "0.15"
+rust-embed = "8"
+mime_guess = "2"
+mime = "0.3"
 tracing = "0.1"
 tracing-subscriber = "0.1"
