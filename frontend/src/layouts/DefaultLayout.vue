@@ -2,7 +2,7 @@
   <div class="flex h-screen bg-gray-100">
     <aside class="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0">
       <div class="h-14 flex items-center px-4 border-b border-gray-200 font-semibold text-lg">
-        Alpanel
+        {{ settings.title }}
       </div>
       <nav class="flex-1 p-2 space-y-1">
         <router-link
@@ -13,7 +13,6 @@
           active-class="bg-gray-100 text-gray-900 font-medium"
           inactive-class="text-gray-600 hover:bg-gray-50 hover:text-gray-900"
         >
-          <component :is="item.icon" class="size-4 shrink-0" />
           {{ t(item.label) }}
         </router-link>
       </nav>
@@ -27,17 +26,21 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { settings, fetchSettings } from '@/stores/settings'
 
 const { t } = useI18n()
 
 const menuItems = [
-  { path: '/', label: 'menu.home', icon: 'span' },
-  { path: '/website', label: 'menu.website', icon: 'span' },
-  { path: '/file', label: 'menu.file', icon: 'span' },
-  { path: '/database', label: 'menu.database', icon: 'span' },
-  { path: '/cron', label: 'menu.cron', icon: 'span' },
-  { path: '/settings', label: 'menu.settings', icon: 'span' },
-  { path: '/logout', label: 'menu.logout', icon: 'span' },
+  { path: '/', label: 'menu.home' },
+  { path: '/website', label: 'menu.website' },
+  { path: '/file', label: 'menu.file' },
+  { path: '/database', label: 'menu.database' },
+  { path: '/cron', label: 'menu.cron' },
+  { path: '/settings', label: 'menu.settings' },
+  { path: '/logout', label: 'menu.logout' },
 ]
+
+onMounted(fetchSettings)
 </script>

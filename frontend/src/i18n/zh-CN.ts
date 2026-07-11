@@ -15,5 +15,28 @@ export default {
     database: '数据库',
     cron: '计划任务',
     settings: '设置',
+  },
+  login: {
+    title: 'Alpanel 登录',
+    username: '账号',
+    password: '密码',
+    submit: '登录',
+    loggingIn: '登录中...',
+    invalid: '账号或密码错误',
+    error: '网络错误，请重试',
+  },
+  settings: {
+    port: '面板端口',
+    user: '登录账号',
+    password: '登录密码',
+    title: '面板标题',
+    theme: '主题',
+    themeAuto: '跟随系统',
+    themeLight: '亮色',
+    themeDark: '暗色',
+    save: '保存配置',
+    saving: '保存中...',
+    saved: '配置已保存',
+    failed: '保存失败',
   }
 }

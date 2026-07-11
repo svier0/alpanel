@@ -15,5 +15,28 @@ export default {
     database: 'Databases',
     cron: 'Cron',
     settings: 'Settings',
+  },
+  login: {
+    title: 'Alpanel Login',
+    username: 'Username',
+    password: 'Password',
+    submit: 'Login',
+    loggingIn: 'Logging in...',
+    invalid: 'Invalid username or password',
+    error: 'Network error, please retry',
+  },
+  settings: {
+    port: 'Panel Port',
+    user: 'Username',
+    password: 'Password',
+    title: 'Panel Title',
+    theme: 'Theme',
+    themeAuto: 'Auto',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    save: 'Save',
+    saving: 'Saving...',
+    saved: 'Settings saved',
+    failed: 'Failed to save',
   }
 }
