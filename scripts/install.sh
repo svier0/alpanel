@@ -1,8 +1,8 @@
 #!/bin/bash
 
-DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/refs/heads/master/scripts/install.sh"
-PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alpanel-linux-amd64"
-ALP_DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/refs/heads/master/scripts/alp.sh"
+DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh"
+VERSION="0.1.0"
+ALP_DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/master/scripts/alp.sh"
 
 if wget --spider --timeout=1 --tries=1 -q https://www.google.com > /dev/null 2>&1; then
     REPO_URL="/etc/apk/repositories"
@@ -29,13 +29,26 @@ if [ "$ID" != "alpine" ]; then
     exit 1
 fi
 
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64|amd64)  PKG_ARCH="x86_64-unknown-linux-musl" ;;
+    aarch64|arm64) PKG_ARCH="aarch64-unknown-linux-musl" ;;
+    *)
+        echo "暂不支持 $ARCH 架构，请自行编译 https://github.com/svier0/alpanel"
+        exit 1
+        ;;
+esac
+
 mkdir -p /www
 mkdir -p /www/wwwlogs
 mkdir -p /www/wwwroot
 mkdir -p /www/server/panel
 
-wget -O /www/server/panel/alpanel ${GH_PROXY}$PANEL_DOWNLOAD_URL
+PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alpanel-${VERSION}-${PKG_ARCH}.tar.gz"
+wget -O /tmp/alpanel.tar.gz ${GH_PROXY}$PANEL_DOWNLOAD_URL
+tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/
 chmod +x /www/server/panel/alpanel
+rm -f /tmp/alpanel.tar.gz
 
 wget -O /usr/local/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
 chmod +x /usr/local/bin/alp
