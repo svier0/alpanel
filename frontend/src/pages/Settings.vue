@@ -1,45 +1,45 @@
 <template>
   <div class="max-w-lg mx-auto">
-    <h1 class="text-2xl font-semibold mb-6">{{ t('page.settings') }}</h1>
+    <h1 class="text-2xl font-semibold mb-6 dark:text-gray-100">{{ t('page.settings') }}</h1>
     <form @submit.prevent="handleSave" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.port') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.port') }}</label>
         <input
           v-model.number="form.port"
           type="number"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-100 dark:bg-gray-800"
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.user') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.user') }}</label>
         <input
           v-model="form.user"
           type="text"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-100 dark:bg-gray-800"
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.password') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.password') }}</label>
         <input
           v-model="form.password"
           type="password"
           placeholder="••••••••"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-100 dark:bg-gray-800"
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.title') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.title') }}</label>
         <input
           v-model="form.title"
           type="text"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-100 dark:bg-gray-800"
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.theme') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.theme') }}</label>
         <select
           v-model="form.theme"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-gray-100"
         >
           <option value="auto">{{ t('settings.themeAuto') }}</option>
           <option value="light">{{ t('settings.themeLight') }}</option>
