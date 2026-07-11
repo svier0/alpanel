@@ -28,7 +28,7 @@ struct LoginResponse {
 
 #[derive(Serialize, Deserialize)]
 struct JwtClaims {
-    sub: String,
+    username: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -53,6 +53,7 @@ struct AppConfig {
     panel_password: String,
     panel_title: String,
     panel_theme: String,
+    jwt_secret: String,
     jwt_key: HS256Key,
 }
 
@@ -149,7 +150,7 @@ async fn login(
     if req.username != cfg.panel_user || req.password != cfg.panel_password {
         return Err((StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "invalid credentials"}))));
     }
-    let claims = Claims::with_custom_claims(JwtClaims { sub: req.username }, Duration::from_hours(24));
+    let claims = Claims::with_custom_claims(JwtClaims { username: req.username }, Duration::from_hours(24));
     let token = cfg.jwt_key.authenticate(claims).map_err(|_| {
         (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": "token creation failed"})))
     })?;
@@ -197,7 +198,7 @@ async fn update_settings(
     if let Some(ref password) = body.password {
         if !password.is_empty() {
             cfg.panel_password = password.clone();
-            cfg.jwt_key = HS256Key::from_bytes(password.as_bytes());
+            cfg.jwt_key = HS256Key::from_bytes(cfg.jwt_secret.as_bytes());
             changes.insert("PANEL_PASSWORD", password.clone());
         }
     }
@@ -278,13 +279,15 @@ async fn main() {
     let panel_title = env.get("PANEL_TITLE").cloned().unwrap_or_else(|| "Alpanel".to_string());
     let panel_theme = env.get("PANEL_THEME").cloned().unwrap_or_else(|| "auto".to_string());
 
-    let jwt_key = HS256Key::from_bytes(panel_password.as_bytes());
+    let jwt_secret = env.get("JWT_SECRET").cloned().unwrap_or_else(|| "alpanel_hs256_secret_2026_32bytes!".to_string());
+    let jwt_key = HS256Key::from_bytes(jwt_secret.as_bytes());
 
     GLOBAL_CONFIG.set(Arc::new(RwLock::new(AppConfig {
         panel_user,
         panel_password,
         panel_title,
         panel_theme,
+        jwt_secret,
         jwt_key,
     }))).ok();
 
