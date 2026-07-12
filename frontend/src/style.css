@@ -1,2 +1,30 @@
-@import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+router-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+:root {
+  --alpanel-aside-bg: #304156;
+  --alpanel-aside-border: rgba(255, 255, 255, 0.08);
+  --el-menu-bg-color: #304156;
+  --el-menu-text-color: #bfcbd9;
+  --el-menu-active-color: #409eff;
+}
+
+html.dark {
+  color-scheme: dark;
+  --alpanel-aside-bg: #141414;
+  --alpanel-aside-border: rgba(255, 255, 255, 0.06);
+  --el-menu-bg-color: #141414;
+  --el-menu-text-color: #cfd3dc;
+  --el-menu-active-color: #409eff;
+}

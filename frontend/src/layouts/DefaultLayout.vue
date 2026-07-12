@@ -1,52 +1,166 @@
 <template>
-  <div class="flex h-screen bg-gray-100 dark:bg-gray-900">
-    <aside class="w-60 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
-      <div class="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-700 font-semibold text-lg dark:text-gray-100">
-        {{ settings.title }}
+  <div class="layout-container">
+    <aside
+      class="layout-aside"
+      :style="{ width: isCollapse ? '64px' : '210px' }"
+    >
+      <div class="logo-area">
+        <span v-if="!isCollapse" class="logo-text">{{ settings.title }}</span>
+        <span v-else class="logo-text-short">A</span>
       </div>
-      <nav class="flex-1 p-2 space-y-1">
-        <router-link
-          to="/"
-          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-          exact-active-class="bg-gray-100 dark:bg-gray-700 font-medium"
+      <div class="menu-wrap">
+        <el-menu
+          :default-active="activeMenu"
+          :collapse="isCollapse"
+          :router="true"
+          class="layout-menu"
         >
-          {{ t('menu.home') }}
-        </router-link>
-        <router-link
-          v-for="item in menuItems.slice(1)"
-          :key="item.path"
-          :to="item.path"
-          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-          active-class="bg-gray-100 dark:bg-gray-700 font-medium"
-        >
-          {{ t(item.label) }}
-        </router-link>
-      </nav>
+          <el-menu-item index="/">
+            <el-icon><HomeFilled /></el-icon>
+            <template #title>{{ t('menu.home') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/website">
+            <el-icon><Monitor /></el-icon>
+            <template #title>{{ t('menu.website') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/file">
+            <el-icon><Document /></el-icon>
+            <template #title>{{ t('menu.file') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/database">
+            <el-icon><Coin /></el-icon>
+            <template #title>{{ t('menu.database') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/cron">
+            <el-icon><Timer /></el-icon>
+            <template #title>{{ t('menu.cron') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/settings">
+            <el-icon><Setting /></el-icon>
+            <template #title>{{ t('menu.settings') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/logout">
+            <el-icon><SwitchButton /></el-icon>
+            <template #title>{{ t('menu.logout') }}</template>
+          </el-menu-item>
+        </el-menu>
+      </div>
+      <div class="collapse-area" @click="isCollapse = !isCollapse">
+        <el-icon class="collapse-icon">
+          <Fold v-if="!isCollapse" />
+          <Expand v-else />
+        </el-icon>
+      </div>
     </aside>
-    <main class="flex-1 overflow-auto">
-      <div class="p-6">
-        <router-view />
-      </div>
-    </main>
+    <div class="layout-content">
+      <router-view />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import {
+  HomeFilled, Monitor, Document, Coin, Timer, Setting,
+  Fold, Expand, SwitchButton
+} from '@element-plus/icons-vue'
 import { settings, fetchSettings } from '@/stores/settings'
 
 const { t } = useI18n()
+const route = useRoute()
+const isCollapse = ref(false)
 
-const menuItems = [
-  { path: '/', label: 'menu.home' },
-  { path: '/website', label: 'menu.website' },
-  { path: '/file', label: 'menu.file' },
-  { path: '/database', label: 'menu.database' },
-  { path: '/cron', label: 'menu.cron' },
-  { path: '/settings', label: 'menu.settings' },
-  { path: '/logout', label: 'menu.logout' },
-]
+const activeMenu = computed(() => route.path)
 
 onMounted(fetchSettings)
 </script>
+
+<style scoped>
+.layout-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+.layout-aside {
+  background-color: var(--alpanel-aside-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.logo-area {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--alpanel-aside-border);
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  padding: 0 12px;
+}
+
+.logo-text-short {
+  font-size: 20px;
+}
+
+.menu-wrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.layout-menu {
+  border-right: none;
+}
+
+.layout-menu:not(.el-menu--collapse) {
+  width: 210px;
+}
+
+.collapse-area {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--alpanel-aside-border);
+  cursor: pointer;
+  color: var(--el-menu-text-color);
+  flex-shrink: 0;
+}
+
+.collapse-area:hover {
+  color: var(--el-menu-active-color);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.collapse-icon {
+  font-size: 20px;
+}
+
+.layout-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--el-fill-color-light);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-content > * {
+  flex: 1;
+}
+</style>

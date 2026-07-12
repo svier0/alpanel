@@ -1,10 +1,26 @@
 <template>
-  <div>
-    <h1 class="text-2xl font-semibold">{{ t('page.website') }}</h1>
-  </div>
+  <el-card class="page-card">
+    <template #header>
+      <span class="card-header">{{ t('page.website') }}</span>
+    </template>
+    <el-empty :description="t('page.website')" />
+  </el-card>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 </script>
+
+<style scoped>
+.page-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.page-card :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+</style>
