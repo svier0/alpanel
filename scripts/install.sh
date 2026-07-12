@@ -106,12 +106,12 @@ echo "================================"
 echo " Alpanel 安装完成"
 echo "================================"
 LAN_IPV4=$(ip -4 addr show scope global | grep 'inet ' | head -1 | awk '{print $2}' | cut -d/ -f1)
-echo "局域网面板地址: http://$LAN_IPV4:$PANEL_PORT"
 SRV=$(nslookup resolver1.opendns.com 2>/dev/null | grep -oE '([0-9]+\.){3}[0-9]+' | tail -1)
 PUBLIC_IPV4=$(nslookup myip.opendns.com $SRV 2>/dev/null | grep -oE '([0-9]+\.){3}[0-9]+' | tail -1)
 if [ -n "$PUBLIC_IPV4" ]; then
     echo "公网面板地址: http://$PUBLIC_IPV4:$PANEL_PORT"
 fi
+echo "局域网面板地址: http://$LAN_IPV4:$PANEL_PORT"
 echo "账号: $PANEL_USER"
 echo "密码: $PANEL_PASSWORD"
 echo "================================"
