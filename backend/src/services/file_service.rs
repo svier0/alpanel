@@ -116,7 +116,28 @@ fn map_io_error(e: std::io::Error, path: &Path) -> AppError {
 fn format_permissions(metadata: &std::fs::Metadata) -> String {
     use std::os::unix::fs::PermissionsExt;
     let mode = metadata.permissions().mode();
-    format!("{:o}", mode & 0o7777)
+    let ft = if metadata.is_dir() {
+        'd'
+    } else if metadata.file_type().is_symlink() {
+        'l'
+    } else {
+        '-'
+    };
+    let rwx = |n: u32| -> String {
+        let r = if n & 4 != 0 { 'r' } else { '-' };
+        let w = if n & 2 != 0 { 'w' } else { '-' };
+        let x = if n & 1 != 0 { 'x' } else { '-' };
+        format!("{}{}{}", r, w, x)
+    };
+    let numeric = format!("{:o}", mode & 0o7777);
+    format!(
+        "{}{}{}{} {}",
+        ft,
+        rwx((mode >> 6) & 7),
+        rwx((mode >> 3) & 7),
+        rwx(mode & 7),
+        numeric
+    )
 }
 
 #[cfg(unix)]
@@ -141,7 +162,8 @@ fn get_owner(metadata: &std::fs::Metadata) -> String {
 
 #[cfg(not(unix))]
 fn format_permissions(metadata: &std::fs::Metadata) -> String {
-    "0644".to_string()
+    let ft = if metadata.is_dir() { 'd' } else { '-' };
+    format!("{}---------", ft)
 }
 
 #[cfg(not(unix))]
