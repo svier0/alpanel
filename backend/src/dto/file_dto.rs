@@ -82,3 +82,9 @@ pub struct FileCopyRequest {
     pub src: String,
     pub dest: String,
 }
+
+#[derive(Deserialize)]
+pub struct FileDownloadRequest {
+    pub url: String,
+    pub path: String,
+}

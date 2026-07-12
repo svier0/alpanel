@@ -60,7 +60,7 @@
           empty-text="暂无文件"
           :cell-style="{ padding: '4px 0' }"
         >
-          <el-table-column label="名称" min-width="300" :show-overflow-tooltip="true">
+          <el-table-column label="名称" width="300" :show-overflow-tooltip="true">
             <template #default="{ row }">
               <div v-if="renamingPath === row.path" class="rename-inline">
                 <el-input
@@ -122,7 +122,7 @@
           <div class="ctx-item" @click="openCreate(ctxMenu.tab!, true)">新建 - 文件夹</div>
           <div class="ctx-item disabled">新建 - 软连接</div>
           <div class="ctx-divider" />
-          <div class="ctx-item disabled">从URL下载</div>
+          <div class="ctx-item" @click="openDownload(ctxMenu.tab!)">从URL下载</div>
           <div class="ctx-divider" />
           <div class="ctx-item disabled">终端</div>
           <template v-if="clipboard.paths.length">
@@ -149,6 +149,7 @@
         </template>
         <template v-else-if="ctxMenu.type === 'file'">
           <div class="ctx-item" @click="ctxOpenEditor">编辑</div>
+          <div class="ctx-item" @click="ctxDownload">下载</div>
           <div class="ctx-divider" />
           <div class="ctx-item disabled">权限</div>
           <div class="ctx-divider" />
@@ -184,6 +185,21 @@
       <template #footer>
         <el-button @click="deleteDialog.visible = false">取消</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="downloadDialog.visible" title="从URL下载" width="450px" append-to-body>
+      <el-form @submit.prevent="handleDownload">
+        <el-form-item label="下载地址">
+          <el-input v-model="downloadDialog.url" placeholder="请输入URL" @keyup.enter="handleDownload" />
+        </el-form-item>
+        <el-form-item label="保存到">
+          <el-input v-model="downloadDialog.path" readonly />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="downloadDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="handleDownload" :loading="downloadDialog.loading">下载</el-button>
       </template>
     </el-dialog>
   </div>
@@ -374,6 +390,30 @@ function ctxOpenEditor() {
   openEditor(item)
 }
 
+async function ctxDownload() {
+  if (!ctxMenu.filePath) return
+  const token = localStorage.getItem('token')
+  if (!token) { ElMessage.error('未登录'); return }
+  try {
+    const res = await fetch(`/api/files/stream?path=${encodeURIComponent(ctxMenu.filePath)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(text || res.statusText)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = ctxMenu.fileName || 'download'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: any) {
+    ElMessage.error(e?.message || '下载失败')
+  }
+}
+
 function openInNewTab(path: string) {
   const id = `browser-${++tabIdSeq}`
   tabs.value.push({
@@ -461,6 +501,13 @@ const deleteDialog = reactive({
   isDir: false,
   path: '',
   targetTab: null as BrowserTab | null,
+})
+
+const downloadDialog = reactive({
+  visible: false,
+  url: '',
+  path: '',
+  loading: false,
 })
 
 async function apiFetch(url: string, init?: RequestInit): Promise<any> {
@@ -676,6 +723,34 @@ async function handleDelete() {
   }
 }
 
+function openDownload(tab: BrowserTab) {
+  downloadDialog.url = ''
+  downloadDialog.path = tab.path
+  downloadDialog.visible = true
+}
+
+async function handleDownload() {
+  if (!downloadDialog.url.trim()) {
+    ElMessage.warning('请输入下载地址')
+    return
+  }
+  downloadDialog.loading = true
+  try {
+    await apiFetch('/api/files/download', {
+      method: 'POST',
+      body: JSON.stringify({ url: downloadDialog.url, path: downloadDialog.path }),
+    })
+    ElMessage.success('下载任务已提交')
+    downloadDialog.visible = false
+    const tab = tabs.value.find(t => t.id === activeTab.value && t.type === 'browser') as BrowserTab | undefined
+    if (tab) fetchTabList(tab)
+  } catch (e: any) {
+    ElMessage.error(e?.message || '下载失败')
+  } finally {
+    downloadDialog.loading = false
+  }
+}
+
 function formatSize(size: number, isDir: boolean): string {
   if (isDir) return '-'
   if (size < 1024) return size + ' B'
@@ -851,17 +926,25 @@ onMounted(() => {
 .file-table {
   flex: 1;
   min-height: 0;
+
+  :deep(.el-table__inner-wrapper) {
+    table {
+      table-layout: fixed;
+    }
+  }
 }
 
 .file-name {
-  display: flex;
-  align-items: center;
-  gap: 5px;
   font-size: 12px;
   cursor: pointer;
+
+  .el-icon {
+    vertical-align: middle;
+  }
 }
 
 .file-name:hover {
+
   color: var(--el-color-primary);
 }
 

@@ -13,4 +13,6 @@ pub fn routes() -> Router<()> {
         .route("/api/files/rename", post(file_handler::rename))
         .route("/api/files/dirsize", get(file_handler::dir_size))
         .route("/api/files/copy", post(file_handler::copy))
+        .route("/api/files/download", post(file_handler::download))
+        .route("/api/files/stream", get(file_handler::stream_download))
 }

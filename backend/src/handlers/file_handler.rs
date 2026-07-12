@@ -1,12 +1,14 @@
 use axum::extract::Query;
-use axum::{http::HeaderMap, Json};
+use axum::body::Body;
+use axum::http::{HeaderMap, Response, StatusCode};
+use axum::{Json};
 
 use crate::dto::file_dto::{
     DirSizeQuery, DirSizeResponse, FileActionResponse, FileCopyRequest, FileCreateRequest,
-    FileDeleteRequest, FileListQuery, FileListResponse, FileReadQuery, FileReadResponse,
-    FileRenameRequest, FileWriteRequest,
+    FileDeleteRequest, FileDownloadRequest, FileListQuery, FileListResponse, FileReadQuery,
+    FileReadResponse, FileRenameRequest, FileWriteRequest,
 };
-use crate::errors::AppResult;
+use crate::errors::{AppError, AppResult};
 use crate::middleware::auth::check_auth;
 use crate::services::file_service;
 
@@ -80,4 +82,53 @@ pub async fn copy(
     check_auth(&headers)?;
     let res = file_service::copy_file(&body.src, &body.dest)?;
     Ok(Json(res))
+}
+
+pub async fn download(
+    headers: HeaderMap,
+    Json(body): Json<FileDownloadRequest>,
+) -> AppResult<Json<FileActionResponse>> {
+    check_auth(&headers)?;
+    let res = file_service::download_file(&body.url, &body.path)?;
+    Ok(Json(res))
+}
+
+pub async fn stream_download(
+    headers: HeaderMap,
+    Query(query): Query<FileReadQuery>,
+) -> Result<Response<Body>, AppError> {
+    check_auth(&headers)?;
+    let path = file_service::sanitize_path_pub(&query.path)?;
+
+    if !path.is_file() {
+        return Err(AppError::BadRequest(format!(
+            "Not a file: {}",
+            path.display()
+        )));
+    }
+
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "download".to_string());
+
+    let data = std::fs::read(&path).map_err(|e| AppError::BadRequest(format!("Read failed: {}", e)))?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Content-Disposition",
+        format!("attachment; filename=\"{}\"", name)
+            .parse()
+            .unwrap(),
+    );
+    headers.insert("Content-Type", "application/octet-stream".parse().unwrap());
+    headers.insert(
+        "Content-Length",
+        data.len().to_string().parse().unwrap(),
+    );
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(data))
+        .unwrap())
 }

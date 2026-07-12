@@ -44,6 +44,10 @@ fn clean_path(path: PathBuf) -> PathBuf {
     }
 }
 
+pub fn sanitize_path_pub(path_str: &str) -> AppResult<PathBuf> {
+    sanitize_path(path_str)
+}
+
 fn sanitize_path(path_str: &str) -> AppResult<PathBuf> {
     if path_str.contains("..") {
         return Err(AppError::BadRequest(
@@ -404,5 +408,63 @@ pub fn copy_file(src_str: &str, dest_str: &str) -> AppResult<FileActionResponse>
     Ok(FileActionResponse {
         success: true,
         message: "Copied".to_string(),
+    })
+}
+
+pub fn download_file(url: &str, dest_dir: &str) -> AppResult<FileActionResponse> {
+    let dir = sanitize_path(dest_dir)?;
+
+    if !dir.is_dir() {
+        return Err(AppError::BadRequest(format!(
+            "Not a directory: {}",
+            dir.display()
+        )));
+    }
+
+    #[cfg(unix)]
+    {
+        let output = std::process::Command::new("wget")
+            .arg("-q")
+            .arg("-P")
+            .arg(&dir)
+            .arg("--content-disposition")
+            .arg(url)
+            .output()
+            .map_err(|e| AppError::BadRequest(format!("wget not found or failed: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AppError::BadRequest(format!(
+                "Download failed: {}",
+                stderr.trim()
+            )));
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("curl")
+            .arg("-L")
+            .arg("-s")
+            .arg("-J")
+            .arg("-O")
+            .arg("--output-dir")
+            .arg(&dir)
+            .arg(url)
+            .output()
+            .map_err(|e| AppError::BadRequest(format!("curl not found or failed: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AppError::BadRequest(format!(
+                "Download failed: {}",
+                stderr.trim()
+            )));
+        }
+    }
+
+    Ok(FileActionResponse {
+        success: true,
+        message: "Download started".to_string(),
     })
 }
