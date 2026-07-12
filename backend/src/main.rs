@@ -2,10 +2,17 @@ use std::net::SocketAddr;
 
 use tracing::info;
 
-mod api;
 mod config;
+mod db;
+mod dto;
+mod errors;
 mod frontend;
-mod modules;
+mod handlers;
+mod middleware;
+mod models;
+mod repositories;
+mod routes;
+mod services;
 
 #[tokio::main]
 async fn main() {
@@ -37,7 +44,7 @@ async fn main() {
         jwt_key,
     });
 
-    let app = api::routes().fallback(frontend::serve_frontend);
+    let app = routes::routes().fallback(frontend::serve_frontend);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     info!("Alpanel listening on {}", addr);

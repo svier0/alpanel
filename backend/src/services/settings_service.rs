@@ -1,28 +1,8 @@
 use std::collections::HashMap;
-use std::time::Duration as StdDuration;
 
-use axum::{http::HeaderMap, routing, Json, Router};
-use serde::{Deserialize, Serialize};
-
-use crate::api::auth::check_auth;
 use crate::config;
-
-#[derive(Serialize, Clone)]
-pub struct SettingsResponse {
-    port: u16,
-    user: String,
-    title: String,
-    theme: String,
-}
-
-#[derive(Deserialize)]
-pub struct SettingsUpdate {
-    port: Option<u16>,
-    user: Option<String>,
-    password: Option<String>,
-    title: Option<String>,
-    theme: Option<String>,
-}
+use crate::dto::settings_dto::{SettingsResponse, SettingsUpdate};
+use crate::errors::AppResult;
 
 fn current_port() -> u16 {
     std::env::var("PANEL_PORT")
@@ -31,26 +11,18 @@ fn current_port() -> u16 {
         .unwrap_or(5555)
 }
 
-async fn get_settings(
-    headers: HeaderMap,
-) -> Result<Json<SettingsResponse>, (axum::http::StatusCode, Json<serde_json::Value>)> {
-    check_auth(&headers)?;
+pub fn get_settings() -> AppResult<SettingsResponse> {
     let cfg = config::config().read().unwrap();
-    Ok(Json(SettingsResponse {
+    Ok(SettingsResponse {
         port: current_port(),
         user: cfg.panel_user.clone(),
         title: cfg.panel_title.clone(),
         theme: cfg.panel_theme.clone(),
-    }))
+    })
 }
 
-async fn update_settings(
-    headers: HeaderMap,
-    Json(body): Json<SettingsUpdate>,
-) -> Result<Json<SettingsResponse>, (axum::http::StatusCode, Json<serde_json::Value>)> {
-    check_auth(&headers)?;
-
-    let mut changes = HashMap::new();
+pub fn update_settings(body: SettingsUpdate) -> (SettingsResponse, bool) {
+    let mut changes: HashMap<&str, String> = HashMap::new();
     let mut cfg = config::config().write().unwrap();
 
     if let Some(port) = body.port {
@@ -88,29 +60,12 @@ async fn update_settings(
         config::write_env(&changes);
     }
 
-    if port_changed {
-        let resp = Json(SettingsResponse {
-            port: body.port.unwrap_or_else(current_port),
-            user: cfg.panel_user.clone(),
-            title: cfg.panel_title.clone(),
-            theme: cfg.panel_theme.clone(),
-        });
-        tokio::spawn(async move {
-            tokio::time::sleep(StdDuration::from_millis(500)).await;
-            config::restart_panel();
-        });
-        return Ok(resp);
-    }
-
-    Ok(Json(SettingsResponse {
-        port: current_port(),
+    let resp = SettingsResponse {
+        port: body.port.unwrap_or_else(current_port),
         user: cfg.panel_user.clone(),
         title: cfg.panel_title.clone(),
         theme: cfg.panel_theme.clone(),
-    }))
-}
+    };
 
-pub(super) fn routes() -> Router<()> {
-    Router::new()
-        .route("/api/settings", routing::get(get_settings).put(update_settings))
+    (resp, port_changed)
 }
