@@ -1,8 +1,6 @@
 #!/bin/sh
 set -eu
 
-PANEL_BIN="/www/server/panel/alpanel"
-PID_FILE="/var/run/alpanel.pid"
 ENV_FILE="/www/server/panel/.env"
 
 help() {
@@ -53,56 +51,19 @@ read_password() {
     echo "$input"
 }
 
-check_pid() {
-    [ -f "$PID_FILE" ] || return 1
-    pid=$(cat "$PID_FILE")
-    case "$pid" in
-        *[!0-9]*) return 1 ;;
-    esac
-    kill -0 "$pid" 2>/dev/null
-}
-
 start() {
-    if check_pid; then
-        pid=$(cat "$PID_FILE")
-        echo "面板服务已在运行中 (PID: $pid)" >&2
-        exit 1
-    fi
-    rm -f "$PID_FILE"
-    cd /www/server/panel
-    nohup "$PANEL_BIN" serve >/dev/null 2>&1 &
-    pid=$!
-    echo "$pid" > "$PID_FILE"
-    echo "面板服务已启动 (PID: $pid)"
+    rc-service alpanel start
+    echo "面板服务已启动"
 }
 
 stop() {
-    [ -f "$PID_FILE" ] || { echo "面板服务未运行" >&2; exit 1; }
-    pid=$(cat "$PID_FILE")
-    case "$pid" in
-        *[!0-9]*) echo "PID 文件格式错误" >&2; exit 1 ;;
-    esac
-    if kill "$pid" 2>/dev/null; then
-        rm -f "$PID_FILE"
-        echo "面板服务已停止"
-    else
-        echo "停止面板服务失败" >&2
-        exit 1
-    fi
+    rc-service alpanel stop
+    echo "面板服务已停止"
 }
 
 restart() {
-    if check_pid; then
-        pid=$(cat "$PID_FILE")
-        kill "$pid" 2>/dev/null || true
-        rm -f "$PID_FILE"
-        echo "面板服务已停止"
-    fi
-    cd /www/server/panel
-    nohup "$PANEL_BIN" serve >/dev/null 2>&1 &
-    pid=$!
-    echo "$pid" > "$PID_FILE"
-    echo "面板服务已重启 (PID: $pid)"
+    rc-service alpanel restart
+    echo "面板服务已重启"
 }
 
 set_username() {
@@ -135,6 +96,7 @@ set_port() {
         exit 1
     fi
     update_env "PANEL_PORT" "$val"
+    restart
 }
 
 case "${1:-}" in
