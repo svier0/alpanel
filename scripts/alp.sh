@@ -69,6 +69,7 @@ start() {
         exit 1
     fi
     rm -f "$PID_FILE"
+    cd /www/server/panel
     nohup "$PANEL_BIN" serve >/dev/null 2>&1 &
     pid=$!
     echo "$pid" > "$PID_FILE"
@@ -97,6 +98,7 @@ restart() {
         rm -f "$PID_FILE"
         echo "面板服务已停止"
     fi
+    cd /www/server/panel
     nohup "$PANEL_BIN" serve >/dev/null 2>&1 &
     pid=$!
     echo "$pid" > "$PID_FILE"

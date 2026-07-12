@@ -77,6 +77,7 @@ description="Alpanel Service"
 
 command="/www/server/panel/alpanel"
 command_args="serve"
+directory="/www/server/panel"
 pidfile="/var/run/alpanel.pid"
 
 depend() {
