@@ -95,7 +95,7 @@
           <el-table-column label="修改时间" width="150">
             <template #default="{ row }">{{ formatTime(row.modified) }}</template>
           </el-table-column>
-          <el-table-column label="备注" width="100" />
+          <el-table-column label="备注" min-width="100" />
         </el-table>
       </div>
 
