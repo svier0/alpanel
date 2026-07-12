@@ -81,7 +81,7 @@
             </template>
           </el-table-column>
           <el-table-column label="权限/所有者" width="120">
-            <template #default="{ row }">{{ row.mode }}</template>
+            <template #default="{ row }">{{ row.mode }}<template v-if="row.owner"> / {{ row.owner }}</template></template>
           </el-table-column>
           <el-table-column label="大小" width="90">
             <template #default="{ row }">

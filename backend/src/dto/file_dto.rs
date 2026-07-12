@@ -14,6 +14,7 @@ pub struct FileItem {
     pub is_dir: bool,
     pub is_link: bool,
     pub mode: String,
+    pub owner: String,
     pub modified: u64,
 }
 

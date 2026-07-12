@@ -129,19 +129,46 @@ fn format_permissions(metadata: &std::fs::Metadata) -> String {
         let x = if n & 1 != 0 { 'x' } else { '-' };
         format!("{}{}{}", r, w, x)
     };
+    let numeric = format!("{:o}", mode & 0o7777);
     format!(
-        "{}{}{}{}",
+        "{}{}{}{} {}",
         ft,
         rwx((mode >> 6) & 7),
         rwx((mode >> 3) & 7),
-        rwx(mode & 7)
+        rwx(mode & 7),
+        numeric
     )
+}
+
+#[cfg(unix)]
+fn get_owner(metadata: &std::fs::Metadata) -> String {
+    use std::os::unix::fs::MetadataExt;
+    let uid = metadata.uid();
+    // Try to resolve from /etc/passwd
+    if let Ok(content) = std::fs::read_to_string("/etc/passwd") {
+        for line in content.lines() {
+            let parts: Vec<&str> = line.split(':').collect();
+            if parts.len() >= 3 {
+                if let Ok(file_uid) = parts[2].parse::<u32>() {
+                    if file_uid == uid {
+                        return parts[0].to_string();
+                    }
+                }
+            }
+        }
+    }
+    uid.to_string()
 }
 
 #[cfg(not(unix))]
 fn format_permissions(metadata: &std::fs::Metadata) -> String {
     let ft = if metadata.is_dir() { 'd' } else { '-' };
     format!("{}---------", ft)
+}
+
+#[cfg(not(unix))]
+fn get_owner(_metadata: &std::fs::Metadata) -> String {
+    String::new()
 }
 
 pub fn list_dir(path_str: &str, show_hidden: bool) -> AppResult<FileListResponse> {
@@ -188,6 +215,7 @@ pub fn list_dir(path_str: &str, show_hidden: bool) -> AppResult<FileListResponse
             .unwrap_or(0);
 
         let mode = format_permissions(&metadata);
+        let owner = get_owner(&metadata);
 
         items.push(FileItem {
             name,
@@ -196,6 +224,7 @@ pub fn list_dir(path_str: &str, show_hidden: bool) -> AppResult<FileListResponse
             is_dir,
             is_link,
             mode,
+            owner,
             modified,
         });
     }
