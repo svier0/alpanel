@@ -149,7 +149,7 @@ fn get_owner(_metadata: &std::fs::Metadata) -> String {
     String::new()
 }
 
-pub fn list_dir(path_str: &str, show_hidden: bool) -> AppResult<FileListResponse> {
+pub fn list_dir(path_str: &str) -> AppResult<FileListResponse> {
     let path = sanitize_path(path_str)?;
 
     if !path.is_dir() {
@@ -169,9 +169,7 @@ pub fn list_dir(path_str: &str, show_hidden: bool) -> AppResult<FileListResponse
         };
         let name = entry.file_name().to_string_lossy().to_string();
 
-        if !show_hidden && name.starts_with('.') {
-            continue;
-        }
+
 
         let file_type = match entry.file_type() {
             Ok(t) => t,
