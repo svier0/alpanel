@@ -3,7 +3,6 @@
 Set-Location $PSScriptRoot\..\frontend
 bun run build
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-cls
 
 Set-Location $PSScriptRoot\..\backend
 cargo build --target x86_64-unknown-linux-musl
