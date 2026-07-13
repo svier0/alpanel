@@ -5,4 +5,5 @@ linker = "rust-lld"
 linker = "rust-lld"
 
 [build]
-target = ["x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl"]
+# target = ["x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl"]
+target = ["x86_64-unknown-linux-musl"]
