@@ -86,7 +86,8 @@
           <el-table-column label="大小" width="90">
             <template #default="{ row }">
               <template v-if="row.is_dir">
-                <el-button v-if="row._size === undefined" size="small" link type="primary" @click="calcDirSize(tab, row)">计算</el-button>
+                <el-icon v-if="row._calculating" class="is-loading" size="14"><Loading /></el-icon>
+                <el-button v-else-if="row._size === undefined" size="small" link type="primary" @click="calcDirSize(tab, row)">计算</el-button>
                 <span v-else>{{ formatSize(row._size, false) }}</span>
               </template>
               <span v-else>{{ formatSize(row.size, false) }}</span>
@@ -208,7 +209,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight } from '@element-plus/icons-vue'
+import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading } from '@element-plus/icons-vue'
 
 interface FileItem {
   name: string
@@ -219,6 +220,7 @@ interface FileItem {
   mode: string
   modified: number
   _size?: number
+  _calculating?: boolean
 }
 
 interface BrowserTab {
@@ -623,11 +625,30 @@ function refreshTab(tab: BrowserTab) {
 }
 
 async function calcDirSize(_tab: BrowserTab, row: FileItem) {
+  row._calculating = true
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 30000)
   try {
-    const data = await apiFetch(`/api/files/dirsize?path=${encodeURIComponent(row.path)}`)
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/files/dirsize?path=${encodeURIComponent(row.path)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(text || res.statusText)
+    }
+    const data = await res.json()
     row._size = data?.size ?? 0
   } catch (e: any) {
-    ElMessage.error(e?.message || '计算失败')
+    if (e.name === 'AbortError') {
+      ElMessage.error('计算超时（30秒），目录过大')
+    } else {
+      ElMessage.error(e?.message || '计算失败')
+    }
+  } finally {
+    clearTimeout(timer)
+    row._calculating = false
   }
 }
 
@@ -950,6 +971,15 @@ onMounted(() => {
 
 .file-name .el-icon {
   flex-shrink: 0;
+}
+
+.is-loading {
+  animation: rotating 1s linear infinite;
+}
+
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .file-selected {
