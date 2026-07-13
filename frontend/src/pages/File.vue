@@ -52,7 +52,7 @@
         <el-table
           v-loading="tab.loading"
           :data="tab.files"
-          @row-dblclick="(row: FileItem) => onRowDoubleClick(tab, row)"
+
           highlight-current-row
           @current-change="(row: FileItem | null) => tab.selectedFile = row"
           size="small"
@@ -72,7 +72,7 @@
                   @blur="confirmRename"
                 />
               </div>
-              <span v-else class="file-name" :class="{ 'file-selected': tab.selectedFile?.path === row.path }">
+              <span v-else class="file-name" :class="{ 'file-selected': tab.selectedFile?.path === row.path }" @dblclick.stop="onRowDoubleClick(tab, row)">
                 <el-icon v-if="row.is_dir" size="14"><FolderOpened /></el-icon>
                 <el-icon v-else-if="row.is_link" size="14"><Link /></el-icon>
                 <el-icon v-else size="14"><Document /></el-icon>
