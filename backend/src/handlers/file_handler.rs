@@ -71,8 +71,18 @@ pub async fn dir_size(
     Query(query): Query<DirSizeQuery>,
 ) -> AppResult<Json<DirSizeResponse>> {
     check_auth(&headers)?;
-    let size = file_service::dir_size(&query.path)?;
-    Ok(Json(DirSizeResponse { size }))
+    let path = query.path.clone();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::task::spawn_blocking(move || file_service::dir_size(&path)),
+    )
+    .await;
+    match result {
+        Ok(Ok(Ok(size))) => Ok(Json(DirSizeResponse { size })),
+        Ok(Ok(Err(e))) => Err(e),
+        Ok(Err(_)) => Err(AppError::BadRequest("计算目录大小失败".to_string())),
+        Err(_) => Err(AppError::BadRequest("计算超时（30秒），目录过大".to_string())),
+    }
 }
 
 pub async fn copy(
