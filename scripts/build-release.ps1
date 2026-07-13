@@ -10,7 +10,7 @@ cargo build --release
 Pop-Location
 
 $config = Get-Content "$root\backend\.cargo\config.toml" -Raw
-$targets = [regex]::Match($config, 'target = \[([^\]]+)\]').Groups[1].Value -split ',' | ForEach-Object { $_.Trim().Trim('"') }
+$targets = [regex]::Match($config, '(?m)^\s*target = \[([^\]]+)\]').Groups[1].Value -split ',' | ForEach-Object { $_.Trim().Trim('"') }
 
 foreach ($t in $targets) {
     $dir = "$root\backend\target\$t\release"
