@@ -538,15 +538,15 @@ function addBrowserTab() {
   const id = `browser-${++tabIdSeq}`
   tabs.value.push({
     id,
-    title: '根目录',
+    title: 'www',
     type: 'browser',
-    path: '/',
+    path: '/www',
     files: [],
     loading: false,
     selectedFile: null,
   })
   activeTab.value = id
-  pathInput.value = '/'
+  pathInput.value = '/www'
   const tab = tabs.value.find(t => t.id === id) as BrowserTab
   fetchTabList(tab)
 }
