@@ -57,8 +57,19 @@ start() {
 }
 
 stop() {
-    rc-service alpanel stop
-    echo "面板服务已停止"
+    if rc-service alpanel stop 2>/dev/null; then
+        echo "面板服务已停止"
+        return
+    fi
+    pid=$(pgrep -x alpanel 2>/dev/null || true)
+    if [ -n "$pid" ]; then
+        kill "$pid" 2>/dev/null || true
+        sleep 1
+        kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+        echo "面板服务已停止"
+    else
+        echo "面板服务未运行"
+    fi
 }
 
 restart() {
