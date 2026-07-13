@@ -17,7 +17,7 @@ pub async fn list(
     Query(query): Query<FileListQuery>,
 ) -> AppResult<Json<FileListResponse>> {
     check_auth(&headers)?;
-    let res = file_service::list_dir(&query.path, query.show_hidden.unwrap_or(false))?;
+    let res = file_service::list_dir(&query.path)?;
     Ok(Json(res))
 }
 

@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize)]
 pub struct FileListQuery {
     pub path: String,
-    pub show_hidden: Option<bool>,
 }
 
 #[derive(Serialize, Clone)]
