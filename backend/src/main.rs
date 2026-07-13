@@ -44,6 +44,8 @@ async fn main() {
         jwt_key,
     });
 
+    db::pool::init_db();
+
     let app = routes::routes().fallback(frontend::serve_frontend);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
