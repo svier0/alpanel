@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { apiFetch } from '@/utils/api'
 
 export interface Settings {
   title: string
@@ -25,19 +26,12 @@ function onThemeChange() {
 }
 
 export async function fetchSettings() {
-  const token = localStorage.getItem('token')
-  if (!token) return
   try {
-    const res = await fetch('/api/settings', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      settings.title = data.title
-      settings.theme = data.theme
-      applyTheme(data.theme)
-      if (data.theme === 'auto') listenTheme()
-    }
+    const data = await apiFetch('/api/settings')
+    settings.title = data.title
+    settings.theme = data.theme
+    applyTheme(data.theme)
+    if (data.theme === 'auto') listenTheme()
   } catch {}
 }
 
