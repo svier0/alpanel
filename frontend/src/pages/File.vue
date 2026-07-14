@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading } from '@element-plus/icons-vue'
 
@@ -267,16 +267,64 @@ const clipboard = reactive({
   cut: false,
 })
 
+const STORAGE_KEY = 'alpanel_file_tabs'
+
+interface StoredTab {
+  id: string
+  title: string
+  type: 'browser' | 'editor'
+  path: string
+  content?: string
+  original?: string
+}
+
+function saveTabs() {
+  const data: StoredTab[] = tabs.value.map(t => ({
+    id: t.id,
+    title: t.title,
+    type: t.type,
+    path: t.path,
+    ...(t.type === 'editor' ? { content: t.content, original: t.original } : {}),
+  }))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ tabs: data, activeTab: activeTab.value, tabIdSeq }))
+}
+
+function restoreTabs() {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return
+  try {
+    const saved = JSON.parse(raw)
+    if (!saved.tabs?.length) return
+    tabIdSeq = saved.tabIdSeq || 0
+    const rest: Tab[] = saved.tabs.map((st: StoredTab) => {
+      if (st.type === 'editor') {
+        return { id: st.id, title: st.title, type: 'editor' as const, path: st.path, content: st.content || '', original: st.original || '', saving: false }
+      }
+      return { id: st.id, title: st.title, type: 'browser' as const, path: st.path, files: [], loading: false, selectedFile: null }
+    })
+    tabs.value = rest
+    activeTab.value = saved.activeTab || rest[0]?.id || ''
+    rest.forEach(t => {
+      if (t.type === 'browser') fetchTabList(t)
+    })
+  } catch { /* ignore corrupt data */ }
+}
+
 function closeCtxMenu() {
   ctxMenu.visible = false
 }
 
+watch([tabs, activeTab], () => { saveTabs() }, { deep: true })
+
 onMounted(() => {
   document.addEventListener('click', closeCtxMenu)
+  restoreTabs()
+  if (tabs.value.length === 0) addBrowserTab()
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeCtxMenu)
+  saveTabs()
 })
 
 function onBrowserContextMenu(e: MouseEvent, tab: BrowserTab) {
@@ -785,10 +833,6 @@ function formatTime(ts: number): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
-
-onMounted(() => {
-  addBrowserTab()
-})
 </script>
 
 <style scoped>
