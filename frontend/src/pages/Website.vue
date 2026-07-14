@@ -62,7 +62,7 @@
             </template>
           </el-table-column>
           <el-table-column label="根目录" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }"><span class="link-cell" @click="">{{ row.root }}</span></template>
+            <template #default="{ row }"><span class="link-cell" @click="goFile(row.root)">{{ row.root }}</span></template>
           </el-table-column>
           <el-table-column label="备注" width="160">
             <template #default="{ row }">
@@ -115,7 +115,7 @@
             <template #default="{ row }">{{ row.port }}</template>
           </el-table-column>
           <el-table-column label="根目录" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }"><span class="link-cell" @click="">{{ row.root }}</span></template>
+            <template #default="{ row }"><span class="link-cell" @click="goFile(row.root)">{{ row.root }}</span></template>
           </el-table-column>
           <el-table-column label="备注" width="160">
             <template #default="{ row }">
@@ -197,7 +197,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Plus, ArrowDown, Search, RefreshRight } from '@element-plus/icons-vue'
+
+const router = useRouter()
 
 const tabs = [
   { key: 'normal', label: '普通项目' },
@@ -302,6 +305,10 @@ function refreshTable() {
 }
 
 function savePs(_row: any, _tab: string) {
+}
+
+function goFile(path: string) {
+  router.push({ name: 'file', query: { path } })
 }
 </script>
 
