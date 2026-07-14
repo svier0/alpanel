@@ -134,6 +134,7 @@ alp 21  → 改账号
 alp 22  → 改密码
 alp 31  → 改端口
 alp 51  → 安装 Nginx（apk fetch → 提取到 /www/server/nginx → 生成 OpenRC）
+        站点配置目录: /www/server/panel/vhost/nginx/
 alp 0   → 取消
 ```
 
@@ -144,6 +145,7 @@ alp 0   → 取消
 - 用户没说"开始"就不改文件
 - WSL 单核低内存，禁止在里面编译
 - 用户有疑问先回复再改代码
+- 禁止把用户电脑当wsl(例如，需要操作wsl中的/www目录，却访问d:\www)
 
 ## 知识图维护
 

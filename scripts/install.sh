@@ -50,8 +50,9 @@ tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/
 chmod +x /www/server/panel/alpanel
 rm -f /tmp/alpanel.tar.gz
 
-wget -O /usr/local/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
-chmod +x /usr/local/bin/alp
+wget -O /etc/init.d/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
+chmod +x /etc/init.d/alp
+ln -sf /etc/init.d/alp /usr/bin/alp
 
 ENV_FILE="/www/server/panel/.env"
 PANEL_PORT=$(shuf -i 10000-65535 -n 1)
