@@ -325,12 +325,7 @@ onMounted(() => {
   // handle query param after restore
   const pathQ = route.query.path as string | undefined
   if (pathQ) {
-    const existing = tabs.value.find(t => t.type === 'browser' && t.path === pathQ)
-    if (existing) {
-      activeTab.value = existing.id
-    } else {
-      addBrowserTabAt(pathQ)
-    }
+    addBrowserTabAt(pathQ)
     // clean query to avoid re-process on re-mount
     window.history.replaceState(null, '', '/#/file')
   }
