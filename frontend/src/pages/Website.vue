@@ -273,6 +273,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Search, RefreshRight } from '@element-plus/icons-vue'
+import { apiFetch } from '@/utils/api'
 
 const router = useRouter()
 
@@ -292,23 +293,14 @@ const installProgress = ref(0)
 const installError = ref('')
 const nginxRunning = ref(false)
 
-function token() {
-  return localStorage.getItem('token') || ''
-}
-
 async function checkNginx() {
   ngReady.value = false
   try {
-    const res = await fetch('/api/nginx/status', {
-      headers: { Authorization: `Bearer ${token()}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      nginxInstalled.value = data.installed
-      nginxRunning.value = data.running
-      if (!data.installed) {
-        blockedByNginx.value = true
-      }
+    const data = await apiFetch('/api/nginx/status')
+    nginxInstalled.value = data.installed
+    nginxRunning.value = data.running
+    if (!data.installed) {
+      blockedByNginx.value = true
     }
   } catch {
     nginxInstalled.value = false
@@ -320,30 +312,17 @@ async function checkNginx() {
 
 async function fetchNginxStatus() {
   try {
-    const res = await fetch('/api/nginx/status', {
-      headers: { Authorization: `Bearer ${token()}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      nginxRunning.value = data.running
-    }
+    const data = await apiFetch('/api/nginx/status')
+    nginxRunning.value = data.running
   } catch {}
 }
 
 async function handleNginxCmd(cmd: string) {
   try {
-    const res = await fetch(`/api/nginx/${cmd}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token()}` }
-    })
-    if (res.ok) {
-      const msgs: Record<string, string> = { start: 'Nginx 已启动', stop: 'Nginx 已停止', restart: 'Nginx 已重启', reload: 'Nginx 已重载' }
-      ElMessage.success(msgs[cmd] || '操作成功')
-      setTimeout(fetchNginxStatus, 1000)
-    } else {
-      const data = await res.json().catch(() => ({ error: '操作失败' }))
-      ElMessage.error(data.error || '操作失败')
-    }
+    await apiFetch(`/api/nginx/${cmd}`, { method: 'POST' })
+    const msgs: Record<string, string> = { start: 'Nginx 已启动', stop: 'Nginx 已停止', restart: 'Nginx 已重启', reload: 'Nginx 已重载' }
+    ElMessage.success(msgs[cmd] || '操作成功')
+    setTimeout(fetchNginxStatus, 1000)
   } catch {
     ElMessage.error('请求失败，请检查服务端连接')
   }
@@ -357,21 +336,13 @@ async function doInstall() {
     installProgress.value = Math.min(installProgress.value + 5, 90)
   }, 600)
   try {
-    const res = await fetch('/api/nginx/install', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token()}` }
-    })
+    await apiFetch('/api/nginx/install', { method: 'POST' })
     clearInterval(iv)
     installProgress.value = 100
-    if (res.ok) {
-      setTimeout(() => {
-        blockedByNginx.value = false
-        nginxInstalled.value = true
-      }, 600)
-    } else {
-      const data = await res.json().catch(() => ({ error: '安装失败' }))
-      installError.value = data.error || '安装失败'
-    }
+    setTimeout(() => {
+      blockedByNginx.value = false
+      nginxInstalled.value = true
+    }, 600)
   } catch {
     clearInterval(iv)
     installError.value = '请求失败，请检查服务端连接'
@@ -519,15 +490,10 @@ const dirPicker = reactive({
 
 async function fetchDirs(path: string) {
   try {
-    const res = await fetch('/api/files/list?path=' + encodeURIComponent(path), {
-      headers: { Authorization: `Bearer ${token()}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      dirPicker.items = (data.items || []).filter((i: any) => i.is_dir)
-      dirPicker.currentPath = data.path
-      dirPicker.parentPath = data.parent || ''
-    }
+    const data = await apiFetch('/api/files/list?path=' + encodeURIComponent(path))
+    dirPicker.items = (data.items || []).filter((i: any) => i.is_dir)
+    dirPicker.currentPath = data.path
+    dirPicker.parentPath = data.parent || ''
   } catch {}
 }
 
@@ -556,15 +522,12 @@ async function createDir() {
   dirPicker.creating = true
   try {
     const p = dirPicker.currentPath.endsWith('/') ? dirPicker.currentPath + name : dirPicker.currentPath + '/' + name
-    const res = await fetch('/api/files/create', {
+    await apiFetch('/api/files/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
       body: JSON.stringify({ path: p, type: 'dir' }),
     })
-    if (res.ok) {
-      dirPicker.newDir = ''
-      await fetchDirs(dirPicker.currentPath)
-    }
+    dirPicker.newDir = ''
+    await fetchDirs(dirPicker.currentPath)
   } finally {
     dirPicker.creating = false
   }

@@ -50,6 +50,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { saveThemeLocally, saveTitleLocally } from '@/stores/settings'
+import { apiFetch } from '@/utils/api'
 
 const { t } = useI18n()
 
@@ -71,19 +72,12 @@ const rules: FormRules = {
 const saving = ref(false)
 
 onMounted(async () => {
-  const token = localStorage.getItem('token')
-  if (!token) return
   try {
-    const res = await fetch('/api/settings', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      form.port = data.port
-      form.user = data.user
-      form.title = data.title
-      form.theme = data.theme
-    }
+    const data = await apiFetch('/api/settings')
+    form.port = data.port
+    form.user = data.user
+    form.title = data.title
+    form.theme = data.theme
   } catch {}
 })
 
@@ -92,15 +86,9 @@ async function handleSave() {
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     saving.value = true
-    const token = localStorage.getItem('token')
-    if (!token) return
     try {
-      const res = await fetch('/api/settings', {
+      const data = await apiFetch('/api/settings', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           port: form.port,
           user: form.user || undefined,
@@ -109,15 +97,10 @@ async function handleSave() {
           theme: form.theme,
         }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        saveTitleLocally(data.title)
-        saveThemeLocally(data.theme)
-        ElMessage.success(t('settings.saved'))
-        form.password = ''
-      } else {
-        ElMessage.error(t('settings.failed'))
-      }
+      saveTitleLocally(data.title)
+      saveThemeLocally(data.theme)
+      ElMessage.success(t('settings.saved'))
+      form.password = ''
     } catch {
       ElMessage.error(t('settings.failed'))
     } finally {

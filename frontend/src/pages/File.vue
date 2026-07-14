@@ -211,6 +211,7 @@ import { ref, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading } from '@element-plus/icons-vue'
+import { apiFetch, authHeaders, checkRes401 } from '@/utils/api'
 
 interface FileItem {
   name: string
@@ -451,12 +452,11 @@ function ctxOpenEditor() {
 
 async function ctxDownload() {
   if (!ctxMenu.filePath) return
-  const token = localStorage.getItem('token')
-  if (!token) { ElMessage.error('未登录'); return }
   try {
     const res = await fetch(`/api/files/stream?path=${encodeURIComponent(ctxMenu.filePath)}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(),
     })
+    checkRes401(res)
     if (!res.ok) {
       const text = await res.text()
       throw new Error(text || res.statusText)
@@ -469,7 +469,7 @@ async function ctxDownload() {
     a.click()
     URL.revokeObjectURL(url)
   } catch (e: any) {
-    ElMessage.error(e?.message || '下载失败')
+    if (e?.message !== 'unauthorized') ElMessage.error(e?.message || '下载失败')
   }
 }
 
@@ -569,25 +569,7 @@ const downloadDialog = reactive({
   loading: false,
 })
 
-async function apiFetch(url: string, init?: RequestInit): Promise<any> {
-  const token = localStorage.getItem('token')
-  const headers: Record<string, string> = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  if (init?.method && init.method !== 'GET') headers['Content-Type'] = 'application/json'
 
-  const res = await fetch(url, { ...init, headers: { ...headers, ...init?.headers } })
-  const ct = res.headers.get('content-type') || ''
-  if (!res.ok) {
-    if (ct.includes('application/json')) {
-      const err = await res.json()
-      throw new Error(err.error || `Request failed (${res.status})`)
-    }
-    const text = await res.text()
-    throw new Error(text.slice(0, 100) || `Request failed (${res.status})`)
-  }
-  if (ct.includes('application/json')) return res.json()
-  return null
-}
 
 let tabIdSeq = 0
 
@@ -703,11 +685,11 @@ async function calcDirSize(_tab: BrowserTab, row: FileItem) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 30000)
   try {
-    const token = localStorage.getItem('token')
     const res = await fetch(`/api/files/dirsize?path=${encodeURIComponent(row.path)}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(),
       signal: controller.signal,
     })
+    checkRes401(res)
     if (!res.ok) {
       const text = await res.text()
       throw new Error(text || res.statusText)
@@ -715,6 +697,7 @@ async function calcDirSize(_tab: BrowserTab, row: FileItem) {
     const data = await res.json()
     row._size = data?.size ?? 0
   } catch (e: any) {
+    if (e?.message === 'unauthorized') return
     if (e.name === 'AbortError') {
       ElMessage.error('计算超时（30秒），目录过大')
     } else {
