@@ -13,6 +13,7 @@ help() {
     echo "  alp 21     修改登录账号"
     echo "  alp 22     修改登录密码"
     echo "  alp 31     修改面板端口"
+    echo "  alp 51     安装 Nginx"
     echo "  alp 0      取消"
 }
 
@@ -110,6 +111,119 @@ set_port() {
     restart
 }
 
+install_nginx() {
+    echo "正在安装 Nginx..."
+
+    command -v apk >/dev/null 2>&1 || { echo "错误: 仅支持 Alpine Linux" >&2; exit 1; }
+
+    nginx_dir="/www/server/nginx"
+    conf_dir="$nginx_dir/conf"
+    run_dir="$nginx_dir/run"
+    log_dir="/www/wwwlogs"
+
+    mkdir -p "$nginx_dir" "$conf_dir/conf.d" "$run_dir" "$log_dir"
+
+    dl_dir=$(mktemp -d)
+    ext_dir=$(mktemp -d)
+
+    (
+        cd "$dl_dir"
+        apk fetch --recursive nginx
+    )
+
+    for apk_file in "$dl_dir"/*.apk; do
+        [ -f "$apk_file" ] || continue
+        tar -xzf "$apk_file" -C "$ext_dir"
+    done
+
+    if [ -f "$ext_dir/usr/sbin/nginx" ]; then
+        cp "$ext_dir/usr/sbin/nginx" "$nginx_dir/nginx"
+        chmod +x "$nginx_dir/nginx"
+    else
+        echo "错误: 未找到 nginx 二进制" >&2
+        rm -rf "$dl_dir" "$ext_dir"
+        exit 1
+    fi
+
+    mkdir -p "$nginx_dir/lib"
+    for d in "$ext_dir/lib" "$ext_dir/usr/lib"; do
+        [ -d "$d" ] && cp -r "$d/." "$nginx_dir/lib/" 2>/dev/null || true
+    done
+
+    if [ -d "$ext_dir/etc/nginx" ]; then
+        cp -r "$ext_dir/etc/nginx/." "$conf_dir/"
+    fi
+
+    cat > "$conf_dir/nginx.conf" << 'EOF'
+worker_processes auto;
+pid /www/server/nginx/run/nginx.pid;
+error_log /www/wwwlogs/nginx_error.log warn;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include mime.types;
+    default_type application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /www/wwwlogs/nginx_access.log main;
+    sendfile on;
+    tcp_nopush on;
+    keepalive_timeout 65;
+
+    include /www/server/nginx/conf/conf.d/*.conf;
+}
+EOF
+
+    cat > /etc/init.d/nginx << 'OPENRC'
+#!/sbin/openrc-run
+
+name="nginx"
+description="NGINX web server"
+
+NGINX_BIN="/www/server/nginx/nginx"
+NGINX_CONF="/www/server/nginx/conf/nginx.conf"
+PIDFILE="/www/server/nginx/run/nginx.pid"
+
+command="$NGINX_BIN"
+command_args="-c $NGINX_CONF"
+pidfile="$PIDFILE"
+command_background=true
+
+depend() {
+    need net
+    use dns logger
+}
+
+start_pre() {
+    mkdir -p /www/server/nginx/run
+    [ -f "$NGINX_BIN" ] || { eerror "nginx 未安装"; return 1; }
+}
+
+stop() {
+    if [ -f "$PIDFILE" ]; then
+        start-stop-daemon --stop --pidfile "$PIDFILE" --retry QUIT/5
+    fi
+}
+OPENRC
+    chmod +x /etc/init.d/nginx
+
+    rm -rf "$dl_dir" "$ext_dir"
+
+    rc-update add nginx default 2>/dev/null || true
+
+    echo "Nginx 安装完成"
+    echo "  二进制: $nginx_dir/nginx"
+    echo "  配置:   $conf_dir/nginx.conf"
+    echo "  日志:   $log_dir/"
+    echo "启动: rc-service nginx start"
+}
+
 case "${1:-}" in
     "")  help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -119,6 +233,7 @@ case "${1:-}" in
     21)  set_username ;;
     22)  set_password ;;
     31)  set_port ;;
+    51)  install_nginx ;;
     *)
         echo "未知命令: alp $1" >&2
         help

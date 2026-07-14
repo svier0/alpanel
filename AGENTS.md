@@ -133,6 +133,7 @@ alp 13  → 重启
 alp 21  → 改账号
 alp 22  → 改密码
 alp 31  → 改端口
+alp 51  → 安装 Nginx（apk fetch → 提取到 /www/server/nginx → 生成 OpenRC）
 alp 0   → 取消
 ```
 
