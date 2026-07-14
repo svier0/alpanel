@@ -208,6 +208,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading } from '@element-plus/icons-vue'
 
@@ -248,6 +249,7 @@ type Tab = BrowserTab | EditorTab
 const tabs = ref<Tab[]>([])
 const activeTab = ref('')
 const pathInput = ref('/')
+const route = useRoute()
 const renamingPath = ref('')
 const renamingValue = ref('')
 const renamingTab = ref<BrowserTab | null>(null)
@@ -320,6 +322,18 @@ onMounted(() => {
   document.addEventListener('click', closeCtxMenu)
   restoreTabs()
   if (tabs.value.length === 0) addBrowserTab()
+  // handle query param after restore
+  const pathQ = route.query.path as string | undefined
+  if (pathQ) {
+    const existing = tabs.value.find(t => t.type === 'browser' && t.path === pathQ)
+    if (existing) {
+      activeTab.value = existing.id
+    } else {
+      addBrowserTabAt(pathQ)
+    }
+    // clean query to avoid re-process on re-mount
+    window.history.replaceState(null, '', '/#/file')
+  }
 })
 
 onUnmounted(() => {
@@ -595,6 +609,23 @@ function addBrowserTab() {
   })
   activeTab.value = id
   pathInput.value = '/www'
+  const tab = tabs.value.find(t => t.id === id) as BrowserTab
+  fetchTabList(tab)
+}
+
+function addBrowserTabAt(path: string) {
+  const id = `browser-${++tabIdSeq}`
+  tabs.value.push({
+    id,
+    title: path.split('/').filter(Boolean).pop() || '根目录',
+    type: 'browser',
+    path,
+    files: [],
+    loading: false,
+    selectedFile: null,
+  })
+  activeTab.value = id
+  pathInput.value = path
   const tab = tabs.value.find(t => t.id === id) as BrowserTab
   fetchTabList(tab)
 }
