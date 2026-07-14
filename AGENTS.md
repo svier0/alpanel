@@ -107,7 +107,7 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
 
 ```sql
 users    (id, username, password(md5(md5(pw)+salt)), login_ip, login_time, phone, email, salt)
-sites    (id, name, path, status, index, ps, addtime)
+sites    (id, name, path, status, project_type, ps, addtime)
 domain   (id, pid→sites.id, name, port, addtime)
 ```
 

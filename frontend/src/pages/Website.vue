@@ -31,7 +31,7 @@
       <div class="content-area">
         <div class="toolbar-row">
           <div class="toolbar-left">
-            <el-button size="small" type="primary">
+            <el-button size="small" type="primary" @click="showAddSiteDialog">
               <el-icon><Plus /></el-icon>添加站点
             </el-button>
             <el-dropdown size="small" trigger="hover" @command="handleNginxCmd">
@@ -212,11 +212,64 @@
         </template>
       </div>
     </template>
+
+    <el-dialog v-model="addSiteDialog.visible" title="添加站点" width="560px" append-to-body>
+      <el-form label-width="70px">
+        <el-form-item label="域名" required>
+          <el-input
+            v-model="addSiteDialog.domain"
+            type="textarea"
+            :rows="5"
+            placeholder="如需填写多个域名，请换行填写，每行一个域名，默认为80端口&#10;IP地址格式：192.168.1.199&#10;泛解析添加方法 *.domain.com&#10;如另加端口格式为 www.domain.com:88&#10;ipv6格式：[2001:db8:85a3::8a2e:370:7334]:88"
+            @input="onDomainInput"
+          />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="addSiteDialog.ps" placeholder="请输入备注,可为空" />
+        </el-form-item>
+        <el-form-item label="根目录" required>
+          <el-input v-model="addSiteDialog.root" placeholder="/www/wwwroot/">
+            <template #append>
+              <el-button @click="openDirPicker">浏览</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addSiteDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="handleAddSite">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="dirPicker.visible" title="选择目录" width="500px" append-to-body>
+      <div style="margin-bottom:8px;color:var(--el-text-color-secondary);font-size:12px">{{ dirPicker.currentPath }}</div>
+      <div style="display:flex;gap:4px;margin-bottom:8px">
+        <el-input v-model="dirPicker.newDir" placeholder="新建子目录名称" size="small" @keyup.enter="createDir" />
+        <el-button size="small" type="primary" @click="createDir" :loading="dirPicker.creating">新建</el-button>
+      </div>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--el-border-color-lighter);border-radius:4px">
+        <div
+          v-for="item in dirPicker.items"
+          :key="item.path"
+          style="padding:6px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px"
+          @click="enterDir(item)"
+        >
+          <span style="color:#e6a23c">📁</span>
+          <span>{{ item.name }}</span>
+        </div>
+        <div v-if="dirPicker.items.length === 0" style="padding:12px;color:var(--el-text-color-secondary);font-size:12px;text-align:center">无子目录</div>
+      </div>
+      <template #footer>
+        <el-button @click="dirPickerGoUp">返回上级</el-button>
+        <el-button @click="dirPicker.visible = false">取消</el-button>
+        <el-button type="primary" @click="dirPickerConfirm">选择当前目录</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Search, RefreshRight } from '@element-plus/icons-vue'
@@ -429,6 +482,92 @@ function savePs(_row: any, _tab: string) {
 
 function goFile(path: string) {
   router.push({ name: 'file', query: { path } })
+}
+
+const addSiteDialog = reactive({
+  visible: false,
+  domain: '',
+  ps: '',
+  root: '/www/wwwroot/',
+})
+
+function showAddSiteDialog() {
+  addSiteDialog.domain = ''
+  addSiteDialog.ps = ''
+  addSiteDialog.root = '/www/wwwroot/'
+  addSiteDialog.visible = true
+}
+
+function onDomainInput() {
+  const firstLine = addSiteDialog.domain.split('\n')[0]?.trim() || ''
+  addSiteDialog.ps = firstLine
+  addSiteDialog.root = '/www/wwwroot/' + firstLine
+}
+
+function handleAddSite() {
+  addSiteDialog.visible = false
+}
+
+const dirPicker = reactive({
+  visible: false,
+  currentPath: '/www/wwwroot/',
+  parentPath: '',
+  items: [] as { name: string; path: string; is_dir: boolean }[],
+  newDir: '',
+  creating: false,
+})
+
+async function fetchDirs(path: string) {
+  try {
+    const res = await fetch('/api/files/list?path=' + encodeURIComponent(path), {
+      headers: { Authorization: `Bearer ${token()}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      dirPicker.items = (data.items || []).filter((i: any) => i.is_dir)
+      dirPicker.currentPath = data.path
+      dirPicker.parentPath = data.parent || ''
+    }
+  } catch {}
+}
+
+function openDirPicker() {
+  dirPicker.currentPath = addSiteDialog.root || '/www/wwwroot/'
+  fetchDirs(dirPicker.currentPath)
+  dirPicker.visible = true
+}
+
+function enterDir(item: { name: string; path: string; is_dir: boolean }) {
+  if (item.is_dir) fetchDirs(item.path)
+}
+
+function dirPickerGoUp() {
+  if (dirPicker.parentPath) fetchDirs(dirPicker.parentPath)
+}
+
+function dirPickerConfirm() {
+  addSiteDialog.root = dirPicker.currentPath.endsWith('/') ? dirPicker.currentPath : dirPicker.currentPath + '/'
+  dirPicker.visible = false
+}
+
+async function createDir() {
+  const name = dirPicker.newDir.trim()
+  if (!name) return
+  dirPicker.creating = true
+  try {
+    const p = dirPicker.currentPath.endsWith('/') ? dirPicker.currentPath + name : dirPicker.currentPath + '/' + name
+    const res = await fetch('/api/files/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ path: p, type: 'dir' }),
+    })
+    if (res.ok) {
+      dirPicker.newDir = ''
+      await fetchDirs(dirPicker.currentPath)
+    }
+  } finally {
+    dirPicker.creating = false
+  }
 }
 </script>
 

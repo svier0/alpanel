@@ -6,7 +6,7 @@ pub struct Site {
     pub name: String,
     pub path: String,
     pub status: Option<String>,
-    pub index: Option<String>,
+    pub project_type: Option<String>,
     pub ps: Option<String>,
     pub addtime: Option<String>,
 }

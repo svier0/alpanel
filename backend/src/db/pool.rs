@@ -35,7 +35,7 @@ pub fn init_db() {
             name TEXT,
             path TEXT,
             status TEXT,
-            \"index\" TEXT,
+            project_type TEXT,
             ps TEXT,
             addtime TEXT
         );
