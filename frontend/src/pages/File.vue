@@ -294,10 +294,10 @@ function saveTabs() {
 
 function restoreTabs() {
   const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return
+  if (!raw) return false
   try {
     const saved = JSON.parse(raw)
-    if (!saved.tabs?.length) return
+    if (!saved.tabs?.length) return false
     tabIdSeq = saved.tabIdSeq || 0
     const rest: Tab[] = saved.tabs.map((st: StoredTab) => {
       if (st.type === 'editor') {
@@ -305,12 +305,21 @@ function restoreTabs() {
       }
       return { id: st.id, title: st.title, type: 'browser' as const, path: st.path, files: [], loading: false, selectedFile: null }
     })
-    tabs.value = rest
-    activeTab.value = saved.activeTab || rest[0]?.id || ''
-    rest.forEach(t => {
-      if (t.type === 'browser') fetchTabList(t)
+    // fetch data first, then assign to tabs.value so Vue tracks from the start
+    const browserTabs = rest.filter((t): t is BrowserTab => t.type === 'browser')
+    Promise.all(browserTabs.map(t =>
+      apiFetch(`/api/files/list?path=${encodeURIComponent(t.path)}`).then(data => {
+        if (data?.path) t.path = data.path
+        t.title = t.path === '/' ? '根目录' : t.path.split('/').filter(Boolean).pop() || '根目录'
+        t.files = data?.items || []
+      }).catch(() => { t.files = [] })
+    )).then(() => {
+      tabs.value = rest
+      activeTab.value = saved.activeTab || rest[0]?.id || ''
+      pathInput.value = (rest.find(t => t.id === activeTab.value) as BrowserTab)?.path || '/'
     })
-  } catch { /* ignore corrupt data */ }
+    return true
+  } catch { return false }
 }
 
 function closeCtxMenu() {
@@ -321,8 +330,8 @@ watch([tabs, activeTab], () => { saveTabs() }, { deep: true })
 
 onMounted(() => {
   document.addEventListener('click', closeCtxMenu)
-  restoreTabs()
-  if (tabs.value.length === 0) addBrowserTab()
+  const restored = restoreTabs()
+  if (!restored) addBrowserTab()
   // handle query param after restore
   const pathQ = route.query.path as string | undefined
   if (pathQ) {
