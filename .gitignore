@@ -12,6 +12,7 @@ Thumbs.db
 # Env
 .env
 
+*.db
 releases/
 
 # codebase-memory

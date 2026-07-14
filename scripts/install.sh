@@ -71,37 +71,11 @@ if ! command -v openrc > /dev/null 2>&1; then
     apk add openrc
 fi
 
-cat > /etc/init.d/alpanel << 'EOF'
-#!/bin/sh
+rc-update add alp default 2>/dev/null || true
 
-CMD="/www/server/panel/alpanel"
-PIDFILE="/var/run/alpanel.pid"
+rc-service alp start
 
-start() {
-    mkdir -p /www/server/panel
-    start-stop-daemon --start --make-pidfile --pidfile $PIDFILE \
-        --background --exec $CMD -- serve
-}
-
-stop() {
-    start-stop-daemon --stop --pidfile $PIDFILE
-}
-
-if [ -z "${RC_SVCNAME:-}" ]; then
-    case "${1:-}" in
-        start)   start ;;
-        stop)    stop ;;
-        restart) stop; sleep 1; start ;;
-        status)  if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then echo "alpanel 运行中"; else echo "alpanel 未运行"; fi ;;
-        *)       echo "用法: $0 {start|stop|restart|status}" >&2; exit 1 ;;
-    esac
-fi
-EOF
-
-chmod +x /etc/init.d/alpanel
-rc-update add alpanel default
-
-rc-service alpanel start
+rc-service alp start 2>/dev/null || /etc/init.d/alp start
 
 echo "================================"
 echo " Alpanel 安装完成"
