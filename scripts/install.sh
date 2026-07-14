@@ -72,31 +72,30 @@ if ! command -v openrc > /dev/null 2>&1; then
 fi
 
 cat > /etc/init.d/alpanel << 'EOF'
-#!/sbin/openrc-run
+#!/bin/sh
 
-description="Alpanel Service"
-
-command="/www/server/panel/alpanel"
-command_args="serve"
-directory="/www/server/panel"
-pidfile="/var/run/alpanel.pid"
-
-depend() {
-    need net
-}
+CMD="/www/server/panel/alpanel"
+PIDFILE="/var/run/alpanel.pid"
 
 start() {
-    ebegin "Starting Alpanel"
-    start-stop-daemon --start --make-pidfile --pidfile $pidfile \
-        --background --exec $command -- $command_args
-    eend $?
+    mkdir -p /www/server/panel
+    start-stop-daemon --start --make-pidfile --pidfile $PIDFILE \
+        --background --exec $CMD -- serve
 }
 
 stop() {
-    ebegin "Stopping Alpanel"
-    start-stop-daemon --stop --pidfile $pidfile
-    eend $?
+    start-stop-daemon --stop --pidfile $PIDFILE
 }
+
+if [ -z "${RC_SVCNAME:-}" ]; then
+    case "${1:-}" in
+        start)   start ;;
+        stop)    stop ;;
+        restart) stop; sleep 1; start ;;
+        status)  if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then echo "alpanel 运行中"; else echo "alpanel 未运行"; fi ;;
+        *)       echo "用法: $0 {start|stop|restart|status}" >&2; exit 1 ;;
+    esac
+fi
 EOF
 
 chmod +x /etc/init.d/alpanel
