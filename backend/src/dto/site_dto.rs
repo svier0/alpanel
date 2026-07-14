@@ -5,7 +5,7 @@ pub struct CreateSiteRequest {
     pub name: String,
     pub path: String,
     pub status: Option<String>,
-    pub index: Option<String>,
+    pub project_type: Option<String>,
     pub ps: Option<String>,
 }
 
@@ -14,7 +14,7 @@ pub struct UpdateSiteRequest {
     pub name: Option<String>,
     pub path: Option<String>,
     pub status: Option<String>,
-    pub index: Option<String>,
+    pub project_type: Option<String>,
     pub ps: Option<String>,
 }
 
@@ -24,7 +24,7 @@ pub struct SiteResponse {
     pub name: String,
     pub path: String,
     pub status: String,
-    pub index: String,
+    pub project_type: String,
     pub ps: String,
     pub addtime: String,
 }
