@@ -64,7 +64,7 @@
           <el-table-column label="根目录" min-width="200" show-overflow-tooltip>
             <template #default="{ row }"><span class="link-cell" @click="goFile(row.root)">{{ row.root }}</span></template>
           </el-table-column>
-          <el-table-column label="备注" width="160">
+          <el-table-column label="备注" min-width="160">
             <template #default="{ row }">
               <el-input v-model="row.ps" size="small" class="ps-input" @blur="savePs(row, 'normal')" />
             </template>
@@ -117,7 +117,7 @@
           <el-table-column label="根目录" min-width="200" show-overflow-tooltip>
             <template #default="{ row }"><span class="link-cell" @click="goFile(row.root)">{{ row.root }}</span></template>
           </el-table-column>
-          <el-table-column label="备注" width="160">
+          <el-table-column label="备注" min-width="160">
             <template #default="{ row }">
               <el-input v-model="row.ps" size="small" class="ps-input" @blur="savePs(row, 'other')" />
             </template>
@@ -164,7 +164,7 @@
           <el-table-column label="代理地址" width="200" show-overflow-tooltip>
             <template #default="{ row }"><span class="link-cell" @click="">{{ row.proxyPass }}</span></template>
           </el-table-column>
-          <el-table-column label="备注" width="160">
+          <el-table-column label="备注" min-width="160">
             <template #default="{ row }">
               <el-input v-model="row.ps" size="small" class="ps-input" @blur="savePs(row, 'proxy')" />
             </template>
@@ -381,6 +381,7 @@ function goFile(path: string) {
 .site-table {
   flex: 1;
   min-height: 0;
+  width: 100%;
 }
 .ps-input {
   width: 100%;
