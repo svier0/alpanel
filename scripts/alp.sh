@@ -120,8 +120,9 @@ install_nginx() {
     conf_dir="$nginx_dir/conf"
     run_dir="$nginx_dir/run"
     log_dir="/www/wwwlogs"
+    vhost_dir="/www/server/panel/vhost/nginx"
 
-    mkdir -p "$nginx_dir" "$conf_dir/conf.d" "$run_dir" "$log_dir"
+    mkdir -p "$nginx_dir" "$conf_dir" "$run_dir" "$vhost_dir" "$log_dir"
 
     dl_dir=$(mktemp -d)
     ext_dir=$(mktemp -d)
@@ -137,8 +138,15 @@ install_nginx() {
     done
 
     if [ -f "$ext_dir/usr/sbin/nginx" ]; then
-        cp "$ext_dir/usr/sbin/nginx" "$nginx_dir/nginx"
-        chmod +x "$nginx_dir/nginx"
+        mkdir -p "$nginx_dir/sbin"
+        cp "$ext_dir/usr/sbin/nginx" "$nginx_dir/sbin/nginx"
+        chmod +x "$nginx_dir/sbin/nginx"
+        cat > /usr/bin/nginx << 'NGINXWRAP'
+#!/bin/sh
+export LD_LIBRARY_PATH=/www/server/nginx/lib
+exec /www/server/nginx/sbin/nginx "$@"
+NGINXWRAP
+        chmod +x /usr/bin/nginx
     else
         echo "错误: 未找到 nginx 二进制" >&2
         rm -rf "$dl_dir" "$ext_dir"
@@ -155,6 +163,7 @@ install_nginx() {
     fi
 
     cat > "$conf_dir/nginx.conf" << 'EOF'
+user root;
 worker_processes auto;
 pid /www/server/nginx/run/nginx.pid;
 error_log /www/wwwlogs/nginx_error.log warn;
@@ -176,41 +185,66 @@ http {
     tcp_nopush on;
     keepalive_timeout 65;
 
-    include /www/server/nginx/conf/conf.d/*.conf;
+    include /www/server/panel/vhost/nginx/*.conf;
 }
 EOF
 
-    cat > /etc/init.d/nginx << 'OPENRC'
-#!/sbin/openrc-run
+    cat > /etc/init.d/nginx << 'NGINXINIT'
+#!/bin/sh
 
-name="nginx"
-description="NGINX web server"
-
-NGINX_BIN="/www/server/nginx/nginx"
+NGINX_BIN="/www/server/nginx/sbin/nginx"
 NGINX_CONF="/www/server/nginx/conf/nginx.conf"
 PIDFILE="/www/server/nginx/run/nginx.pid"
+ERRLOG="/www/wwwlogs/nginx_error.log"
 
-command="$NGINX_BIN"
-command_args="-c $NGINX_CONF"
-pidfile="$PIDFILE"
-command_background=true
-
-depend() {
-    need net
-    use dns logger
-}
-
-start_pre() {
+start() {
     mkdir -p /www/server/nginx/run
-    [ -f "$NGINX_BIN" ] || { eerror "nginx 未安装"; return 1; }
+    rm -f "$PIDFILE"
+    export LD_LIBRARY_PATH=/www/server/nginx/lib
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile "$PIDFILE" \
+        --env LD_LIBRARY_PATH=/www/server/nginx/lib \
+        --exec "$NGINX_BIN" -- -e "$ERRLOG" -c "$NGINX_CONF"
 }
 
 stop() {
     if [ -f "$PIDFILE" ]; then
         start-stop-daemon --stop --pidfile "$PIDFILE" --retry QUIT/5
+        rm -f "$PIDFILE"
     fi
 }
-OPENRC
+
+reload() {
+    if [ -f "$PIDFILE" ]; then
+        read PID < "$PIDFILE"
+        kill -HUP "$PID" 2>/dev/null
+    fi
+}
+
+status() {
+    if [ -f "$PIDFILE" ]; then
+        read PID < "$PIDFILE"
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "nginx 运行中 (pid $PID)"
+            return 0
+        fi
+    fi
+    echo "nginx 未运行"
+    return 1
+}
+
+# 被 openrc-run source 时只定义函数，不执行
+if [ -z "${RC_SVCNAME:-}" ]; then
+    case "${1:-}" in
+        start)   start ;;
+        stop)    stop ;;
+        restart) stop; sleep 1; start ;;
+        reload)  reload ;;
+        status)  status ;;
+        *)       echo "用法: $0 {start|stop|restart|reload|status}" >&2; exit 1 ;;
+    esac
+fi
+NGINXINIT
     chmod +x /etc/init.d/nginx
 
     rm -rf "$dl_dir" "$ext_dir"
@@ -218,8 +252,9 @@ OPENRC
     rc-update add nginx default 2>/dev/null || true
 
     echo "Nginx 安装完成"
-    echo "  二进制: $nginx_dir/nginx"
+    echo "  二进制: $nginx_dir/sbin/nginx"
     echo "  配置:   $conf_dir/nginx.conf"
+    echo "  站点:   $vhost_dir/"
     echo "  日志:   $log_dir/"
     echo "启动: rc-service nginx start"
 }
