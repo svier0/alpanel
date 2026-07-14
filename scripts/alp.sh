@@ -53,12 +53,13 @@ read_password() {
 }
 
 start() {
-    rc-service alpanel start
+    start-stop-daemon --start --make-pidfile --pidfile /var/run/alpanel.pid \
+        --background --exec /www/server/panel/alpanel -- serve
     echo "面板服务已启动"
 }
 
 stop() {
-    if rc-service alpanel stop 2>/dev/null; then
+    if start-stop-daemon --stop --pidfile /var/run/alpanel.pid 2>/dev/null; then
         echo "面板服务已停止"
         return
     fi
@@ -74,7 +75,9 @@ stop() {
 }
 
 restart() {
-    rc-service alpanel restart
+    stop
+    sleep 1
+    start
     echo "面板服务已重启"
 }
 
@@ -260,8 +263,18 @@ NGINXINIT
 }
 
 case "${1:-}" in
-    "")  help ;;
+    "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
+    start)   start ;;
+    stop)    stop ;;
+    restart) restart ;;
+    status)
+        if [ -f /var/run/alpanel.pid ] && kill -0 "$(cat /var/run/alpanel.pid)" 2>/dev/null; then
+            echo "alpanel 运行中"
+        else
+            echo "alpanel 未运行"
+        fi
+        ;;
     11)  start ;;
     12)  stop ;;
     13)  restart ;;
