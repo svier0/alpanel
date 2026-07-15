@@ -1,7 +1,7 @@
 use crate::errors::{AppError, AppResult};
 
 const PID_FILE: &str = "/www/server/mysql/run/mariadb.pid";
-const MARIADB_BIN: &str = "/www/server/mysql/bin/mariadbd";
+const MYSQL_BIN: &str = "/www/server/mysql/bin/mariadbd";
 const INIT_SCRIPT: &str = "/etc/init.d/mariadb";
 
 fn init_d(action: &str) -> std::process::Output {
@@ -21,7 +21,7 @@ fn pid_alive(pid: i32) -> bool {
 }
 
 pub fn check_installed() -> bool {
-    std::path::Path::new(MARIADB_BIN).exists()
+    std::path::Path::new(MYSQL_BIN).exists()
 }
 
 pub fn check_running() -> bool {
@@ -51,11 +51,11 @@ pub fn start() -> AppResult<String> {
     let out = init_d("start");
     std::thread::sleep(std::time::Duration::from_millis(500));
     if check_running() {
-        Ok("MariaDB 已启动".to_string())
+        Ok("MySQL 已启动".to_string())
     } else {
         let msg = String::from_utf8_lossy(&out.stderr);
         let detail = if msg.trim().is_empty() { last_error() } else { msg.trim().to_string() };
-        Err(AppError::Internal(format!("MariaDB 启动失败: {}", detail)))
+        Err(AppError::Internal(format!("MySQL 启动失败: {}", detail)))
     }
 }
 
@@ -63,9 +63,9 @@ pub fn stop() -> AppResult<String> {
     let _ = init_d("stop");
     std::thread::sleep(std::time::Duration::from_millis(500));
     if check_running() {
-        Err(AppError::Internal("MariaDB 停止失败".to_string()))
+        Err(AppError::Internal("MySQL 停止失败".to_string()))
     } else {
-        Ok("MariaDB 已停止".to_string())
+        Ok("MySQL 已停止".to_string())
     }
 }
 
@@ -76,11 +76,11 @@ pub fn restart() -> AppResult<String> {
 
 pub fn reload() -> AppResult<String> {
     if !check_running() {
-        return Err(AppError::Internal("MariaDB 未运行，无法重载".to_string()));
+        return Err(AppError::Internal("MySQL 未运行，无法重载".to_string()));
     }
     let out = init_d("reload");
     if out.status.success() {
-        Ok("MariaDB 已重载".to_string())
+        Ok("MySQL 已重载".to_string())
     } else {
         Err(AppError::Internal(format!("重载失败: {}", String::from_utf8_lossy(&out.stderr))))
     }
@@ -95,7 +95,7 @@ pub fn install() -> AppResult<String> {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
         Err(AppError::Internal(format!(
-            "mariadb 安装失败: {}",
+            "mysql 安装失败: {}",
             String::from_utf8_lossy(&output.stderr)
         )))
     }
