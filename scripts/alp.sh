@@ -283,10 +283,7 @@ install_php() {
         echo ""
         echo "  支持版本: $versions"
         echo ""
-        if [ -n "${1:-}" ]; then
-            echo "  用法: alp 52 $1"
-            [ -n "${2:-}" ] && echo "        alp 52 $2"
-        fi
+        [ -n "${1:-}" ] && echo "  用法: alp 52 $1"
         exit 0
     fi
     case " $versions " in
