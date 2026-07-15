@@ -39,10 +39,24 @@ case "$ARCH" in
         ;;
 esac
 
-mkdir -p /www
-mkdir -p /www/wwwlogs
-mkdir -p /www/wwwroot
-mkdir -p /www/server/panel
+setup_path=/www
+mkdir -p ${setup_path}
+mkdir -p ${setup_path}/wwwlogs
+mkdir -p ${setup_path}/wwwroot
+mkdir -p ${setup_path}/server
+mkdir -p ${setup_path}/server/cron
+mkdir -p ${setup_path}/server/data
+mkdir -p ${setup_path}/server/stop
+mkdir -p ${setup_path}/server/panel
+mkdir -p ${setup_path}/server/panel/vhost
+mkdir -p ${setup_path}/server/panel/vhost/nginx
+mkdir -p ${setup_path}/server/panel/vhost/rewrite
+mkdir -p ${setup_path}/server/panel/vhost/ssl
+mkdir -p ${setup_path}/server/panel/vhost/template
+mkdir -p ${setup_path}/server/panel/vhost/template/nginx
+mkdir -p ${setup_path}/server/panel/data
+mkdir -p ${setup_path}/server/panel/data/db
+mkdir -p ${setup_path}/server/panel/data/files_ps
 
 PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alpanel-${VERSION}-${PKG_ARCH}.tar.gz"
 wget -O /tmp/alpanel.tar.gz ${GH_PROXY}$PANEL_DOWNLOAD_URL
