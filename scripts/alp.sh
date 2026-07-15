@@ -589,7 +589,7 @@ case "${1:-}" in
     22)  set_password ;;
     31)  set_port ;;
     51)  install_nginx ;;
-    52)  install_php "$2" ;;
+    52)  install_php "${2:-}" ;;
     53)  install_mariadb ;;
     *)
         echo "未知命令: alp $1" >&2
