@@ -17,6 +17,7 @@ help() {
     echo "  alp 52     安装 PHP (可多版本, 如 alp 52 74)"
     echo "  alp 53     安装 MariaDB"
     echo "  alp 54     安装 Redis"
+    echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
     echo "  alp 0      取消"
 }
 
@@ -703,6 +704,55 @@ REDISINIT
     echo "启动: /etc/init.d/redis start"
 }
 
+uninstall() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "错误: 卸载需要 root 权限" >&2
+        exit 1
+    fi
+    echo "警告: 此操作将卸载 Alpanel 并删除以下内容, 且无法恢复:"
+    echo "  - 面板程序与配置 (/www/server/panel)"
+    echo "  - 已安装服务 Nginx / PHP / MariaDB / Redis (/www/server/*)"
+    echo "  - 网站根目录与日志 (/www/wwwroot, /www/wwwlogs)"
+    echo "  - 服务脚本与开机启动 (/etc/init.d/*, rc-update)"
+    echo "  - www 用户与用户组"
+    printf "确认卸载? 请输入 YES 继续: "
+    read -r confirm
+    [ "$confirm" = "YES" ] || { echo "已取消"; exit 0; }
+
+    echo "正在停止并移除服务..."
+    for svc in alpanel nginx mariadb redis $(ls /etc/init.d/ 2>/dev/null | grep -E '^php[0-9]+$' || true); do
+        if [ -x "/etc/init.d/$svc" ]; then
+            "/etc/init.d/$svc" stop 2>/dev/null || true
+            rc-update del "$svc" default 2>/dev/null || true
+        fi
+    done
+    pkill -x alpanel 2>/dev/null || true
+    pkill -x nginx 2>/dev/null || true
+    pkill -x mariadbd 2>/dev/null || true
+    pkill -x redis-server 2>/dev/null || true
+    pkill -f 'php-fpm' 2>/dev/null || true
+
+    echo "正在删除服务脚本与软链接..."
+    rm -f /etc/init.d/alpanel /etc/init.d/nginx /etc/init.d/mariadb /etc/init.d/redis
+    rm -f /etc/init.d/php[0-9][0-9] 2>/dev/null || true
+    rm -f /usr/bin/alp /usr/bin/nginx /usr/bin/mariadb /usr/bin/redis
+    rm -f /usr/bin/php[0-9][0-9] 2>/dev/null || true
+    rm -f /etc/php[0-9][0-9] 2>/dev/null || true
+
+    echo "正在删除 /www 目录..."
+    rm -rf /www
+
+    echo "正在删除 www 用户与用户组..."
+    deluser www 2>/dev/null || true
+    delgroup www 2>/dev/null || true
+
+    echo "================================"
+    echo " Alpanel 已卸载"
+    echo " 系统已恢复到安装面板之前的状态"
+    echo "================================"
+    echo "如需重新安装, 请重新运行 install.sh"
+}
+
 case "${1:-}" in
     "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -726,6 +776,7 @@ case "${1:-}" in
     52)  install_php "${2:-}" ;;
     53)  install_mariadb ;;
     54)  install_redis ;;
+    99)  uninstall ;;
     *)
         echo "未知命令: alp $1" >&2
         help
