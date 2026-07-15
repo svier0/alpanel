@@ -14,10 +14,10 @@
       <template v-if="activeTab === 'mysql'">
         <div class="toolbar-row">
           <div class="toolbar-left">
-            <el-button size="small" type="primary" class="tb-btn" @click="showAddDbDialog">
+            <el-button size="small" type="primary" @click="showAddDbDialog">
               <el-icon><Plus /></el-icon>添加数据库
             </el-button>
-            <el-button size="small" class="tb-btn" @click="openRootPw">
+            <el-button size="small" @click="openRootPw">
               <el-icon><Key /></el-icon>root密码
             </el-button>
           </div>
@@ -107,17 +107,16 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="rootPwDialog.visible" title="root 密码" width="420px" append-to-body>
-      <el-form label-width="80px">
-        <el-form-item label="当前密码">
-          <el-input v-model="rootPwDialog.password" readonly>
+    <el-dialog v-model="rootPwDialog.visible" title="修改root密码" width="420px" append-to-body>
+      <el-form label-width="90px">
+        <el-form-item label="root密码" required>
+          <el-input v-model="rootPwDialog.password" placeholder="请输入或生成 root 密码">
             <template #append>
-              <el-button @click="copyText(rootPwDialog.password)">复制</el-button>
+              <el-button @click="genRootPw" title="随机生成">
+                <el-icon><Refresh /></el-icon>
+              </el-button>
             </template>
           </el-input>
-        </el-form-item>
-        <el-form-item label="修改密码">
-          <el-input v-model="rootPwDialog.newPassword" placeholder="输入新密码" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -131,7 +130,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Search, RefreshRight, Key } from '@element-plus/icons-vue'
+import { Plus, Search, RefreshRight, Key, Refresh } from '@element-plus/icons-vue'
 
 const tabs = [
   { key: 'mysql', label: 'MySQL' },
@@ -215,25 +214,28 @@ function handleAddDb() {
 
 const rootPwDialog = reactive({
   visible: false,
-  password: 'Alpanel@Root2024',
-  newPassword: '',
+  password: '',
 })
 
+function genRootPw() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let s = ''
+  for (let i = 0; i < 16; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  rootPwDialog.password = s
+}
+
 function openRootPw() {
-  rootPwDialog.newPassword = ''
+  genRootPw()
   rootPwDialog.visible = true
 }
 
 function handleChangeRootPw() {
+  if (!rootPwDialog.password) {
+    ElMessage.warning('请输入 root 密码')
+    return
+  }
   rootPwDialog.visible = false
   ElMessage.success('root 密码已修改（演示）')
-}
-
-function copyText(text: string) {
-  navigator.clipboard?.writeText(text).then(
-    () => ElMessage.success('已复制'),
-    () => ElMessage.error('复制失败')
-  )
 }
 </script>
 
@@ -294,10 +296,6 @@ function copyText(text: string) {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-.tb-btn {
-  min-width: 108px;
-  justify-content: center;
 }
 .toolbar-right {
   display: flex;
