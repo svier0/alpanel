@@ -5,8 +5,8 @@ use axum::{Json};
 
 use crate::dto::file_dto::{
     DirSizeQuery, DirSizeResponse, FileActionResponse, FileCopyRequest, FileCreateRequest,
-    FileDeleteRequest, FileDownloadRequest, FileListQuery, FileListResponse, FileReadQuery,
-    FileReadResponse, FileRenameRequest, FileWriteRequest,
+    FileDeleteRequest, FileDownloadRequest, FileListQuery, FileListResponse, FilePsRequest,
+    FileReadQuery, FileReadResponse, FileRenameRequest, FileWriteRequest,
 };
 use crate::errors::{AppError, AppResult};
 use crate::middleware::auth::check_auth;
@@ -100,6 +100,15 @@ pub async fn download(
 ) -> AppResult<Json<FileActionResponse>> {
     check_auth(&headers)?;
     let res = file_service::download_file(&body.url, &body.path)?;
+    Ok(Json(res))
+}
+
+pub async fn save_ps(
+    headers: HeaderMap,
+    Json(body): Json<FilePsRequest>,
+) -> AppResult<Json<FileActionResponse>> {
+    check_auth(&headers)?;
+    let res = file_service::save_file_ps(&body.path, &body.ps)?;
     Ok(Json(res))
 }
 

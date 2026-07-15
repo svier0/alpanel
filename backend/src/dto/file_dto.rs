@@ -15,6 +15,7 @@ pub struct FileItem {
     pub mode: String,
     pub owner: String,
     pub modified: u64,
+    pub ps: String,
 }
 
 #[derive(Serialize)]
@@ -87,4 +88,10 @@ pub struct FileCopyRequest {
 pub struct FileDownloadRequest {
     pub url: String,
     pub path: String,
+}
+
+#[derive(Deserialize)]
+pub struct FilePsRequest {
+    pub path: String,
+    pub ps: String,
 }
