@@ -14,10 +14,10 @@
       <template v-if="activeTab === 'mysql'">
         <div class="toolbar-row">
           <div class="toolbar-left">
-            <el-button size="small" type="primary" @click="showAddDbDialog">
+            <el-button size="small" type="primary" class="tb-btn" @click="showAddDbDialog">
               <el-icon><Plus /></el-icon>添加数据库
             </el-button>
-            <el-button size="small" @click="openRootPw">
+            <el-button size="small" class="tb-btn" @click="openRootPw">
               <el-icon><Key /></el-icon>root密码
             </el-button>
           </div>
@@ -294,6 +294,10 @@ function copyText(text: string) {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.tb-btn {
+  min-width: 108px;
+  justify-content: center;
 }
 .toolbar-right {
   display: flex;
