@@ -373,8 +373,6 @@ install_php() {
         echo "extension_dir = $lib_dir/php$ver/modules" >> "$conf_dir/php.ini"
     fi
 
-    ln -sf "$conf_dir" "/etc/php$ver"
-
     cat > "$conf_dir/php-fpm.conf" << 'EOF'
 [global]
 pid = VERRUN/php-fpm.pid
@@ -737,7 +735,6 @@ uninstall() {
     rm -f /etc/init.d/php[0-9][0-9] 2>/dev/null || true
     rm -f /usr/bin/alp /usr/bin/nginx /usr/bin/mariadb /usr/bin/redis
     rm -f /usr/bin/php[0-9][0-9] 2>/dev/null || true
-    rm -f /etc/php[0-9][0-9] 2>/dev/null || true
 
     echo "正在删除 /www 目录..."
     rm -rf /www
