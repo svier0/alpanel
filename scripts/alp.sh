@@ -278,19 +278,22 @@ install_php() {
         exit 1
     fi
     if [ -z "$ver" ]; then
+        set -- $versions
         echo "请指定要安装的 PHP 版本:"
         echo ""
         echo "  支持版本: $versions"
         echo ""
-        echo "  用法: alp 52 74"
-        echo "        alp 52 82"
+        if [ -n "${1:-}" ]; then
+            echo "  用法: alp 52 $1"
+            [ -n "${2:-}" ] && echo "        alp 52 $2"
+        fi
         exit 0
     fi
     case " $versions " in
         *" $ver "*) ;;
         *)
             echo "错误: 不支持的 PHP 版本: $ver (支持的: $versions)" >&2
-            echo "用法: alp 52 74" >&2
+            echo "用法: alp 52 <版本>" >&2
             exit 1
             ;;
     esac
