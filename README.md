@@ -7,13 +7,13 @@ Developed using Rust.
 ## Install
 
 ```bash
-sudo wget -O install.sh https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && sudo bash install.sh
+wget -O install.sh https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && bash install.sh
 ```
 
 For users in China:
 
 ```bash
-sudo wget -O install.sh https://gh-proxy.com/https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && sudo bash install.sh
+wget -O install.sh https://gh-proxy.com/https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && bash install.sh
 ```
 
 ## Structure
