@@ -481,6 +481,11 @@ MARIADBWRAP
         [ -d "$d" ] && cp -r "$d/." "$lib_dir/" 2>/dev/null || true
     done
 
+    if [ -d "$ext_dir/usr/share/mariadb" ]; then
+        mkdir -p "$mariadb_dir/share"
+        cp -r "$ext_dir/usr/share/mariadb/." "$mariadb_dir/share/mariadb/" 2>/dev/null || true
+    fi
+
     if [ -d "$ext_dir/etc/mysql" ]; then
         cp -r "$ext_dir/etc/mysql/." "$conf_dir/"
     fi
@@ -503,7 +508,8 @@ EOF
     if [ ! -d "$data_dir/mysql" ]; then
         echo "正在初始化数据库..."
         export LD_LIBRARY_PATH="$lib_dir"
-        "$bin_dir/mariadbd" --defaults-file="$conf_dir/my.cnf" --initialize-insecure --user=root >/dev/null 2>&1 || {
+        "$bin_dir/mariadb-install-db" --defaults-file="$conf_dir/my.cnf" \
+            --user=root --datadir="$data_dir" --basedir="$mariadb_dir" >/dev/null 2>&1 || {
             echo "错误: 数据库初始化失败" >&2
             rm -rf "$dl_dir" "$ext_dir"
             exit 1
