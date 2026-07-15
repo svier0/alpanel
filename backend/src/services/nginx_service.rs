@@ -2,13 +2,13 @@ use crate::errors::{AppError, AppResult};
 
 const PID_FILE: &str = "/www/server/nginx/run/nginx.pid";
 const NGINX_BIN: &str = "/www/server/nginx/sbin/nginx";
-const NGINX_CONF: &str = "/www/server/nginx/conf/nginx.conf";
+const INIT_SCRIPT: &str = "/etc/init.d/nginx";
 
-fn ssd(args: &[&str]) -> std::process::Output {
-    std::process::Command::new("start-stop-daemon")
-        .args(args)
+fn init_d(action: &str) -> std::process::Output {
+    std::process::Command::new(INIT_SCRIPT)
+        .arg(action)
         .output()
-        .expect("start-stop-daemon failed to run")
+        .expect("/etc/init.d/nginx failed to run")
 }
 
 fn pid_alive(pid: i32) -> bool {
@@ -45,35 +45,23 @@ fn last_error() -> String {
 }
 
 pub fn start() -> AppResult<String> {
-    let _ = std::fs::remove_file(PID_FILE);
-    let out = ssd(&[
-        "--start", "--background", "--make-pidfile",
-        "--pidfile", PID_FILE,
-        "--env", "LD_LIBRARY_PATH=/www/server/nginx/lib",
-        "--exec", NGINX_BIN, "--",
-        "-e", "/www/wwwlogs/nginx_error.log",
-        "-c", NGINX_CONF,
-    ]);
-    if out.status.success() {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        if check_running() {
-            Ok("Nginx 已启动".to_string())
-        } else {
-            Err(AppError::Internal(format!("Nginx 启动失败: {}", last_error())))
-        }
+    let out = init_d("start");
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    if check_running() {
+        Ok("Nginx 已启动".to_string())
     } else {
         let msg = String::from_utf8_lossy(&out.stderr);
-        Err(AppError::Internal(format!("Nginx 启动失败: {}", msg)))
+        let detail = if msg.trim().is_empty() { last_error() } else { msg.trim().to_string() };
+        Err(AppError::Internal(format!("Nginx 启动失败: {}", detail)))
     }
 }
 
 pub fn stop() -> AppResult<String> {
-    let out = ssd(&["--stop", "--pidfile", PID_FILE, "--retry", "QUIT/5"]);
+    let _ = init_d("stop");
     std::thread::sleep(std::time::Duration::from_millis(500));
     if check_running() {
         Err(AppError::Internal("Nginx 停止失败".to_string()))
     } else {
-        let _ = std::fs::remove_file(PID_FILE);
         Ok("Nginx 已停止".to_string())
     }
 }
@@ -84,20 +72,10 @@ pub fn restart() -> AppResult<String> {
 }
 
 pub fn reload() -> AppResult<String> {
-    let pid_path = std::path::Path::new(PID_FILE);
-    if !pid_path.exists() {
+    if !check_running() {
         return Err(AppError::Internal("Nginx 未运行，无法重载".to_string()));
     }
-    let s = std::fs::read_to_string(pid_path).map_err(|_| AppError::Internal("无法读取 pid 文件".to_string()))?;
-    let pid: i32 = s.trim().parse().map_err(|_| AppError::Internal("pid 文件格式错误".to_string()))?;
-    if !pid_alive(pid) {
-        let _ = std::fs::remove_file(PID_FILE);
-        return Err(AppError::Internal("Nginx 未运行，无法重载".to_string()));
-    }
-    let out = std::process::Command::new("kill")
-        .args(["-HUP", &pid.to_string()])
-        .output()
-        .map_err(|e| AppError::Internal(format!("重载失败: {}", e)))?;
+    let out = init_d("reload");
     if out.status.success() {
         Ok("Nginx 已重载".to_string())
     } else {
