@@ -64,9 +64,8 @@ tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/
 chmod +x /www/server/panel/alpanel
 rm -f /tmp/alpanel.tar.gz
 
-wget -O /etc/init.d/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
-chmod +x /etc/init.d/alp
-ln -sf /etc/init.d/alp /usr/bin/alp
+wget -O /usr/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
+chmod +x /usr/bin/alp
 
 ENV_FILE="/www/server/panel/.env"
 PANEL_PORT=$(shuf -i 10000-65535 -n 1)
@@ -85,11 +84,29 @@ if ! command -v openrc > /dev/null 2>&1; then
     apk add openrc
 fi
 
-rc-update add alp default 2>/dev/null || true
+cat > /etc/init.d/alpanel << 'EOF'
+#!/sbin/openrc-run
 
-rc-service alp start
+name="Alpanel"
+description="Alpanel server management panel"
 
-rc-service alp start 2>/dev/null || /etc/init.d/alp start
+start() {
+    ebegin "Starting ${name}"
+    /usr/bin/alp 11
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping ${name}"
+    /usr/bin/alp 12
+    eend $?
+}
+EOF
+chmod +x /etc/init.d/alpanel
+
+rc-update add alpanel default 2>/dev/null || true
+
+alp 11
 
 echo "================================"
 echo " Alpanel 安装完成"
