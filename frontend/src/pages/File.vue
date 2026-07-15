@@ -182,6 +182,7 @@
           <div class="ctx-item" @click="ctxDelete(ctxMenu.filePath!, ctxMenu.fileName!)">删除</div>
           <div class="ctx-divider" />
           <div class="ctx-item disabled">创建压缩</div>
+          <div v-if="ctxMenu.fileName?.endsWith('.tar.gz')" class="ctx-item" @click="openExtractDialog(ctxMenu.filePath!, ctxMenu.fileName!)">解压</div>
           <div class="ctx-divider" />
           <div class="ctx-item disabled">属性</div>
         </template>
@@ -224,6 +225,72 @@
       <template #footer>
         <el-button @click="downloadDialog.visible = false">取消</el-button>
         <el-button type="primary" @click="handleDownload" :loading="downloadDialog.loading">下载</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="compressDialog.visible" title="压缩文件" width="500px" append-to-body>
+      <el-form label-width="80px">
+        <el-form-item label="压缩类型">
+          <el-select v-model="compressDialog.type" style="width:100%">
+            <el-option label="tar.gz(推荐)" value="tar.gz" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="压缩路径">
+          <div style="display:flex;gap:4px;width:100%">
+            <el-input v-model="compressDialog.path" readonly />
+            <el-button @click="openCompressDirPicker">浏览</el-button>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="compressDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="handleCompress" :loading="compressDialog.loading">压缩</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="extractDialog.visible" :title="`解压文件[${extractDialog.fileName}]`" width="500px" append-to-body>
+      <el-form label-width="80px">
+        <el-form-item label="文件名">
+          <el-input :model-value="extractDialog.fileName" readonly />
+        </el-form-item>
+        <el-form-item label="解压到">
+          <div style="display:flex;gap:4px;width:100%">
+            <el-input v-model="extractDialog.dest" />
+            <el-button @click="openExtractDirPicker">浏览</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="解压密码">
+          <el-input v-model="extractDialog.password" placeholder="无密码则留空" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="extractDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="handleExtract" :loading="extractDialog.loading">解压</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="dirPicker.visible" title="选择目录" width="500px" append-to-body>
+      <div style="margin-bottom:8px;color:var(--el-text-color-secondary);font-size:12px">{{ dirPicker.currentPath }}</div>
+      <div style="display:flex;gap:4px;margin-bottom:8px">
+        <el-input v-model="dirPicker.newDir" placeholder="新建子目录名称" size="small" @keyup.enter="createDir" />
+        <el-button size="small" type="primary" @click="createDir" :loading="dirPicker.creating">新建</el-button>
+      </div>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--el-border-color-lighter);border-radius:4px">
+        <div
+          v-for="item in dirPicker.items"
+          :key="item.path"
+          style="padding:6px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px"
+          @click="enterDir(item)"
+        >
+          <span style="color:#e6a23c">📁</span>
+          <span>{{ item.name }}</span>
+        </div>
+        <div v-if="dirPicker.items.length === 0" style="padding:12px;color:var(--el-text-color-secondary);font-size:12px;text-align:center">无子目录</div>
+      </div>
+      <template #footer>
+        <el-button @click="dirPickerGoUp">返回上级</el-button>
+        <el-button @click="dirPicker.visible = false">取消</el-button>
+        <el-button type="primary" @click="dirPickerConfirm">选择当前目录</el-button>
       </template>
     </el-dialog>
   </div>
@@ -457,7 +524,7 @@ function toolbarCut(tab: BrowserTab) {
 function handleToolbar(cmd: string, tab: BrowserTab) {
   if (cmd === 'copy') toolbarCopy(tab)
   else if (cmd === 'cut') toolbarCut(tab)
-  else if (cmd === 'compress') ElMessage.info('压缩功能开发中')
+  else if (cmd === 'compress') openCompressDialog(tab)
   else if (cmd === 'chmod') ElMessage.info('权限功能开发中')
   else if (cmd === 'delete') confirmDelete(tab)
 }
@@ -680,6 +747,33 @@ const downloadDialog = reactive({
   url: '',
   path: '',
   loading: false,
+})
+
+const compressDialog = reactive({
+  visible: false,
+  type: 'tar.gz',
+  path: '',
+  loading: false,
+  tab: null as BrowserTab | null,
+})
+
+const extractDialog = reactive({
+  visible: false,
+  filePath: '',
+  fileName: '',
+  dest: '',
+  password: '',
+  loading: false,
+})
+
+const dirPicker = reactive({
+  visible: false,
+  currentPath: '/www/',
+  parentPath: '',
+  items: [] as { name: string; path: string; is_dir: boolean }[],
+  newDir: '',
+  creating: false,
+  _callback: '' as string,
 })
 
 
@@ -909,6 +1003,140 @@ async function handleDelete() {
     fetchTabList(tab)
   } catch (e: any) {
     ElMessage.error(e?.message || '删除失败')
+  }
+}
+
+function genRandomSuffix(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+function openCompressDialog(tab: BrowserTab) {
+  if (!tab.selectedRows.length) return
+  const names = tab.selectedRows.map(r => r.name)
+  const dirName = names.length === 1 ? names[0] : tab.path.split('/').filter(Boolean).pop() || 'archive'
+  const suffix = genRandomSuffix()
+  compressDialog.type = 'tar.gz'
+  compressDialog.path = `${tab.path}/${dirName}_${suffix}.tar.gz`
+  compressDialog.tab = tab
+  compressDialog.visible = true
+}
+
+async function handleCompress() {
+  const tab = compressDialog.tab
+  if (!tab || !compressDialog.path) return
+  compressDialog.loading = true
+  try {
+    const paths = tab.selectedRows.map(r => r.path)
+    await apiFetch('/api/files/compress', {
+      method: 'POST',
+      body: JSON.stringify({ paths, dest: compressDialog.path, type: compressDialog.type }),
+    })
+    ElMessage.success('压缩任务已提交')
+    compressDialog.visible = false
+    fetchTabList(tab)
+  } catch (e: any) {
+    ElMessage.error(e?.message || '压缩失败')
+  } finally {
+    compressDialog.loading = false
+  }
+}
+
+function openExtractDialog(filePath: string, fileName: string) {
+  extractDialog.filePath = filePath
+  extractDialog.fileName = fileName
+  const parts = filePath.split('/')
+  parts.pop()
+  extractDialog.dest = parts.join('/') || '/'
+  extractDialog.password = ''
+  extractDialog.visible = true
+}
+
+function openExtractDirPicker() {
+  dirPicker.currentPath = extractDialog.dest || '/'
+  fetchDirs(dirPicker.currentPath)
+  dirPicker.visible = true
+  dirPicker._callback = 'extract'
+}
+
+async function handleExtract() {
+  if (!extractDialog.filePath || !extractDialog.dest) return
+  extractDialog.loading = true
+  try {
+    await apiFetch('/api/files/extract', {
+      method: 'POST',
+      body: JSON.stringify({
+        path: extractDialog.filePath,
+        dest: extractDialog.dest,
+        password: extractDialog.password || undefined,
+      }),
+    })
+    ElMessage.success('解压完成')
+    extractDialog.visible = false
+    const tab = tabs.value.find(t => t.id === activeTab.value && t.type === 'browser') as BrowserTab | undefined
+    if (tab) fetchTabList(tab)
+  } catch (e: any) {
+    ElMessage.error(e?.message || '解压失败')
+  } finally {
+    extractDialog.loading = false
+  }
+}
+
+async function fetchDirs(path: string) {
+  try {
+    const data = await apiFetch('/api/files/list?path=' + encodeURIComponent(path))
+    dirPicker.items = (data.items || []).filter((i: any) => i.is_dir)
+    dirPicker.currentPath = data.path
+    dirPicker.parentPath = data.parent || ''
+  } catch {}
+}
+
+function openCompressDirPicker() {
+  const parts = compressDialog.path.split('/')
+  parts.pop()
+  dirPicker.currentPath = parts.join('/') || '/'
+  fetchDirs(dirPicker.currentPath)
+  dirPicker.visible = true
+}
+
+function enterDir(item: { name: string; path: string; is_dir: boolean }) {
+  if (item.is_dir) fetchDirs(item.path)
+}
+
+function dirPickerGoUp() {
+  if (dirPicker.parentPath) fetchDirs(dirPicker.parentPath)
+}
+
+function dirPickerConfirm() {
+  const dir = dirPicker.currentPath.endsWith('/') ? dirPicker.currentPath : dirPicker.currentPath + '/'
+  if (dirPicker._callback === 'extract') {
+    extractDialog.dest = dir
+  } else {
+    const oldParts = compressDialog.path.split('/')
+    const fileName = oldParts.pop() || 'archive.tar.gz'
+    compressDialog.path = dir + fileName
+  }
+  dirPicker.visible = false
+}
+
+async function createDir() {
+  const name = dirPicker.newDir.trim()
+  if (!name) return
+  dirPicker.creating = true
+  try {
+    const p = dirPicker.currentPath.endsWith('/') ? dirPicker.currentPath + name : dirPicker.currentPath + '/' + name
+    await apiFetch('/api/files/create', {
+      method: 'POST',
+      body: JSON.stringify({ path: p, type: 'dir' }),
+    })
+    dirPicker.newDir = ''
+    await fetchDirs(dirPicker.currentPath)
+  } finally {
+    dirPicker.creating = false
   }
 }
 

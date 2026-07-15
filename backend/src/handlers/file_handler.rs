@@ -4,9 +4,10 @@ use axum::http::{HeaderMap, Response, StatusCode};
 use axum::{Json};
 
 use crate::dto::file_dto::{
-    DirSizeQuery, DirSizeResponse, FileActionResponse, FileCopyRequest, FileCreateRequest,
-    FileDeleteRequest, FileDownloadRequest, FileListQuery, FileListResponse, FilePsRequest,
-    FileReadQuery, FileReadResponse, FileRenameRequest, FileWriteRequest,
+    DirSizeQuery, DirSizeResponse, FileActionResponse, FileCompressRequest, FileCopyRequest,
+    FileCreateRequest, FileDeleteRequest, FileDownloadRequest, FileExtractRequest, FileListQuery,
+    FileListResponse, FilePsRequest, FileReadQuery, FileReadResponse, FileRenameRequest,
+    FileWriteRequest,
 };
 use crate::errors::{AppError, AppResult};
 use crate::middleware::auth::check_auth;
@@ -109,6 +110,24 @@ pub async fn save_ps(
 ) -> AppResult<Json<FileActionResponse>> {
     check_auth(&headers)?;
     let res = file_service::save_file_ps(&body.path, &body.ps)?;
+    Ok(Json(res))
+}
+
+pub async fn compress(
+    headers: HeaderMap,
+    Json(body): Json<FileCompressRequest>,
+) -> AppResult<Json<FileActionResponse>> {
+    check_auth(&headers)?;
+    let res = file_service::compress_files(&body.paths, &body.dest)?;
+    Ok(Json(res))
+}
+
+pub async fn extract(
+    headers: HeaderMap,
+    Json(body): Json<FileExtractRequest>,
+) -> AppResult<Json<FileActionResponse>> {
+    check_auth(&headers)?;
+    let res = file_service::extract_file(&body.path, &body.dest, body.password.as_deref())?;
     Ok(Json(res))
 }
 

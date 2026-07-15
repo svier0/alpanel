@@ -519,3 +519,92 @@ pub fn download_file(url: &str, dest_dir: &str) -> AppResult<FileActionResponse>
         message: "Download started".to_string(),
     })
 }
+
+pub fn compress_files(paths: &[String], dest: &str) -> AppResult<FileActionResponse> {
+    let dest_path = sanitize_path(dest)?;
+
+    if let Some(parent) = dest_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                AppError::BadRequest(format!("Cannot create parent: {}", e))
+            })?;
+        }
+    }
+
+    let dest_fwd = to_fwd(&dest_path);
+
+    let mut cmd = std::process::Command::new("tar");
+    cmd.arg("-czf").arg(&dest_fwd);
+
+    for path_str in paths {
+        let path = sanitize_path(path_str)?;
+        if !path.exists() {
+            continue;
+        }
+        cmd.arg("-C").arg(to_fwd(path.parent().unwrap_or(Path::new("/"))))
+           .arg(path.file_name().unwrap_or_default());
+    }
+
+    let output = cmd.output().map_err(|e| {
+        AppError::BadRequest(format!("tar command failed: {}", e))
+    })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::BadRequest(format!(
+            "Compression failed: {}",
+            stderr.trim()
+        )));
+    }
+
+    Ok(FileActionResponse {
+        success: true,
+        message: "Compressed".to_string(),
+    })
+}
+
+pub fn extract_file(path: &str, dest: &str, password: Option<&str>) -> AppResult<FileActionResponse> {
+    let src_path = sanitize_path(path)?;
+    let dest_path = sanitize_path(dest)?;
+
+    if !src_path.exists() {
+        return Err(AppError::NotFound(format!("File not found: {}", path)));
+    }
+
+    if !dest_path.exists() {
+        std::fs::create_dir_all(&dest_path).map_err(|e| {
+            AppError::BadRequest(format!("Cannot create dest: {}", e))
+        })?;
+    }
+
+    let src_fwd = to_fwd(&src_path);
+    let dest_fwd = to_fwd(&dest_path);
+
+    let mut args = vec!["-xzf".to_string(), src_fwd, "-C".to_string(), dest_fwd];
+
+    if let Some(pw) = password {
+        if !pw.is_empty() {
+            args.insert(0, format!("--password={}", pw));
+            args.insert(0, "--use-compress-program".to_string());
+            args.insert(0, "tar".to_string());
+        }
+    }
+
+    let output = std::process::Command::new("tar")
+        .args(&args)
+        .output()
+        .map_err(|e| AppError::BadRequest(format!("tar command failed: {}", e)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::BadRequest(format!(
+            "Extraction failed: {}",
+            stderr.trim()
+        )));
+    }
+
+    Ok(FileActionResponse {
+        success: true,
+        message: "Extracted".to_string(),
+    })
+}

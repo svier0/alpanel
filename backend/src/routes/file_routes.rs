@@ -16,4 +16,6 @@ pub fn routes() -> Router<()> {
         .route("/api/files/download", post(file_handler::download))
         .route("/api/files/stream", get(file_handler::stream_download))
         .route("/api/files/ps", post(file_handler::save_ps))
+        .route("/api/files/compress", post(file_handler::compress))
+        .route("/api/files/extract", post(file_handler::extract))
 }
