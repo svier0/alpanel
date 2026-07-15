@@ -58,6 +58,10 @@ mkdir -p ${setup_path}/server/panel/data
 mkdir -p ${setup_path}/server/panel/data/db
 mkdir -p ${setup_path}/server/panel/data/files_ps
 
+addgroup -S www 2>/dev/null || true
+adduser -D -H -S -G www -s /sbin/nologin www 2>/dev/null || true
+chown -R www:www ${setup_path}/wwwroot ${setup_path}/wwwlogs 2>/dev/null || true
+
 PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alpanel-${VERSION}-${PKG_ARCH}.tar.gz"
 wget -O /tmp/alpanel.tar.gz ${GH_PROXY}$PANEL_DOWNLOAD_URL
 tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/
