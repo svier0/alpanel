@@ -309,6 +309,8 @@ install_php() {
 
     mkdir -p "$bin_dir" "$lib_dir" "$conf_dir" "$run_dir" "$log_dir"
 
+    adduser -D -H -s /sbin/nologin www 2>/dev/null || true
+
     dl_dir=$(mktemp -d)
     ext_dir=$(mktemp -d)
 
@@ -347,13 +349,23 @@ PHWRAP
         [ -d "$d" ] && cp -r "$d/." "$lib_dir/" 2>/dev/null || true
     done
 
+    if [ -d "$ext_dir/usr/lib/php$ver" ]; then
+        cp -r "$ext_dir/usr/lib/php$ver" "$lib_dir/" 2>/dev/null || true
+    fi
+
     if [ -d "$ext_dir/etc/php$ver" ]; then
         cp -r "$ext_dir/etc/php$ver/." "$conf_dir/"
     fi
 
+    if [ -f "$conf_dir/php.ini" ]; then
+        echo "extension_dir = $lib_dir/php$ver/modules" >> "$conf_dir/php.ini"
+    fi
+
+    ln -sf "$conf_dir" "/etc/php$ver"
+
     cat > "$conf_dir/php-fpm.conf" << 'EOF'
 [global]
-pid = /www/server/php/VERRUN/php-fpm.pid
+pid = VERRUN/php-fpm.pid
 error_log = /www/wwwlogs/php-fpmVER.log
 include=/www/server/php/VER/conf/php-fpm.d/*.conf
 EOF
@@ -362,11 +374,11 @@ EOF
     mkdir -p "$conf_dir/php-fpm.d"
     cat > "$conf_dir/php-fpm.d/www.conf" << 'EOF'
 [www]
-user = root
-group = root
-listen = /www/server/php/VERRUN/php-fpmVER.sock
-listen.owner = root
-listen.group = root
+user = www
+group = www
+listen = /www/server/php/VER/run/php-fpmVER.sock
+listen.owner = www
+listen.group = www
 pm = dynamic
 pm.max_children = 5
 pm.start_servers = 2
