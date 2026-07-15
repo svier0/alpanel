@@ -46,20 +46,36 @@
           <el-button size="small" @click="refreshTab(tab)">刷新</el-button>
           <el-button size="small" @click="openCreate(tab, false)">新建文件</el-button>
           <el-button size="small" @click="openCreate(tab, true)">新建目录</el-button>
-          <el-button size="small" :disabled="!tab.selectedFile" @click="openRename(tab)">重命名</el-button>
-          <el-button size="small" :disabled="!tab.selectedFile" type="danger" @click="confirmDelete(tab)">删除</el-button>
+          <el-dropdown v-if="tab.selectedRows.length" @command="(cmd: string) => handleToolbar(cmd, tab)">
+            <el-button size="small">
+              更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="copy">复制</el-dropdown-item>
+                <el-dropdown-item command="cut">剪切</el-dropdown-item>
+                <el-dropdown-item command="compress">压缩</el-dropdown-item>
+                <el-dropdown-item command="chmod">权限</el-dropdown-item>
+                <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button v-if="clipboard.paths.length" size="small" type="warning" @click="toolbarPaste(tab)">粘贴</el-button>
         </div>
         <el-table
           v-loading="tab.loading"
           :data="tab.files"
+          ref="fileTableRef"
 
           highlight-current-row
           @current-change="(row: FileItem | null) => tab.selectedFile = row"
+          @selection-change="(rows: FileItem[]) => tab.selectedRows = rows"
           size="small"
           class="file-table"
           empty-text="暂无文件"
           :cell-style="{ padding: '4px 0' }"
         >
+          <el-table-column type="selection" width="40" />
           <el-table-column label="名称" width="300" :show-overflow-tooltip="true">
             <template #default="{ row }">
               <div v-if="renamingPath === row.path" class="rename-inline">
@@ -185,8 +201,11 @@
     </el-dialog>
 
     <el-dialog v-model="deleteDialog.visible" title="确认删除" width="400px" append-to-body>
-      <p>确定要删除 <strong>{{ deleteDialog.name }}</strong> 吗？</p>
-      <p v-if="deleteDialog.isDir" style="color:#e6a23c;font-size:12px;margin-top:4px">目录将递归删除所有内容，此操作不可恢复。</p>
+      <p>确定要删除选中的 <strong>{{ deleteDialog.items.length }}</strong> 个文件/目录吗？</p>
+      <p style="font-size:12px;color:var(--el-text-color-secondary);margin-top:4px;max-height:120px;overflow-y:auto;">
+        {{ deleteDialog.items.map(i => i.name).join('、') }}
+      </p>
+      <p v-if="deleteDialog.items.some(i => i.is_dir)" style="color:#e6a23c;font-size:12px;margin-top:4px">目录将递归删除所有内容，此操作不可恢复。</p>
       <template #footer>
         <el-button @click="deleteDialog.visible = false">取消</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
@@ -214,7 +233,7 @@
 import { ref, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading } from '@element-plus/icons-vue'
+import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading, ArrowDown } from '@element-plus/icons-vue'
 import { apiFetch, authHeaders, checkRes401 } from '@/utils/api'
 
 interface FileItem {
@@ -252,6 +271,7 @@ interface BrowserTab {
   files: FileItem[]
   loading: boolean
   selectedFile: FileItem | null
+  selectedRows: FileItem[]
 }
 
 interface EditorTab {
@@ -273,6 +293,7 @@ const route = useRoute()
 const renamingPath = ref('')
 const renamingValue = ref('')
 const renamingTab = ref<BrowserTab | null>(null)
+const fileTableRef = ref()
 
 const ctxMenu = reactive({
   visible: false,
@@ -322,7 +343,7 @@ function restoreTabs() {
       if (st.type === 'editor') {
         return { id: st.id, title: st.title, type: 'editor' as const, path: st.path, content: st.content || '', original: st.original || '', saving: false }
       }
-      return { id: st.id, title: st.title, type: 'browser' as const, path: st.path, files: [], loading: false, selectedFile: null }
+      return { id: st.id, title: st.title, type: 'browser' as const, path: st.path, files: [], loading: false, selectedFile: null, selectedRows: [] }
     })
     // fetch data first, then assign to tabs.value so Vue tracks from the start
     const browserTabs = rest.filter((t): t is BrowserTab => t.type === 'browser')
@@ -373,7 +394,15 @@ function onBrowserContextMenu(e: MouseEvent, tab: BrowserTab) {
     const rows = tableEl ? Array.from(tableEl.querySelectorAll('.el-table__row')) : []
     const idx = rows.indexOf(rowEl)
     if (idx >= 0 && idx < tab.files.length) {
-      onRowContextMenu(e, tab, tab.files[idx])
+      const row = tab.files[idx]
+      try {
+        const table = fileTableRef.value?.[0]
+        if (table) {
+          table.clearSelection()
+          table.toggleRowSelection(row, true)
+        }
+      } catch {}
+      onRowContextMenu(e, tab, row)
       return
     }
   }
@@ -411,6 +440,65 @@ function ctxCopy(path: string) {
 function ctxCut(path: string) {
   clipboard.paths = [path]
   clipboard.cut = true
+}
+
+function toolbarCopy(tab: BrowserTab) {
+  clipboard.paths = tab.selectedRows.map(r => r.path)
+  clipboard.cut = false
+  ElMessage.success(`已复制 ${clipboard.paths.length} 项`)
+}
+
+function toolbarCut(tab: BrowserTab) {
+  clipboard.paths = tab.selectedRows.map(r => r.path)
+  clipboard.cut = true
+  ElMessage.success(`已剪切 ${clipboard.paths.length} 项`)
+}
+
+function handleToolbar(cmd: string, tab: BrowserTab) {
+  if (cmd === 'copy') toolbarCopy(tab)
+  else if (cmd === 'cut') toolbarCut(tab)
+  else if (cmd === 'compress') ElMessage.info('压缩功能开发中')
+  else if (cmd === 'chmod') ElMessage.info('权限功能开发中')
+  else if (cmd === 'delete') confirmDelete(tab)
+}
+
+async function toolbarPaste(tab: BrowserTab) {
+  if (!clipboard.paths.length) return
+  for (const src of clipboard.paths) {
+    const name = src.split('/').filter(Boolean).pop() || src
+    let destDir = tab.path
+    let destName = name
+
+    if (src === (destDir === '/' ? `/${name}` : `${destDir}/${name}`)) {
+      const dot = name.lastIndexOf('.')
+      if (dot > 0) {
+        destName = name.substring(0, dot) + '(1)' + name.substring(dot)
+      } else {
+        destName = name + '(1)'
+      }
+    }
+
+    const dest = destDir === '/' ? `/${destName}` : `${destDir}/${destName}`
+
+    try {
+      if (clipboard.cut) {
+        await apiFetch('/api/files/rename', {
+          method: 'POST',
+          body: JSON.stringify({ path: src, new_name: destName }),
+        })
+      } else {
+        await apiFetch('/api/files/copy', {
+          method: 'POST',
+          body: JSON.stringify({ src, dest }),
+        })
+      }
+    } catch (e: any) {
+      ElMessage.error(e?.message || '操作失败')
+    }
+  }
+  clipboard.paths = []
+  clipboard.cut = false
+  fetchTabList(tab)
 }
 
 async function ctxPaste() {
@@ -465,9 +553,7 @@ function ctxRename(path: string) {
 
 function ctxDelete(path: string, name: string) {
   if (!ctxMenu.tab) return
-  deleteDialog.name = name
-  deleteDialog.isDir = ctxMenu.type === 'dir'
-  deleteDialog.path = path
+  deleteDialog.items = [{ name, path, is_dir: ctxMenu.type === 'dir' }]
   deleteDialog.targetTab = ctxMenu.tab
   deleteDialog.visible = true
 }
@@ -511,6 +597,7 @@ function openInNewTab(path: string) {
     files: [],
     loading: false,
     selectedFile: null,
+    selectedRows: [],
   })
   activeTab.value = id
   const tab = tabs.value.find(t => t.id === id) as BrowserTab
@@ -584,9 +671,7 @@ const createDialog = reactive({
 
 const deleteDialog = reactive({
   visible: false,
-  name: '',
-  isDir: false,
-  path: '',
+  items: [] as { name: string; path: string; is_dir: boolean }[],
   targetTab: null as BrowserTab | null,
 })
 
@@ -611,6 +696,7 @@ function addBrowserTab() {
     files: [],
     loading: false,
     selectedFile: null,
+    selectedRows: [],
   })
   activeTab.value = id
   pathInput.value = '/www'
@@ -628,6 +714,7 @@ function addBrowserTabAt(path: string) {
     files: [],
     loading: false,
     selectedFile: null,
+    selectedRows: [],
   })
   activeTab.value = id
   pathInput.value = path
@@ -773,16 +860,6 @@ async function handleCreate() {
   }
 }
 
-function openRename(tab: BrowserTab) {
-  if (!tab.selectedFile) return
-  renamingPath.value = tab.selectedFile.path
-  renamingValue.value = tab.selectedFile.name
-  renamingTab.value = tab
-  nextTick(() => {
-    document.querySelector<HTMLInputElement>('.rename-inline input')?.focus()
-  })
-}
-
 async function confirmRename() {
   const tab = renamingTab.value
   const oldPath = renamingPath.value
@@ -809,10 +886,8 @@ function cancelRename() {
 }
 
 function confirmDelete(tab: BrowserTab) {
-  if (!tab.selectedFile) return
-  deleteDialog.name = tab.selectedFile.name
-  deleteDialog.isDir = tab.selectedFile.is_dir
-  deleteDialog.path = tab.selectedFile.path
+  if (!tab.selectedRows.length) return
+  deleteDialog.items = tab.selectedRows.map(r => ({ name: r.name, path: r.path, is_dir: r.is_dir }))
   deleteDialog.targetTab = tab
   deleteDialog.visible = true
 }
@@ -821,15 +896,17 @@ async function handleDelete() {
   const tab = deleteDialog.targetTab
   if (!tab) return
   try {
-    await apiFetch('/api/files/delete', {
-      method: 'POST',
-      body: JSON.stringify({ path: deleteDialog.path }),
-    })
+    for (const item of deleteDialog.items) {
+      await apiFetch('/api/files/delete', {
+        method: 'POST',
+        body: JSON.stringify({ path: item.path }),
+      })
+      tabs.value = tabs.value.filter(t => !(t.type === 'editor' && t.id === item.path))
+    }
     ElMessage.success('已删除')
     deleteDialog.visible = false
-    tab.selectedFile = null
+    tab.selectedRows = []
     fetchTabList(tab)
-    tabs.value = tabs.value.filter(t => !(t.type === 'editor' && t.id === deleteDialog.path))
   } catch (e: any) {
     ElMessage.error(e?.message || '删除失败')
   }
