@@ -1,14 +1,14 @@
 use crate::errors::{AppError, AppResult};
 
-const PID_FILE: &str = "/www/server/mysql/run/mariadb.pid";
+const PID_FILE: &str = "/www/server/mysql/run/mysql.pid";
 const MYSQL_BIN: &str = "/www/server/mysql/bin/mariadbd";
-const INIT_SCRIPT: &str = "/etc/init.d/mariadb";
+const INIT_SCRIPT: &str = "/etc/init.d/mysql";
 
 fn init_d(action: &str) -> std::process::Output {
     std::process::Command::new(INIT_SCRIPT)
         .arg(action)
         .output()
-        .expect("/etc/init.d/mariadb failed to run")
+        .expect("/etc/init.d/mysql failed to run")
 }
 
 fn pid_alive(pid: i32) -> bool {
@@ -41,7 +41,7 @@ pub fn check_running() -> bool {
 }
 
 fn last_error() -> String {
-    std::fs::read_to_string("/www/wwwlogs/mariadb_error.log")
+    std::fs::read_to_string("/www/wwwlogs/mysql_error.log")
         .ok()
         .and_then(|log| log.lines().filter(|l| !l.is_empty()).last().map(|s| s.to_string()))
         .unwrap_or_else(|| "未知错误，请查看日志".to_string())
