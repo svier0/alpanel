@@ -134,7 +134,7 @@
 
     <!-- Context menus -->
     <Teleport to="body">
-      <div v-if="ctxMenu.visible" class="ctx-menu" :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }" @click="ctxMenu.visible = false">
+      <div v-if="ctxMenu.visible" ref="ctxMenuRef" class="ctx-menu" :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }" @click="ctxMenu.visible = false">
         <template v-if="ctxMenu.type === 'blank'">
           <div class="ctx-item" @click="refreshTab(ctxMenu.tab!)">刷新</div>
           <div class="ctx-item disabled">上传</div>
@@ -372,6 +372,8 @@ const ctxMenu = reactive({
   fileName: '',
 })
 
+const ctxMenuRef = ref<HTMLElement | null>(null)
+
 const clipboard = reactive({
   paths: [] as string[],
   cut: false,
@@ -485,6 +487,7 @@ function onTableContextMenu(e: MouseEvent, tab: BrowserTab) {
   ctxMenu.filePath = ''
   ctxMenu.fileName = ''
   ctxMenu.visible = true
+  adjustCtxMenu()
 }
 
 function onRowContextMenu(e: MouseEvent, tab: BrowserTab, row: FileItem) {
@@ -497,6 +500,28 @@ function onRowContextMenu(e: MouseEvent, tab: BrowserTab, row: FileItem) {
   ctxMenu.filePath = row.path
   ctxMenu.fileName = row.name
   ctxMenu.visible = true
+  adjustCtxMenu()
+}
+
+function adjustCtxMenu() {
+  nextTick(() => {
+    const el = ctxMenuRef.value
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const margin = 4
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    let x = ctxMenu.x
+    let y = ctxMenu.y
+    if (y + rect.height > vh - margin) {
+      y = Math.max(margin, vh - rect.height - margin)
+    }
+    if (x + rect.width > vw - margin) {
+      x = Math.max(margin, vw - rect.width - margin)
+    }
+    ctxMenu.x = x
+    ctxMenu.y = y
+  })
 }
 
 function ctxCopy(path: string) {
