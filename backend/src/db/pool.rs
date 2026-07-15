@@ -7,11 +7,14 @@ fn db_path() -> PathBuf {
     let env_path = std::env::var("PANEL_ENV").unwrap_or_else(|_| ".env".to_string());
     let path = PathBuf::from(&env_path);
     let dir = path.parent().unwrap_or(std::path::Path::new("."));
-    dir.join("alpanel.db")
+    dir.join("data/db/alpanel.db")
 }
 
 pub fn init_db() {
     let path = db_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
     if path.exists() {
         info!("alpanel.db already exists at {:?}", path);
         return;
