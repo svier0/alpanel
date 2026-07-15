@@ -169,7 +169,7 @@ NGINXWRAP
     fi
 
     cat > "$conf_dir/nginx.conf" << 'EOF'
-user root;
+user www;
 worker_processes auto;
 pid /www/server/nginx/run/nginx.pid;
 error_log /www/wwwlogs/nginx_error.log warn;
