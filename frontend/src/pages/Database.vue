@@ -12,75 +12,99 @@
 
     <div class="content-area">
       <template v-if="activeTab === 'mysql'">
-        <div class="toolbar-row">
-          <div class="toolbar-left">
-            <el-button size="small" type="primary" @click="showAddDbDialog">
-              <el-icon><Plus /></el-icon>添加数据库
-            </el-button>
-            <el-button size="small" @click="openRootPw">
-              <el-icon><Key /></el-icon>root密码
-            </el-button>
-          </div>
-          <div class="toolbar-right">
-            <el-input
-              v-model="searchQuery"
-              size="small"
-              class="search-input"
-              placeholder="搜索数据库名 / 用户名 / 备注"
-              clearable
-            >
-              <template #prefix><el-icon><Search /></el-icon></template>
-            </el-input>
-            <el-button size="small" class="toolbar-btn" @click="refreshTable">
-              <el-icon><RefreshRight /></el-icon>
-            </el-button>
+        <div v-if="!mysqlReady" class="install-mask">
+          <el-button type="primary" :loading="true">检测中...</el-button>
+        </div>
+        <div v-else-if="!mariadbInstalled" class="install-mask install-prompt">
+          <p class="mask-tip">数据库管理需要 MariaDB (MySQL) 服务</p>
+          <el-button type="primary" size="small" :loading="installingMysql" @click="installMariadb">安装 MariaDB</el-button>
+          <div v-if="installErrorMysql" class="mask-error">
+            {{ installErrorMysql }}
+            <el-button size="small" link type="primary" @click="installErrorMysql = ''">重试</el-button>
           </div>
         </div>
+        <template v-else>
+          <div class="toolbar-row">
+            <div class="toolbar-left">
+              <el-button size="small" type="primary" @click="showAddDbDialog">
+                <el-icon><Plus /></el-icon>添加数据库
+              </el-button>
+              <el-button size="small" @click="openRootPw">
+                <el-icon><Key /></el-icon>root密码
+              </el-button>
+            </div>
+            <div class="toolbar-right">
+              <el-input
+                v-model="searchQuery"
+                size="small"
+                class="search-input"
+                placeholder="搜索数据库名 / 用户名 / 备注"
+                clearable
+              >
+                <template #prefix><el-icon><Search /></el-icon></template>
+              </el-input>
+              <el-button size="small" class="toolbar-btn" @click="refreshTable">
+                <el-icon><RefreshRight /></el-icon>
+              </el-button>
+            </div>
+          </div>
 
-        <el-table
-          :data="pagedDb"
-          size="small"
-          class="db-table"
-          empty-text="暂无数据库"
-          :cell-style="{ padding: '4px 0' }"
-        >
-          <el-table-column label="数据库名" width="220" show-overflow-tooltip>
-            <template #default="{ row }"><span class="link-cell">{{ row.name }}</span></template>
-          </el-table-column>
-          <el-table-column label="用户名" width="160" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.user }}</template>
-          </el-table-column>
-          <el-table-column label="密码" width="180" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="pw-cell">{{ row.password }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="备注" min-width="200">
-            <template #default="{ row }">
-              <el-input v-model="row.ps" size="small" class="ps-input" @blur="savePs(row)" />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="240" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" link type="primary" @click="dbPriv(row)">权限</el-button>
-              <el-button size="small" link type="primary" @click="dbTool(row)">工具</el-button>
-              <el-button size="small" link type="primary" @click="dbChangePw(row)">改密</el-button>
-              <el-button size="small" link type="danger" @click="dbDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-pagination
-          small
-          layout="prev, pager, next, total"
-          :total="filteredDb.length"
-          :page-size="pageSize"
-          v-model:current-page="page"
-          class="db-pagination"
-        />
+          <el-table
+            :data="pagedDb"
+            size="small"
+            class="db-table"
+            empty-text="暂无数据库"
+            :cell-style="{ padding: '4px 0' }"
+          >
+            <el-table-column label="数据库名" width="220" show-overflow-tooltip>
+              <template #default="{ row }"><span class="link-cell">{{ row.name }}</span></template>
+            </el-table-column>
+            <el-table-column label="用户名" width="160" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.user }}</template>
+            </el-table-column>
+            <el-table-column label="密码" width="180" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="pw-cell">{{ row.password }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="备注" min-width="200">
+              <template #default="{ row }">
+                <el-input v-model="row.ps" size="small" class="ps-input" @blur="savePs(row)" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="240" fixed="right">
+              <template #default="{ row }">
+                <el-button size="small" link type="primary" @click="dbPriv(row)">权限</el-button>
+                <el-button size="small" link type="primary" @click="dbTool(row)">工具</el-button>
+                <el-button size="small" link type="primary" @click="dbChangePw(row)">改密</el-button>
+                <el-button size="small" link type="danger" @click="dbDelete(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-pagination
+            small
+            layout="prev, pager, next, total"
+            :total="filteredDb.length"
+            :page-size="pageSize"
+            v-model:current-page="page"
+            class="db-pagination"
+          />
+        </template>
       </template>
 
       <template v-if="activeTab === 'redis'">
-        <div class="redis-placeholder">
+        <div v-if="!redisReady" class="install-mask">
+          <el-button type="primary" :loading="true">检测中...</el-button>
+        </div>
+        <div v-else-if="!redisInstalled" class="install-mask install-prompt">
+          <p class="mask-tip">Redis 管理需要 Redis 服务</p>
+          <el-button type="primary" size="small" :loading="installingRedis" @click="installRedis">安装 Redis</el-button>
+          <div v-if="installErrorRedis" class="mask-error">
+            {{ installErrorRedis }}
+            <el-button size="small" link type="primary" @click="installErrorRedis = ''">重试</el-button>
+          </div>
+        </div>
+        <div v-else class="redis-placeholder">
           <el-empty description="Redis 管理（待实现）" />
         </div>
       </template>
@@ -128,9 +152,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from 'vue'
+import { ref, computed, watch, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Search, RefreshRight, Key, Refresh } from '@element-plus/icons-vue'
+import { apiFetch } from '@/utils/api'
 
 const tabs = [
   { key: 'mysql', label: 'MySQL' },
@@ -144,6 +169,71 @@ const page = ref(1)
 
 watch(activeTab, () => { page.value = 1 })
 watch(searchQuery, () => { page.value = 1 })
+
+const mysqlReady = ref(false)
+const mariadbInstalled = ref(false)
+const installingMysql = ref(false)
+const installErrorMysql = ref('')
+
+const redisReady = ref(false)
+const redisInstalled = ref(false)
+const installingRedis = ref(false)
+const installErrorRedis = ref('')
+
+async function checkMariadb() {
+  mysqlReady.value = false
+  try {
+    const data = await apiFetch('/api/mariadb/status')
+    mariadbInstalled.value = data.installed
+  } catch {
+    mariadbInstalled.value = false
+  } finally {
+    mysqlReady.value = true
+  }
+}
+
+async function checkRedis() {
+  redisReady.value = false
+  try {
+    const data = await apiFetch('/api/redis/status')
+    redisInstalled.value = data.installed
+  } catch {
+    redisInstalled.value = false
+  } finally {
+    redisReady.value = true
+  }
+}
+
+async function installMariadb() {
+  installingMysql.value = true
+  installErrorMysql.value = ''
+  try {
+    await apiFetch('/api/mariadb/install', { method: 'POST' })
+    mariadbInstalled.value = true
+  } catch {
+    installErrorMysql.value = '安装失败，请检查服务端连接'
+  } finally {
+    installingMysql.value = false
+  }
+}
+
+async function installRedis() {
+  installingRedis.value = true
+  installErrorRedis.value = ''
+  try {
+    await apiFetch('/api/redis/install', { method: 'POST' })
+    redisInstalled.value = true
+  } catch {
+    installErrorRedis.value = '安装失败，请检查服务端连接'
+  } finally {
+    installingRedis.value = false
+  }
+}
+
+onMounted(() => {
+  checkMariadb()
+  checkRedis()
+})
 
 interface DbItem {
   id: number
@@ -371,5 +461,25 @@ function handleChangeRootPw() {
   align-items: center;
   justify-content: center;
   min-height: 300px;
+}
+.install-mask {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+.install-prompt {
+  flex-direction: column;
+  gap: 12px;
+}
+.mask-tip {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+.mask-error {
+  color: var(--el-color-danger);
+  font-size: 13px;
 }
 </style>
