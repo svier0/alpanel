@@ -95,3 +95,17 @@ pub struct FilePsRequest {
     pub path: String,
     pub ps: String,
 }
+
+#[derive(Deserialize)]
+pub struct FileCompressRequest {
+    pub paths: Vec<String>,
+    pub dest: String,
+    pub r#type: String,
+}
+
+#[derive(Deserialize)]
+pub struct FileExtractRequest {
+    pub path: String,
+    pub dest: String,
+    pub password: Option<String>,
+}
