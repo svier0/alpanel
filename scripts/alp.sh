@@ -264,20 +264,18 @@ NGINXINIT
     echo "启动: rc-service nginx start"
 }
 
-PHP_VERSIONS="56 70 71 72 73 74 80 81 82 83"
-
 php_versions_from_apk() {
     apk update >/dev/null 2>&1 || return 1
     apk list --available 'php*' 2>/dev/null \
-        | sed -n 's/^php\([0-9][0-9]\)-[0-9].*/\1/p' | sort -u | tr '\n' ' '
+        | sed -n 's/^php\([0-9][0-9]\)-[0-9].*/\1/p' | sort -rnu | tr '\n' ' '
 }
 
 install_php() {
     ver="${1:-}"
-    versions="$PHP_VERSIONS"
-    if command -v apk >/dev/null 2>&1; then
-        apk_versions=$(php_versions_from_apk)
-        [ -n "$apk_versions" ] && versions="$apk_versions"
+    versions=$(php_versions_from_apk)
+    if [ -z "$versions" ]; then
+        echo "错误: 无法从 apk 源获取 PHP 版本列表，请检查 apk 源是否可用" >&2
+        exit 1
     fi
     if [ -z "$ver" ]; then
         echo "请指定要安装的 PHP 版本:"
