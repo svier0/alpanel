@@ -4,6 +4,48 @@ use std::time::UNIX_EPOCH;
 use crate::dto::file_dto::{
     FileActionResponse, FileItem, FileListResponse, FileReadResponse,
 };
+
+const FILES_PS_DIR: &str = "/www/server/panel/data/files_ps";
+
+fn path_to_md5(path: &str) -> String {
+    let digest = md5::compute(path.as_bytes());
+    format!("{:x}", digest)
+}
+
+pub fn get_file_ps(path: &str) -> String {
+    let md5 = path_to_md5(path);
+    let ps_path = format!("{}/{}", FILES_PS_DIR, md5);
+    std::fs::read_to_string(&ps_path).unwrap_or_default()
+}
+
+pub fn save_file_ps(path: &str, ps: &str) -> AppResult<FileActionResponse> {
+    let ps_dir = std::path::Path::new(FILES_PS_DIR);
+    if !ps_dir.exists() {
+        std::fs::create_dir_all(ps_dir).map_err(|e| {
+            AppError::BadRequest(format!("Cannot create ps directory: {}", e))
+        })?;
+    }
+
+    let md5 = path_to_md5(path);
+    let ps_path = ps_dir.join(&md5);
+
+    if ps.is_empty() {
+        if ps_path.exists() {
+            std::fs::remove_file(&ps_path).map_err(|e| {
+                AppError::BadRequest(format!("Cannot delete ps file: {}", e))
+            })?;
+        }
+    } else {
+        std::fs::write(&ps_path, ps).map_err(|e| {
+            AppError::BadRequest(format!("Cannot write ps file: {}", e))
+        })?;
+    }
+
+    Ok(FileActionResponse {
+        success: true,
+        message: "Saved".to_string(),
+    })
+}
 use crate::errors::{AppError, AppResult};
 
 fn to_fwd(path: &Path) -> String {
@@ -193,15 +235,19 @@ pub fn list_dir(path_str: &str) -> AppResult<FileListResponse> {
         let mode = format_permissions(&metadata);
         let owner = get_owner(&metadata);
 
+        let item_path = strip_drive_prefix(&to_fwd(&entry.path()), path_str);
+        let ps = get_file_ps(&item_path);
+
         items.push(FileItem {
             name,
-            path: strip_drive_prefix(&to_fwd(&entry.path()), path_str),
+            path: item_path,
             size,
             is_dir,
             is_link,
             mode,
             owner,
             modified,
+            ps,
         });
     }
 

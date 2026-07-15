@@ -96,7 +96,11 @@
           <el-table-column label="修改时间" width="150">
             <template #default="{ row }">{{ formatTime(row.modified) }}</template>
           </el-table-column>
-          <el-table-column label="备注" min-width="100" />
+          <el-table-column label="备注" min-width="160">
+            <template #default="{ row }">
+              <el-input v-model="row.ps" size="small" class="ps-input" @blur="savePs(row, tab)" />
+            </template>
+          </el-table-column>
         </el-table>
       </div>
 
@@ -221,8 +225,23 @@ interface FileItem {
   is_link: boolean
   mode: string
   modified: number
+  ps: string
   _size?: number
   _calculating?: boolean
+}
+
+const DEFAULT_PS: Record<string, string> = {
+  '/www': 'PS: Alpanel面板程序目录',
+  '/www/wwwlogs': 'PS: 网站日志目录',
+  '/www/server': 'PS: Alpanel软件安装目录',
+  '/www/server/stop': '网站停用页面目录,请勿删除!',
+  '/www/server/mysql': 'MySQL程序目录',
+  '/www/server/nginx': 'Nginx程序目录',
+  '/www/server/php': 'PHP目录',
+  '/www/server/redis': 'Redis程序目录',
+  '/www/server/cron': '计划任务脚本与日志目录',
+  '/www/server/data': 'MySQL数据目录',
+  '/www/server/panel': 'PS: Alpanel主程序目录',
 }
 
 interface BrowserTab {
@@ -455,7 +474,7 @@ function ctxDelete(path: string, name: string) {
 
 function ctxOpenEditor() {
   if (ctxMenu.type !== 'file' || !ctxMenu.filePath) return
-  const item: FileItem = { name: ctxMenu.fileName, path: ctxMenu.filePath, size: 0, is_dir: false, is_link: false, mode: '', modified: 0 }
+  const item: FileItem = { name: ctxMenu.fileName, path: ctxMenu.filePath, size: 0, is_dir: false, is_link: false, mode: '', modified: 0, ps: '' }
   openEditor(item)
 }
 
@@ -643,7 +662,13 @@ async function fetchTabList(tab: BrowserTab) {
     const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(tab.path)}`)
     if (data?.path) tab.path = data.path
     tab.title = tab.path === '/' ? '根目录' : tab.path.split('/').filter(Boolean).pop() || '根目录'
-    tab.files = data?.items || []
+    const items = data?.items || []
+    items.forEach((item: FileItem) => {
+      if (!item.ps && DEFAULT_PS[item.path]) {
+        item.ps = DEFAULT_PS[item.path]
+      }
+    })
+    tab.files = items
     pathInput.value = tab.path
   } catch (e: any) {
     tab.files = []
@@ -835,6 +860,18 @@ async function handleDownload() {
     ElMessage.error(e?.message || '下载失败')
   } finally {
     downloadDialog.loading = false
+  }
+}
+
+async function savePs(row: FileItem, _tab: BrowserTab) {
+  try {
+    const ps = row.ps || ''
+    await apiFetch('/api/files/ps', {
+      method: 'POST',
+      body: JSON.stringify({ path: row.path, ps }),
+    })
+  } catch (e: any) {
+    ElMessage.error(e?.message || '保存备注失败')
   }
 }
 
@@ -1056,6 +1093,24 @@ function formatTime(ts: number): string {
 
 .rename-inline .el-input {
   width: 280px;
+}
+
+.ps-input {
+  width: 100%;
+}
+.ps-input :deep(.el-input__wrapper) {
+  background: transparent;
+  box-shadow: none;
+  padding: 0 4px;
+  border: 1px solid transparent;
+}
+.ps-input :deep(.el-input__wrapper:hover),
+.ps-input :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--el-border-color);
+}
+.ps-input :deep(.el-input__inner) {
+  font-size: 12px;
+  padding: 0;
 }
 
 .editor-panel {
