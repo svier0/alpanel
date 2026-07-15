@@ -15,9 +15,9 @@
         <div v-if="!mysqlReady" class="install-mask">
           <el-button type="primary" :loading="true">检测中...</el-button>
         </div>
-        <div v-else-if="!mariadbInstalled" class="install-mask install-prompt">
-          <p class="mask-tip">数据库管理需要 MariaDB (MySQL) 服务</p>
-          <el-button type="primary" size="small" :loading="installingMysql" @click="installMariadb">安装 MariaDB</el-button>
+        <div v-else-if="!mysqlInstalled" class="install-mask install-prompt">
+          <p class="mask-tip">数据库管理需要 MySQL 服务</p>
+          <el-button type="primary" size="small" :loading="installingMysql" @click="installMysql">安装 MySQL</el-button>
           <div v-if="installErrorMysql" class="mask-error">
             {{ installErrorMysql }}
             <el-button size="small" link type="primary" @click="installErrorMysql = ''">重试</el-button>
@@ -171,7 +171,7 @@ watch(activeTab, () => { page.value = 1 })
 watch(searchQuery, () => { page.value = 1 })
 
 const mysqlReady = ref(false)
-const mariadbInstalled = ref(false)
+const mysqlInstalled = ref(false)
 const installingMysql = ref(false)
 const installErrorMysql = ref('')
 
@@ -180,13 +180,13 @@ const redisInstalled = ref(false)
 const installingRedis = ref(false)
 const installErrorRedis = ref('')
 
-async function checkMariadb() {
+async function checkMysql() {
   mysqlReady.value = false
   try {
-    const data = await apiFetch('/api/mariadb/status')
-    mariadbInstalled.value = data.installed
+    const data = await apiFetch('/api/mysql/status')
+    mysqlInstalled.value = data.installed
   } catch {
-    mariadbInstalled.value = false
+    mysqlInstalled.value = false
   } finally {
     mysqlReady.value = true
   }
@@ -204,12 +204,12 @@ async function checkRedis() {
   }
 }
 
-async function installMariadb() {
+async function installMysql() {
   installingMysql.value = true
   installErrorMysql.value = ''
   try {
-    await apiFetch('/api/mariadb/install', { method: 'POST' })
-    mariadbInstalled.value = true
+    await apiFetch('/api/mysql/install', { method: 'POST' })
+    mysqlInstalled.value = true
   } catch {
     installErrorMysql.value = '安装失败，请检查服务端连接'
   } finally {
@@ -231,7 +231,7 @@ async function installRedis() {
 }
 
 onMounted(() => {
-  checkMariadb()
+  checkMysql()
   checkRedis()
 })
 
