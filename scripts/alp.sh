@@ -20,6 +20,26 @@ help() {
     echo "  alp 0      取消"
 }
 
+apply_rpath() {
+    rpath="$1"; shift
+    [ "$#" -gt 0 ] || return 0
+    pt_dir=$(mktemp -d)
+    ( cd "$pt_dir" && apk fetch --recursive patchelf >/dev/null 2>&1 ) || { rm -rf "$pt_dir"; return 1; }
+    for apk_file in "$pt_dir"/*.apk; do
+        [ -f "$apk_file" ] || continue
+        tar -xzf "$apk_file" -C "$pt_dir"
+    done
+    pt_bin=$(find "$pt_dir" -type f -name patchelf 2>/dev/null | head -1)
+    if [ -n "$pt_bin" ]; then
+        chmod +x "$pt_bin"
+        for bin in "$@"; do
+            [ -f "$bin" ] && LD_LIBRARY_PATH="$pt_dir/usr/lib:$pt_dir/lib" "$pt_bin" --set-rpath "$rpath" "$bin" 2>/dev/null || true
+        done
+    fi
+    rm -rf "$pt_dir"
+    return 0
+}
+
 update_env() {
     key="$1" val="$2"
     tmp=$(mktemp) || exit 1
@@ -147,12 +167,8 @@ install_nginx() {
         mkdir -p "$nginx_dir/sbin"
         cp "$ext_dir/usr/sbin/nginx" "$nginx_dir/sbin/nginx"
         chmod +x "$nginx_dir/sbin/nginx"
-        cat > /usr/bin/nginx << 'NGINXWRAP'
-#!/bin/sh
-export LD_LIBRARY_PATH=/www/server/nginx/lib
-exec /www/server/nginx/sbin/nginx "$@"
-NGINXWRAP
-        chmod +x /usr/bin/nginx
+        apply_rpath "/www/server/nginx/lib" "$nginx_dir/sbin/nginx"
+        ln -sf "$nginx_dir/sbin/nginx" /usr/bin/nginx
     else
         echo "错误: 未找到 nginx 二进制" >&2
         rm -rf "$dl_dir" "$ext_dir"
@@ -261,7 +277,7 @@ NGINXINIT
     echo "  配置:   $conf_dir/nginx.conf"
     echo "  站点:   $vhost_dir/"
     echo "  日志:   $log_dir/"
-    echo "启动: rc-service nginx start"
+    echo "启动: /etc/init.d/nginx start"
 }
 
 php_versions_from_apk() {
@@ -332,12 +348,8 @@ install_php() {
         cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
         cp -r "$ext_dir/usr/sbin/." "$bin_dir/" 2>/dev/null || true
         chmod +x "$bin_dir/"* 2>/dev/null || true
-        cat > "/usr/bin/php$ver" << PHWRAP
-#!/bin/sh
-export LD_LIBRARY_PATH=/www/server/php/$ver/lib
-exec /www/server/php/$ver/bin/php$ver "\$@"
-PHWRAP
-        chmod +x "/usr/bin/php$ver"
+        apply_rpath "/www/server/php/$ver/lib" "$bin_dir/php$ver" "$bin_dir/php-fpm$ver"
+        ln -sf "$bin_dir/php$ver" "/usr/bin/php$ver"
     else
         echo "错误: 未找到 php$ver 二进制" >&2
         rm -rf "$dl_dir" "$ext_dir"
@@ -441,7 +453,7 @@ PHINIT
     echo "PHP $ver 安装完成"
     echo "  二进制: $bin_dir/php$ver"
     echo "  配置:   $conf_dir/"
-    echo "  运行:   rc-service php$ver start"
+    echo "  运行:   /etc/init.d/php$ver start"
 }
 
 install_mariadb() {
@@ -475,12 +487,8 @@ install_mariadb() {
     if [ -f "$ext_dir/usr/bin/mariadbd" ]; then
         cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
         chmod +x "$bin_dir/"* 2>/dev/null || true
-        cat > /usr/bin/mariadbd << 'MARIADBWRAP'
-#!/bin/sh
-export LD_LIBRARY_PATH=/www/server/mysql/lib
-exec /www/server/mysql/bin/mariadbd "$@"
-MARIADBWRAP
-        chmod +x /usr/bin/mariadbd
+        apply_rpath "/www/server/mysql/lib" "$bin_dir/mariadbd" "$bin_dir/mariadb"
+        ln -sf "$bin_dir/mariadbd" /usr/bin/mariadb
     else
         echo "错误: 未找到 mariadbd 二进制" >&2
         rm -rf "$dl_dir" "$ext_dir"
@@ -582,7 +590,7 @@ MARIADBINIT
     echo "  配置:   $conf_dir/my.cnf"
     echo "  数据:   $data_dir/"
     echo "  日志:   $log_dir/mariadb_error.log"
-    echo "启动: rc-service mariadb start"
+    echo "启动: /etc/init.d/mariadb start"
 }
 
 install_redis() {
@@ -616,12 +624,7 @@ install_redis() {
     if [ -f "$ext_dir/usr/bin/redis-server" ]; then
         cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
         chmod +x "$bin_dir/"* 2>/dev/null || true
-        cat > /usr/bin/redis-server << 'REDISWRAP'
-#!/bin/sh
-export LD_LIBRARY_PATH=/www/server/redis/lib
-exec /www/server/redis/bin/redis-server "$@"
-REDISWRAP
-        chmod +x /usr/bin/redis-server
+        ln -sf "$bin_dir/redis-server" /usr/bin/redis
     else
         echo "错误: 未找到 redis-server 二进制" >&2
         rm -rf "$dl_dir" "$ext_dir"
@@ -697,7 +700,7 @@ REDISINIT
     echo "  配置:   $conf_dir/redis.conf"
     echo "  数据:   $data_dir/"
     echo "  日志:   $log_dir/redis.log"
-    echo "启动: rc-service redis start"
+    echo "启动: /etc/init.d/redis start"
 }
 
 case "${1:-}" in
