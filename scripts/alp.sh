@@ -205,7 +205,6 @@ ERRLOG="/www/wwwlogs/nginx_error.log"
 
 start() {
     mkdir -p /www/server/nginx/run
-    rm -f "$PIDFILE"
     export LD_LIBRARY_PATH=/www/server/nginx/lib
     start-stop-daemon --start --background --make-pidfile \
         --pidfile "$PIDFILE" \
