@@ -15,7 +15,7 @@ help() {
     echo "  alp 31     修改面板端口"
     echo "  alp 51     安装 Nginx"
     echo "  alp 52     安装 PHP (可多版本, 如 alp 52 74)"
-    echo "  alp 53     安装 MariaDB"
+    echo "  alp 53     安装 MySQL"
     echo "  alp 54     安装 Redis"
     echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
     echo "  alp 0      取消"
@@ -455,16 +455,16 @@ PHINIT
     echo "  运行:   /etc/init.d/php$ver start"
 }
 
-install_mariadb() {
-    echo "正在安装 MariaDB..."
+install_mysql() {
+    echo "正在安装 MySQL..."
 
     command -v apk >/dev/null 2>&1 || { echo "错误: 仅支持 Alpine Linux" >&2; exit 1; }
 
-    mariadb_dir="/www/server/mysql"
-    bin_dir="$mariadb_dir/bin"
-    lib_dir="$mariadb_dir/lib"
-    conf_dir="$mariadb_dir/conf"
-    run_dir="$mariadb_dir/run"
+    mysql_dir="/www/server/mysql"
+    bin_dir="$mysql_dir/bin"
+    lib_dir="$mysql_dir/lib"
+    conf_dir="$mysql_dir/conf"
+    run_dir="$mysql_dir/run"
     data_dir="/www/server/data"
     log_dir="/www/wwwlogs"
 
@@ -487,7 +487,7 @@ install_mariadb() {
         cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
         chmod +x "$bin_dir/"* 2>/dev/null || true
         apply_rpath "/www/server/mysql/lib" "$bin_dir/mariadbd" "$bin_dir/mariadb"
-        ln -sf "$bin_dir/mariadbd" /usr/bin/mariadb
+        ln -sf "$bin_dir/mariadbd" /usr/bin/mysql
     else
         echo "错误: 未找到 mariadbd 二进制" >&2
         rm -rf "$dl_dir" "$ext_dir"
@@ -499,8 +499,8 @@ install_mariadb() {
     done
 
     if [ -d "$ext_dir/usr/share/mariadb" ]; then
-        mkdir -p "$mariadb_dir/share"
-        cp -r "$ext_dir/usr/share/mariadb/." "$mariadb_dir/share/mariadb/" 2>/dev/null || true
+        mkdir -p "$mysql_dir/share"
+        cp -r "$ext_dir/usr/share/mariadb/." "$mysql_dir/share/mariadb/" 2>/dev/null || true
     fi
 
     if [ -d "$ext_dir/etc/mysql" ]; then
@@ -512,33 +512,33 @@ install_mariadb() {
 user=root
 basedir=/www/server/mysql
 datadir=/www/server/data
-pid-file=/www/server/mysql/run/mariadb.pid
-socket=/www/server/mysql/run/mariadb.sock
-log-error=/www/wwwlogs/mariadb_error.log
+pid-file=/www/server/mysql/run/mysql.pid
+socket=/www/server/mysql/run/mysql.sock
+log-error=/www/wwwlogs/mysql_error.log
 character-set-server=utf8mb4
 collation-server=utf8mb4_unicode_ci
 
 [client]
-socket=/www/server/mysql/run/mariadb.sock
+socket=/www/server/mysql/run/mysql.sock
 EOF
 
     if [ ! -d "$data_dir/mysql" ]; then
         echo "正在初始化数据库..."
         export LD_LIBRARY_PATH="$lib_dir"
         "$bin_dir/mariadb-install-db" --defaults-file="$conf_dir/my.cnf" \
-            --user=root --datadir="$data_dir" --basedir="$mariadb_dir" >/dev/null 2>&1 || {
+            --user=root --datadir="$data_dir" --basedir="$mysql_dir" >/dev/null 2>&1 || {
             echo "错误: 数据库初始化失败" >&2
             rm -rf "$dl_dir" "$ext_dir"
             exit 1
         }
     fi
 
-    cat > /etc/init.d/mariadb << 'MARIADBINIT'
+    cat > /etc/init.d/mysql << 'MYSQLINIT'
 #!/bin/sh
 
-MARIADBD_BIN="/www/server/mysql/bin/mariadbd"
+MYSQLD_BIN="/www/server/mysql/bin/mariadbd"
 MY_CNF="/www/server/mysql/conf/my.cnf"
-PIDFILE="/www/server/mysql/run/mariadb.pid"
+PIDFILE="/www/server/mysql/run/mysql.pid"
 
 start() {
     mkdir -p /www/server/mysql/run
@@ -546,7 +546,7 @@ start() {
     start-stop-daemon --start --background --make-pidfile \
         --pidfile "$PIDFILE" \
         --env LD_LIBRARY_PATH=/www/server/mysql/lib \
-        --exec "$MARIADBD_BIN" -- --defaults-file="$MY_CNF"
+        --exec "$MYSQLD_BIN" -- --defaults-file="$MY_CNF"
 }
 
 stop() {
@@ -560,11 +560,11 @@ status() {
     if [ -f "$PIDFILE" ]; then
         read PID < "$PIDFILE"
         if kill -0 "$PID" 2>/dev/null; then
-            echo "mariadb 运行中 (pid $PID)"
+            echo "mysql 运行中 (pid $PID)"
             return 0
         fi
     fi
-    echo "mariadb 未运行"
+    echo "mysql 未运行"
     return 1
 }
 
@@ -577,19 +577,19 @@ if [ -z "${RC_SVCNAME:-}" ]; then
         *)       echo "用法: $0 {start|stop|restart|status}" >&2; exit 1 ;;
     esac
 fi
-MARIADBINIT
-    chmod +x /etc/init.d/mariadb
+MYSQLINIT
+    chmod +x /etc/init.d/mysql
 
     rm -rf "$dl_dir" "$ext_dir"
 
-    rc-update add mariadb default 2>/dev/null || true
+    rc-update add mysql default 2>/dev/null || true
 
-    echo "MariaDB 安装完成"
+    echo "MySQL 安装完成"
     echo "  二进制: $bin_dir/mariadbd"
     echo "  配置:   $conf_dir/my.cnf"
     echo "  数据:   $data_dir/"
-    echo "  日志:   $log_dir/mariadb_error.log"
-    echo "启动: /etc/init.d/mariadb start"
+    echo "  日志:   $log_dir/mysql_error.log"
+    echo "启动: /etc/init.d/mysql start"
 }
 
 install_redis() {
@@ -709,7 +709,7 @@ uninstall() {
     fi
     echo "警告: 此操作将卸载 Alpanel 并删除以下内容, 且无法恢复:"
     echo "  - 面板程序与配置 (/www/server/panel)"
-    echo "  - 已安装服务 Nginx / PHP / MariaDB / Redis (/www/server/*)"
+    echo "  - 已安装服务 Nginx / PHP / MySQL / Redis (/www/server/*)"
     echo "  - 网站根目录与日志 (/www/wwwroot, /www/wwwlogs)"
     echo "  - 服务脚本与开机启动 (/etc/init.d/*, rc-update)"
     echo "  - www 用户与用户组"
@@ -718,7 +718,7 @@ uninstall() {
     [ "$confirm" = "YES" ] || { echo "已取消"; exit 0; }
 
     echo "正在停止并移除服务..."
-    for svc in alpanel nginx mariadb redis $(ls /etc/init.d/ 2>/dev/null | grep -E '^php[0-9]+$' || true); do
+    for svc in alpanel nginx mysql redis $(ls /etc/init.d/ 2>/dev/null | grep -E '^php[0-9]+$' || true); do
         if [ -x "/etc/init.d/$svc" ]; then
             "/etc/init.d/$svc" stop 2>/dev/null || true
             rc-update del "$svc" default 2>/dev/null || true
@@ -731,9 +731,9 @@ uninstall() {
     pkill -f 'php-fpm' 2>/dev/null || true
 
     echo "正在删除服务脚本与软链接..."
-    rm -f /etc/init.d/alpanel /etc/init.d/nginx /etc/init.d/mariadb /etc/init.d/redis
+    rm -f /etc/init.d/alpanel /etc/init.d/nginx /etc/init.d/mysql /etc/init.d/redis
     rm -f /etc/init.d/php[0-9][0-9] 2>/dev/null || true
-    rm -f /usr/bin/alp /usr/bin/nginx /usr/bin/mariadb /usr/bin/redis
+    rm -f /usr/bin/alp /usr/bin/nginx /usr/bin/mysql /usr/bin/redis
     rm -f /usr/bin/php[0-9][0-9] 2>/dev/null || true
 
     echo "正在删除 /www 目录..."
@@ -771,7 +771,7 @@ case "${1:-}" in
     31)  set_port ;;
     51)  install_nginx ;;
     52)  install_php "${2:-}" ;;
-    53)  install_mariadb ;;
+    53)  install_mysql ;;
     54)  install_redis ;;
     99)  uninstall ;;
     *)
