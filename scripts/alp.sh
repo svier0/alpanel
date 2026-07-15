@@ -14,6 +14,8 @@ help() {
     echo "  alp 22     修改登录密码"
     echo "  alp 31     修改面板端口"
     echo "  alp 51     安装 Nginx"
+    echo "  alp 52     安装 PHP (可多版本, 如 alp 52 74)"
+    echo "  alp 53     安装 MariaDB"
     echo "  alp 0      取消"
 }
 
@@ -262,6 +264,311 @@ NGINXINIT
     echo "启动: rc-service nginx start"
 }
 
+PHP_VERSIONS="56 70 71 72 73 74 80 81 82 83"
+
+php_versions_from_apk() {
+    apk update >/dev/null 2>&1 || return 1
+    apk list --available 'php*' 2>/dev/null \
+        | sed -n 's/^php\([0-9][0-9]\)-[0-9].*/\1/p' | sort -u | tr '\n' ' '
+}
+
+install_php() {
+    ver="${1:-}"
+    versions="$PHP_VERSIONS"
+    if command -v apk >/dev/null 2>&1; then
+        apk_versions=$(php_versions_from_apk)
+        [ -n "$apk_versions" ] && versions="$apk_versions"
+    fi
+    if [ -z "$ver" ]; then
+        echo "请指定要安装的 PHP 版本:"
+        echo ""
+        echo "  支持版本: $versions"
+        echo ""
+        echo "  用法: alp 52 74"
+        echo "        alp 52 82"
+        exit 0
+    fi
+    case " $versions " in
+        *" $ver "*) ;;
+        *)
+            echo "错误: 不支持的 PHP 版本: $ver (支持的: $versions)" >&2
+            echo "用法: alp 52 74" >&2
+            exit 1
+            ;;
+    esac
+
+    echo "正在安装 PHP $ver..."
+
+    command -v apk >/dev/null 2>&1 || { echo "错误: 仅支持 Alpine Linux" >&2; exit 1; }
+
+    php_dir="/www/server/php/$ver"
+    bin_dir="$php_dir/bin"
+    lib_dir="$php_dir/lib"
+    conf_dir="$php_dir/conf"
+    run_dir="$php_dir/run"
+    log_dir="/www/wwwlogs"
+
+    mkdir -p "$bin_dir" "$lib_dir" "$conf_dir" "$run_dir" "$log_dir"
+
+    dl_dir=$(mktemp -d)
+    ext_dir=$(mktemp -d)
+
+    (
+        cd "$dl_dir"
+        apk fetch --recursive "php$ver" "php$ver-fpm" "php$ver-mysqli" "php$ver-pdo_mysql" \
+            "php$ver-gd" "php$ver-curl" "php$ver-mbstring" "php$ver-opcache" "php$ver-zip"
+    ) || {
+        echo "错误: 未找到 php$ver 相关软件包 (Alpine 可能不含该版本)" >&2
+        rm -rf "$dl_dir" "$ext_dir"
+        exit 1
+    }
+
+    for apk_file in "$dl_dir"/*.apk; do
+        [ -f "$apk_file" ] || continue
+        tar -xzf "$apk_file" -C "$ext_dir"
+    done
+
+    if [ -f "$ext_dir/usr/bin/php$ver" ]; then
+        cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
+        cp -r "$ext_dir/usr/sbin/." "$bin_dir/" 2>/dev/null || true
+        chmod +x "$bin_dir/"* 2>/dev/null || true
+        cat > "/usr/bin/php$ver" << PHWRAP
+#!/bin/sh
+export LD_LIBRARY_PATH=/www/server/php/$ver/lib
+exec /www/server/php/$ver/bin/php$ver "\$@"
+PHWRAP
+        chmod +x "/usr/bin/php$ver"
+    else
+        echo "错误: 未找到 php$ver 二进制" >&2
+        rm -rf "$dl_dir" "$ext_dir"
+        exit 1
+    fi
+
+    for d in "$ext_dir/lib" "$ext_dir/usr/lib"; do
+        [ -d "$d" ] && cp -r "$d/." "$lib_dir/" 2>/dev/null || true
+    done
+
+    if [ -d "$ext_dir/etc/php$ver" ]; then
+        cp -r "$ext_dir/etc/php$ver/." "$conf_dir/"
+    fi
+
+    cat > "$conf_dir/php-fpm.conf" << 'EOF'
+[global]
+pid = /www/server/php/VERRUN/php-fpm.pid
+error_log = /www/wwwlogs/php-fpmVER.log
+include=/www/server/php/VER/conf/php-fpm.d/*.conf
+EOF
+    sed -i "s|VERRUN|$run_dir|g; s|VER|$ver|g" "$conf_dir/php-fpm.conf"
+
+    mkdir -p "$conf_dir/php-fpm.d"
+    cat > "$conf_dir/php-fpm.d/www.conf" << 'EOF'
+[www]
+user = root
+group = root
+listen = /www/server/php/VERRUN/php-fpmVER.sock
+listen.owner = root
+listen.group = root
+pm = dynamic
+pm.max_children = 5
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+EOF
+    sed -i "s|VER|$ver|g" "$conf_dir/php-fpm.d/www.conf"
+
+    cat > "/etc/init.d/php$ver" << 'PHINIT'
+#!/bin/sh
+
+PHP_FPM_BIN="/www/server/php/__VER__/bin/php-fpm__VER__"
+PHP_FPM_CONF="/www/server/php/__VER__/conf/php-fpm.conf"
+PIDFILE="/www/server/php/__VER__/run/php-fpm.pid"
+
+start() {
+    mkdir -p /www/server/php/__VER__/run
+    export LD_LIBRARY_PATH=/www/server/php/__VER__/lib
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile "$PIDFILE" \
+        --env LD_LIBRARY_PATH=/www/server/php/__VER__/lib \
+        --exec "$PHP_FPM_BIN" -- --fpm-config "$PHP_FPM_CONF"
+}
+
+stop() {
+    if [ -f "$PIDFILE" ]; then
+        start-stop-daemon --stop --pidfile "$PIDFILE" --retry QUIT/5
+        rm -f "$PIDFILE"
+    fi
+}
+
+status() {
+    if [ -f "$PIDFILE" ]; then
+        read PID < "$PIDFILE"
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "php__VER__-fpm 运行中 (pid $PID)"
+            return 0
+        fi
+    fi
+    echo "php__VER__-fpm 未运行"
+    return 1
+}
+
+if [ -z "${RC_SVCNAME:-}" ]; then
+    case "${1:-}" in
+        start)   start ;;
+        stop)    stop ;;
+        restart) stop; sleep 1; start ;;
+        status)  status ;;
+        *)       echo "用法: $0 {start|stop|restart|status}" >&2; exit 1 ;;
+    esac
+fi
+PHINIT
+    sed -i "s|__VER__|$ver|g" "/etc/init.d/php$ver"
+    chmod +x "/etc/init.d/php$ver"
+
+    rm -rf "$dl_dir" "$ext_dir"
+
+    rc-update add "php$ver" default 2>/dev/null || true
+
+    echo "PHP $ver 安装完成"
+    echo "  二进制: $bin_dir/php$ver"
+    echo "  配置:   $conf_dir/"
+    echo "  运行:   rc-service php$ver start"
+}
+
+install_mariadb() {
+    echo "正在安装 MariaDB..."
+
+    command -v apk >/dev/null 2>&1 || { echo "错误: 仅支持 Alpine Linux" >&2; exit 1; }
+
+    mariadb_dir="/www/server/mysql"
+    bin_dir="$mariadb_dir/bin"
+    lib_dir="$mariadb_dir/lib"
+    conf_dir="$mariadb_dir/conf"
+    run_dir="$mariadb_dir/run"
+    data_dir="/www/server/data"
+    log_dir="/www/wwwlogs"
+
+    mkdir -p "$bin_dir" "$lib_dir" "$conf_dir" "$run_dir" "$data_dir" "$log_dir"
+
+    dl_dir=$(mktemp -d)
+    ext_dir=$(mktemp -d)
+
+    (
+        cd "$dl_dir"
+        apk fetch --recursive mariadb mariadb-client
+    )
+
+    for apk_file in "$dl_dir"/*.apk; do
+        [ -f "$apk_file" ] || continue
+        tar -xzf "$apk_file" -C "$ext_dir"
+    done
+
+    if [ -f "$ext_dir/usr/bin/mariadbd" ]; then
+        cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
+        chmod +x "$bin_dir/"* 2>/dev/null || true
+        cat > /usr/bin/mariadbd << 'MARIADBWRAP'
+#!/bin/sh
+export LD_LIBRARY_PATH=/www/server/mysql/lib
+exec /www/server/mysql/bin/mariadbd "$@"
+MARIADBWRAP
+        chmod +x /usr/bin/mariadbd
+    else
+        echo "错误: 未找到 mariadbd 二进制" >&2
+        rm -rf "$dl_dir" "$ext_dir"
+        exit 1
+    fi
+
+    for d in "$ext_dir/lib" "$ext_dir/usr/lib"; do
+        [ -d "$d" ] && cp -r "$d/." "$lib_dir/" 2>/dev/null || true
+    done
+
+    if [ -d "$ext_dir/etc/mysql" ]; then
+        cp -r "$ext_dir/etc/mysql/." "$conf_dir/"
+    fi
+
+    cat > "$conf_dir/my.cnf" << 'EOF'
+[mysqld]
+user=root
+basedir=/www/server/mysql
+datadir=/www/server/data
+pid-file=/www/server/mysql/run/mariadb.pid
+socket=/www/server/mysql/run/mariadb.sock
+log-error=/www/wwwlogs/mariadb_error.log
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+
+[client]
+socket=/www/server/mysql/run/mariadb.sock
+EOF
+
+    if [ ! -d "$data_dir/mysql" ]; then
+        echo "正在初始化数据库..."
+        export LD_LIBRARY_PATH="$lib_dir"
+        "$bin_dir/mariadbd" --defaults-file="$conf_dir/my.cnf" --initialize-insecure --user=root >/dev/null 2>&1 || {
+            echo "错误: 数据库初始化失败" >&2
+            rm -rf "$dl_dir" "$ext_dir"
+            exit 1
+        }
+    fi
+
+    cat > /etc/init.d/mariadb << 'MARIADBINIT'
+#!/bin/sh
+
+MARIADBD_BIN="/www/server/mysql/bin/mariadbd"
+MY_CNF="/www/server/mysql/conf/my.cnf"
+PIDFILE="/www/server/mysql/run/mariadb.pid"
+
+start() {
+    mkdir -p /www/server/mysql/run
+    export LD_LIBRARY_PATH=/www/server/mysql/lib
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile "$PIDFILE" \
+        --env LD_LIBRARY_PATH=/www/server/mysql/lib \
+        --exec "$MARIADBD_BIN" -- --defaults-file="$MY_CNF"
+}
+
+stop() {
+    if [ -f "$PIDFILE" ]; then
+        start-stop-daemon --stop --pidfile "$PIDFILE" --retry QUIT/5
+        rm -f "$PIDFILE"
+    fi
+}
+
+status() {
+    if [ -f "$PIDFILE" ]; then
+        read PID < "$PIDFILE"
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "mariadb 运行中 (pid $PID)"
+            return 0
+        fi
+    fi
+    echo "mariadb 未运行"
+    return 1
+}
+
+if [ -z "${RC_SVCNAME:-}" ]; then
+    case "${1:-}" in
+        start)   start ;;
+        stop)    stop ;;
+        restart) stop; sleep 1; start ;;
+        status)  status ;;
+        *)       echo "用法: $0 {start|stop|restart|status}" >&2; exit 1 ;;
+    esac
+fi
+MARIADBINIT
+    chmod +x /etc/init.d/mariadb
+
+    rm -rf "$dl_dir" "$ext_dir"
+
+    rc-update add mariadb default 2>/dev/null || true
+
+    echo "MariaDB 安装完成"
+    echo "  二进制: $bin_dir/mariadbd"
+    echo "  配置:   $conf_dir/my.cnf"
+    echo "  数据:   $data_dir/"
+    echo "  日志:   $log_dir/mariadb_error.log"
+    echo "启动: rc-service mariadb start"
+}
+
 case "${1:-}" in
     "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -282,6 +589,8 @@ case "${1:-}" in
     22)  set_password ;;
     31)  set_port ;;
     51)  install_nginx ;;
+    52)  install_php "$2" ;;
+    53)  install_mariadb ;;
     *)
         echo "未知命令: alp $1" >&2
         help
