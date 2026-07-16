@@ -403,7 +403,7 @@ async function handleChangeRootPw() {
     ElMessage.warning('请输入 root 密码')
     return
   }
-  if (rootPwDialog.password.includes('"') || rootPwDialog.password.includes("'") || rootPwDialog.password.includes('\\')) {
+  if (rootPwDialog.password.includes("'")) {
     ElMessage.warning('密码包含非法字符')
     return
   }

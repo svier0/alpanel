@@ -2,7 +2,7 @@ use crate::errors::{AppError, AppResult};
 
 const PID_FILE: &str = "/www/server/mysql/run/mysql.pid";
 const MYSQL_BIN: &str = "/www/server/mysql/bin/mariadbd";
-const MYSQL_CLIENT: &str = "/www/server/mysql/bin/mariadb";
+const MYSQL_ADMIN: &str = "/www/server/mysql/bin/mariadb-admin";
 const SOCK_FILE: &str = "/www/server/mysql/run/mysql.sock";
 const INIT_SCRIPT: &str = "/etc/init.d/mysql";
 
@@ -113,21 +113,17 @@ pub fn change_root_pw(new_pw: &str) -> AppResult<String> {
     if new_pw.is_empty() {
         return Err(AppError::BadRequest("密码不能为空".to_string()));
     }
-    if new_pw.contains('\'') || new_pw.contains('"') || new_pw.contains('\\') {
+    if new_pw.contains('\'') {
         return Err(AppError::BadRequest("密码包含非法字符".to_string()));
     }
-    let sql = format!(
-        "ALTER USER 'root'@'localhost' IDENTIFIED BY '{}'; FLUSH PRIVILEGES;",
-        new_pw
-    );
-    let output = std::process::Command::new(MYSQL_CLIENT)
+    let output = std::process::Command::new(MYSQL_ADMIN)
         .arg("-uroot")
         .arg("-S")
         .arg(SOCK_FILE)
-        .arg("-e")
-        .arg(sql)
+        .arg("password")
+        .arg(new_pw)
         .output()
-        .map_err(|e| AppError::Internal(format!("无法执行 mysql 命令: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("无法执行 mariadb-admin 命令: {}", e)))?;
     if output.status.success() {
         Ok("root 密码已修改".to_string())
     } else {
