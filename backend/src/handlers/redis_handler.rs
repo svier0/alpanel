@@ -8,7 +8,8 @@ pub async fn get_status(headers: HeaderMap) -> AppResult<Json<serde_json::Value>
     check_auth(&headers)?;
     let installed = redis_service::check_installed();
     let running = redis_service::check_running();
-    Ok(Json(serde_json::json!({ "installed": installed, "running": running })))
+    let version = redis_service::get_version();
+    Ok(Json(serde_json::json!({ "installed": installed, "running": running, "version": version })))
 }
 
 pub async fn install(headers: HeaderMap) -> AppResult<Json<serde_json::Value>> {

@@ -9,7 +9,8 @@ pub async fn get_status(headers: HeaderMap) -> AppResult<Json<serde_json::Value>
     check_auth(&headers)?;
     let installed = mysql_service::check_installed();
     let running = mysql_service::check_running();
-    Ok(Json(serde_json::json!({ "installed": installed, "running": running })))
+    let version = mysql_service::get_version();
+    Ok(Json(serde_json::json!({ "installed": installed, "running": running, "version": version })))
 }
 
 pub async fn install(headers: HeaderMap) -> AppResult<Json<serde_json::Value>> {

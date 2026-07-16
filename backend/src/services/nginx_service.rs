@@ -21,6 +21,19 @@ pub fn check_installed() -> bool {
     std::path::Path::new(NGINX_BIN).exists()
 }
 
+pub fn get_version() -> Option<String> {
+    if !check_installed() {
+        return None;
+    }
+    let out = std::process::Command::new(NGINX_BIN)
+        .arg("-v")
+        .output()
+        .ok()?;
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let v = stderr.split("nginx/").nth(1)?.split_whitespace().next()?;
+    Some(v.to_string())
+}
+
 pub fn check_running() -> bool {
     let pid_path = std::path::Path::new(PID_FILE);
     if !pid_path.exists() {
