@@ -11,4 +11,5 @@ pub fn routes() -> Router<()> {
         .route("/api/mysql/stop", post(mysql_handler::stop))
         .route("/api/mysql/restart", post(mysql_handler::restart))
         .route("/api/mysql/reload", post(mysql_handler::reload))
+        .route("/api/mysql/change_root_pw", post(mysql_handler::change_root_pw))
 }

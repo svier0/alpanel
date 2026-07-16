@@ -2,6 +2,8 @@ use crate::errors::{AppError, AppResult};
 
 const PID_FILE: &str = "/www/server/mysql/run/mysql.pid";
 const MYSQL_BIN: &str = "/www/server/mysql/bin/mariadbd";
+const MYSQL_CLIENT: &str = "/www/server/mysql/bin/mariadb";
+const SOCK_FILE: &str = "/www/server/mysql/run/mysql.sock";
 const INIT_SCRIPT: &str = "/etc/init.d/mysql";
 
 fn init_d(action: &str) -> std::process::Output {
@@ -98,5 +100,44 @@ pub fn install() -> AppResult<String> {
             "mysql 安装失败: {}",
             String::from_utf8_lossy(&output.stderr)
         )))
+    }
+}
+
+pub fn change_root_pw(new_pw: &str) -> AppResult<String> {
+    if !check_installed() {
+        return Err(AppError::Internal("MySQL 未安装".to_string()));
+    }
+    if !check_running() {
+        return Err(AppError::Internal("MySQL 未运行，无法修改密码".to_string()));
+    }
+    if new_pw.is_empty() {
+        return Err(AppError::BadRequest("密码不能为空".to_string()));
+    }
+    if new_pw.contains('\'') || new_pw.contains('"') || new_pw.contains('\\') {
+        return Err(AppError::BadRequest("密码包含非法字符".to_string()));
+    }
+    let sql = format!(
+        "ALTER USER 'root'@'localhost' IDENTIFIED BY '{}'; FLUSH PRIVILEGES;",
+        new_pw
+    );
+    let output = std::process::Command::new(MYSQL_CLIENT)
+        .arg("-uroot")
+        .arg("-S")
+        .arg(SOCK_FILE)
+        .arg("-e")
+        .arg(sql)
+        .output()
+        .map_err(|e| AppError::Internal(format!("无法执行 mysql 命令: {}", e)))?;
+    if output.status.success() {
+        Ok("root 密码已修改".to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("Access denied") {
+            Err(AppError::Internal(
+                "当前 root 需要密码验证，请先通过其他方式修改".to_string(),
+            ))
+        } else {
+            Err(AppError::Internal(format!("修改失败: {}", stderr.trim())))
+        }
     }
 }

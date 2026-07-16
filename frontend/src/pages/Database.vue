@@ -188,8 +188,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rootPwDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="handleChangeRootPw">确定</el-button>
+        <el-button @click="rootPwDialog.visible = false" :disabled="changingRootPw">取消</el-button>
+        <el-button type="primary" @click="handleChangeRootPw" :loading="changingRootPw">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -396,13 +396,30 @@ function openRootPw() {
   rootPwDialog.visible = true
 }
 
-function handleChangeRootPw() {
+const changingRootPw = ref(false)
+
+async function handleChangeRootPw() {
   if (!rootPwDialog.password) {
     ElMessage.warning('请输入 root 密码')
     return
   }
-  rootPwDialog.visible = false
-  ElMessage.success('root 密码已修改（演示）')
+  if (rootPwDialog.password.includes('"') || rootPwDialog.password.includes("'") || rootPwDialog.password.includes('\\')) {
+    ElMessage.warning('密码包含非法字符')
+    return
+  }
+  changingRootPw.value = true
+  try {
+    const data = await apiFetch('/api/mysql/change_root_pw', {
+      method: 'POST',
+      body: JSON.stringify({ password: rootPwDialog.password }),
+    })
+    rootPwDialog.visible = false
+    ElMessage.success(data.message || 'root 密码已修改')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '修改失败，请检查 MySQL 是否运行')
+  } finally {
+    changingRootPw.value = false
+  }
 }
 </script>
 
