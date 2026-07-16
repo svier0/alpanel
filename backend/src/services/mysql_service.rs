@@ -124,18 +124,8 @@ pub fn get_version() -> Option<String> {
         .ok()?;
     let s = String::from_utf8_lossy(&out.stdout);
     // "mariadbd  Ver 11.4.5-MariaDB[, for Linux...]"
-    let first = s.split("Ver ").nth(1)?.split_whitespace().next()?;
-    let clean = first.trim_end_matches(',');
-    let (v, engine) = match clean.split_once('-') {
-        Some((v, e)) => (v, e),
-        None => (clean, "MariaDB"),
-    };
-    let parts: Vec<&str> = v.splitn(3, '.').collect();
-    if parts.len() >= 2 {
-        Some(format!("{} {}.{}", engine, parts[0], parts[1]))
-    } else {
-        Some(format!("{} {}", engine, v))
-    }
+    let v = s.split("Ver ").nth(1)?.split_whitespace().next()?;
+    Some(v.trim_end_matches(',').to_string())
 }
 
 pub fn check_running() -> bool {
