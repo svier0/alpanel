@@ -38,6 +38,19 @@
               <el-button size="small" @click="openRootPw">
                 <el-icon><Key /></el-icon>root密码
               </el-button>
+              <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd('mysql', c)">
+                <el-button size="small" :type="mysqlRunning ? 'default' : 'danger'">
+                  MySQL {{ mysqlRunning ? '\u25b6' : '\u23f8' }}
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="start" v-if="!mysqlRunning">启动</el-dropdown-item>
+                    <el-dropdown-item command="stop" v-if="mysqlRunning">停止</el-dropdown-item>
+                    <el-dropdown-item command="restart">重启</el-dropdown-item>
+                    <el-dropdown-item command="reload">重载</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
             <div class="toolbar-right">
               <el-input
@@ -116,8 +129,27 @@
             <el-button size="small" link type="primary" @click="installErrorRedis = ''">重试</el-button>
           </div>
         </div>
-        <div v-else class="redis-placeholder">
-          <el-empty description="Redis 管理（待实现）" />
+        <div v-else>
+          <div class="toolbar-row">
+            <div class="toolbar-left">
+              <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd('redis', c)">
+                <el-button size="small" :type="redisRunning ? 'default' : 'danger'">
+                  Redis {{ redisRunning ? '\u25b6' : '\u23f8' }}
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="start" v-if="!redisRunning">启动</el-dropdown-item>
+                    <el-dropdown-item command="stop" v-if="redisRunning">停止</el-dropdown-item>
+                    <el-dropdown-item command="restart">重启</el-dropdown-item>
+                    <el-dropdown-item command="reload">重载</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </div>
+          <div class="redis-placeholder">
+            <el-empty description="Redis 管理（待实现）" />
+          </div>
         </div>
       </template>
     </div>
@@ -184,12 +216,14 @@ watch(searchQuery, () => { page.value = 1 })
 
 const mysqlReady = ref(false)
 const mysqlInstalled = ref(false)
+const mysqlRunning = ref(false)
 const installingMysql = ref(false)
 const installProgressMysql = ref(0)
 const installErrorMysql = ref('')
 
 const redisReady = ref(false)
 const redisInstalled = ref(false)
+const redisRunning = ref(false)
 const installingRedis = ref(false)
 const installProgressRedis = ref(0)
 const installErrorRedis = ref('')
@@ -199,8 +233,10 @@ async function checkMysql() {
   try {
     const data = await apiFetch('/api/mysql/status')
     mysqlInstalled.value = data.installed
+    mysqlRunning.value = data.running
   } catch {
     mysqlInstalled.value = false
+    mysqlRunning.value = false
   } finally {
     mysqlReady.value = true
   }
@@ -211,10 +247,24 @@ async function checkRedis() {
   try {
     const data = await apiFetch('/api/redis/status')
     redisInstalled.value = data.installed
+    redisRunning.value = data.running
   } catch {
     redisInstalled.value = false
+    redisRunning.value = false
   } finally {
     redisReady.value = true
+  }
+}
+
+async function handleSrvCmd(svc: 'mysql' | 'redis', cmd: string) {
+  try {
+    await apiFetch(`/api/${svc}/${cmd}`, { method: 'POST' })
+    const msgs: Record<string, string> = { start: '已启动', stop: '已停止', restart: '已重启', reload: '已重载' }
+    ElMessage.success(`${svc === 'mysql' ? 'MySQL' : 'Redis'}${msgs[cmd] || '操作成功'}`)
+    if (svc === 'mysql') setTimeout(checkMysql, 1000)
+    else setTimeout(checkRedis, 1000)
+  } catch {
+    ElMessage.error('请求失败，请检查服务端连接')
   }
 }
 
