@@ -392,7 +392,7 @@ function genRootPw() {
 }
 
 function openRootPw() {
-  genRootPw()
+  rootPwDialog.password = ''
   rootPwDialog.visible = true
 }
 
