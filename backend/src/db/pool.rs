@@ -15,10 +15,7 @@ pub fn init_db() {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    if path.exists() {
-        info!("alpanel.db already exists at {:?}", path);
-        return;
-    }
+    let is_new = !path.exists();
 
     let conn = Connection::open(&path).expect("Failed to create database");
     conn.execute_batch(
@@ -49,9 +46,48 @@ pub fn init_db() {
             port INTEGER,
             addtime TEXT
         );
+        CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
         ",
     )
     .expect("Failed to create tables");
 
-    info!("Database created at {:?}", path);
+    conn.execute(
+        "INSERT OR IGNORE INTO config (key, value) VALUES ('status', '1')",
+        [],
+    )
+    .ok();
+    conn.execute(
+        "INSERT OR IGNORE INTO config (key, value) VALUES ('mysql_root', '')",
+        [],
+    )
+    .ok();
+
+    if is_new {
+        info!("Database created at {:?}", path);
+    } else {
+        info!("alpanel.db already exists at {:?}", path);
+    }
 }
+
+pub fn get_config(key: &str) -> Option<String> {
+    let path = db_path();
+    let conn = Connection::open(&path).ok()?;
+    let mut stmt = conn.prepare("SELECT value FROM config WHERE key = ?").ok()?;
+    let mut rows = stmt.query([key]).ok()?;
+    rows.next().ok()?.map(|r| r.get::<_, String>(0).unwrap_or_default())
+}
+
+pub fn set_config(key: &str, value: &str) {
+    let path = db_path();
+    if let Ok(conn) = Connection::open(&path) {
+        conn.execute(
+            "INSERT INTO config (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2",
+            [key, value],
+        )
+        .ok();
+    }
+}
+
