@@ -17,6 +17,7 @@ help() {
     echo "  alp 52     安装 PHP (可多版本, 如 alp 52 74)"
     echo "  alp 53     安装 MySQL"
     echo "  alp 54     安装 Redis"
+    echo "  alp 61     强制修改 MySQL root 密码 (无需旧密码)"
     echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
     echo "  alp 0      取消"
 }
@@ -756,6 +757,64 @@ uninstall() {
     echo "如需重新安装, 请重新运行 install.sh"
 }
 
+force_mysql_pw() {
+    command -v mariadbd >/dev/null 2>&1 || { echo "错误: MySQL 未安装"; exit 1; }
+    echo "请输入新的 MySQL root 密码:"
+    printf "> "
+    read -r newpw
+    [ -n "$newpw" ] || { echo "密码不能为空"; exit 1; }
+
+    echo "正在停止 MySQL..."
+    /etc/init.d/mysql stop 2>/dev/null || true
+    sleep 1
+
+    echo "正在以跳过权限表模式启动..."
+    socket="/www/server/mysql/run/mysql.sock"
+    pidfile="/www/server/mysql/run/mysql.pid"
+
+    export LD_LIBRARY_PATH=/www/server/mysql/lib
+    mariadbd --skip-grant-tables --skip-networking \
+        --datadir=/www/server/data --basedir=/www/server/mysql \
+        --socket="$socket" --pid-file="$pidfile" \
+        --defaults-file=/www/server/mysql/conf/my.cnf \
+        --user=root >/dev/null 2>&1 &
+    mysql_tmp_pid=$!
+    sleep 2
+
+    echo "正在修改密码..."
+    if mariadb -uroot -S "$socket" -e \
+        "ALTER USER 'root'@'localhost' IDENTIFIED BY '${newpw}'; FLUSH PRIVILEGES;" 2>/dev/null; then
+        ok=1
+    else
+        # 旧版或不支持 ALTER USER 的降级
+        mariadb -uroot -S "$socket" -e \
+            "UPDATE mysql.user SET plugin='', authentication_string='' WHERE User='root'; FLUSH PRIVILEGES;" 2>/dev/null || {
+            echo "错误: 修改失败" >&2
+            kill "$mysql_tmp_pid" 2>/dev/null || true
+            exit 1
+        }
+        kill "$mysql_tmp_pid" 2>/dev/null || true
+        sleep 1
+        rm -f "$pidfile" "$socket"
+        /etc/init.d/mysql start 2>/dev/null || true
+        sleep 2
+        export LD_LIBRARY_PATH=/www/server/mysql/lib
+        mariadb -uroot -S "$socket" -e \
+            "ALTER USER 'root'@'localhost' IDENTIFIED BY '${newpw}'; FLUSH PRIVILEGES;" 2>/dev/null || {
+            echo "错误: 密码清空但 ALTER USER 失败, 请手动设置密码" >&2
+            exit 1
+        }
+        ok=1
+    fi
+
+    kill "$mysql_tmp_pid" 2>/dev/null || true
+    sleep 1
+    rm -f "$pidfile" "$socket"
+
+    /etc/init.d/mysql start 2>/dev/null || true
+    echo "MySQL root 密码已修改为: $newpw"
+}
+
 case "${1:-}" in
     "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -779,6 +838,7 @@ case "${1:-}" in
     52)  install_php "${2:-}" ;;
     53)  install_mysql ;;
     54)  install_redis ;;
+    61)  force_mysql_pw ;;
     99)  uninstall ;;
     *)
         echo "未知命令: alp $1" >&2
