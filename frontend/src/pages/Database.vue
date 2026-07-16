@@ -81,9 +81,14 @@
             <el-table-column label="用户名" width="160" show-overflow-tooltip>
               <template #default="{ row }">{{ row.user }}</template>
             </el-table-column>
-            <el-table-column label="密码" width="180" show-overflow-tooltip>
+            <el-table-column label="密码" width="200" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="pw-cell">{{ row.password }}</span>
+                <span class="pw-cell">
+                  <span v-if="pwVisible[row.id]">{{ row.password }}</span>
+                  <span v-else>******</span>
+                  <el-icon class="pw-icon" @click="togglePw(row.id)"><View v-if="pwVisible[row.id]" /><Hide v-else /></el-icon>
+                  <el-icon class="pw-icon" @click="copyPw(row.password)"><CopyDocument /></el-icon>
+                </span>
               </template>
             </el-table-column>
             <el-table-column label="备注" min-width="200">
@@ -198,7 +203,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Search, RefreshRight, Key, Refresh } from '@element-plus/icons-vue'
+import { Plus, Search, RefreshRight, Key, Refresh, View, Hide, CopyDocument } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
 
 const tabs = [
@@ -402,6 +407,20 @@ async function openRootPw() {
 
 const changingRootPw = ref(false)
 
+const pwVisible = reactive<Record<number, boolean>>({})
+
+function togglePw(id: number) {
+  pwVisible[id] = !pwVisible[id]
+}
+
+function copyPw(pw: string) {
+  navigator.clipboard.writeText(pw).then(() => {
+    ElMessage.success('已复制')
+  }).catch(() => {
+    ElMessage.error('复制失败')
+  })
+}
+
 async function handleChangeRootPw() {
   if (!rootPwDialog.password) {
     ElMessage.warning('请输入 root 密码')
@@ -498,6 +517,17 @@ async function handleChangeRootPw() {
   font-family: monospace;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pw-icon {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--el-text-color-placeholder);
+}
+.pw-icon:hover {
+  color: var(--el-color-primary);
 }
 .ps-input {
   width: 100%;
