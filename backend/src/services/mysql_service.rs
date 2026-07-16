@@ -114,6 +114,29 @@ pub fn check_installed() -> bool {
     std::path::Path::new(MYSQL_BIN).exists()
 }
 
+pub fn get_version() -> Option<String> {
+    if !check_installed() {
+        return None;
+    }
+    let out = std::process::Command::new(MYSQL_BIN)
+        .arg("--version")
+        .output()
+        .ok()?;
+    let s = String::from_utf8_lossy(&out.stdout);
+    // "mariadbd  Ver 11.4.5-MariaDB"
+    let ver = s.split("Ver ").nth(1)?.trim();
+    let (v, engine) = match ver.split_once('-') {
+        Some((v, e)) => (v, e.trim()),
+        None => (ver, "MariaDB"),
+    };
+    let parts: Vec<&str> = v.splitn(3, '.').collect();
+    if parts.len() >= 2 {
+        Some(format!("{} {}.{}", engine, parts[0], parts[1]))
+    } else {
+        Some(format!("{} {}", engine, v))
+    }
+}
+
 pub fn check_running() -> bool {
     let pid_path = std::path::Path::new(PID_FILE);
     if !pid_path.exists() {
