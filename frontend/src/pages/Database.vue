@@ -17,7 +17,13 @@
         </div>
         <div v-else-if="!mysqlInstalled" class="install-mask install-prompt">
           <p class="mask-tip">数据库管理需要 MySQL 服务</p>
-          <el-button type="primary" size="small" :loading="installingMysql" @click="installMysql">安装 MySQL</el-button>
+          <template v-if="!installingMysql">
+            <el-button type="primary" size="small" :loading="installingMysql" @click="installMysql">安装 MySQL</el-button>
+          </template>
+          <template v-else>
+            <p style="margin:0 0 12px;font-size:13px">正在安装 MySQL，请稍候...</p>
+            <el-progress :percentage="installProgressMysql" :stroke-width="6" style="width:300px" />
+          </template>
           <div v-if="installErrorMysql" class="mask-error">
             {{ installErrorMysql }}
             <el-button size="small" link type="primary" @click="installErrorMysql = ''">重试</el-button>
@@ -98,7 +104,13 @@
         </div>
         <div v-else-if="!redisInstalled" class="install-mask install-prompt">
           <p class="mask-tip">Redis 管理需要 Redis 服务</p>
-          <el-button type="primary" size="small" :loading="installingRedis" @click="installRedis">安装 Redis</el-button>
+          <template v-if="!installingRedis">
+            <el-button type="primary" size="small" :loading="installingRedis" @click="installRedis">安装 Redis</el-button>
+          </template>
+          <template v-else>
+            <p style="margin:0 0 12px;font-size:13px">正在安装 Redis，请稍候...</p>
+            <el-progress :percentage="installProgressRedis" :stroke-width="6" style="width:300px" />
+          </template>
           <div v-if="installErrorRedis" class="mask-error">
             {{ installErrorRedis }}
             <el-button size="small" link type="primary" @click="installErrorRedis = ''">重试</el-button>
@@ -173,11 +185,13 @@ watch(searchQuery, () => { page.value = 1 })
 const mysqlReady = ref(false)
 const mysqlInstalled = ref(false)
 const installingMysql = ref(false)
+const installProgressMysql = ref(0)
 const installErrorMysql = ref('')
 
 const redisReady = ref(false)
 const redisInstalled = ref(false)
 const installingRedis = ref(false)
+const installProgressRedis = ref(0)
 const installErrorRedis = ref('')
 
 async function checkMysql() {
@@ -207,10 +221,17 @@ async function checkRedis() {
 async function installMysql() {
   installingMysql.value = true
   installErrorMysql.value = ''
+  installProgressMysql.value = 0
+  const iv = setInterval(() => {
+    installProgressMysql.value = Math.min(installProgressMysql.value + 3, 90)
+  }, 800)
   try {
     await apiFetch('/api/mysql/install', { method: 'POST' })
-    mysqlInstalled.value = true
+    clearInterval(iv)
+    installProgressMysql.value = 100
+    setTimeout(() => { mysqlInstalled.value = true }, 600)
   } catch {
+    clearInterval(iv)
     installErrorMysql.value = '安装失败，请检查服务端连接'
   } finally {
     installingMysql.value = false
@@ -220,9 +241,15 @@ async function installMysql() {
 async function installRedis() {
   installingRedis.value = true
   installErrorRedis.value = ''
+  installProgressRedis.value = 0
+  const iv = setInterval(() => {
+    installProgressRedis.value = Math.min(installProgressRedis.value + 5, 90)
+  }, 600)
   try {
     await apiFetch('/api/redis/install', { method: 'POST' })
-    redisInstalled.value = true
+    clearInterval(iv)
+    installProgressRedis.value = 100
+    setTimeout(() => { redisInstalled.value = true }, 600)
   } catch {
     installErrorRedis.value = '安装失败，请检查服务端连接'
   } finally {
