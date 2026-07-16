@@ -36,7 +36,7 @@
             </el-button>
             <el-dropdown size="small" trigger="hover" @command="handleNginxCmd">
               <el-button size="small" :type="nginxRunning ? 'default' : 'danger'">
-                Nginx {{ nginxRunning ? '\u25b6' : '\u23f8' }}
+                Nginx{{ nginxVersion ? ' [' + nginxVersion + ']' : '' }} {{ nginxRunning ? '\u25b6' : '\u23f8' }}
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -292,6 +292,7 @@ const installing = ref(false)
 const installProgress = ref(0)
 const installError = ref('')
 const nginxRunning = ref(false)
+const nginxVersion = ref('')
 
 async function checkNginx() {
   ngReady.value = false
@@ -299,6 +300,7 @@ async function checkNginx() {
     const data = await apiFetch('/api/nginx/status')
     nginxInstalled.value = data.installed
     nginxRunning.value = data.running
+    nginxVersion.value = data.version || ''
     if (!data.installed) {
       blockedByNginx.value = true
     }
