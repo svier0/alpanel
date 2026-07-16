@@ -234,29 +234,27 @@ const installProgressRedis = ref(0)
 const installErrorRedis = ref('')
 
 async function checkMysql() {
-  mysqlReady.value = false
   try {
     const data = await apiFetch('/api/mysql/status')
     mysqlInstalled.value = data.installed
     mysqlRunning.value = data.running
+    mysqlReady.value = true
   } catch {
     mysqlInstalled.value = false
     mysqlRunning.value = false
-  } finally {
     mysqlReady.value = true
   }
 }
 
 async function checkRedis() {
-  redisReady.value = false
   try {
     const data = await apiFetch('/api/redis/status')
     redisInstalled.value = data.installed
     redisRunning.value = data.running
+    redisReady.value = true
   } catch {
     redisInstalled.value = false
     redisRunning.value = false
-  } finally {
     redisReady.value = true
   }
 }
