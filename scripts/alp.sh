@@ -487,7 +487,8 @@ install_mysql() {
         cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
         chmod +x "$bin_dir/"* 2>/dev/null || true
         apply_rpath "/www/server/mysql/lib" "$bin_dir/mariadbd" "$bin_dir/mariadb"
-        ln -sf "$bin_dir/mariadbd" /usr/bin/mysql
+        ln -sf "$bin_dir/mariadb" /usr/bin/mysql
+        ln -sf "$bin_dir/mariadbd" /usr/bin/mysqld
     else
         echo "错误: 未找到 mariadbd 二进制" >&2
         rm -rf "$dl_dir" "$ext_dir"
