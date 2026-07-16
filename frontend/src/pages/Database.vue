@@ -40,7 +40,7 @@
               </el-button>
               <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd('mysql', c)">
                 <el-button size="small" :type="mysqlRunning ? 'default' : 'danger'">
-                  MySQL {{ mysqlRunning ? '\u25b6' : '\u23f8' }}
+                  MySQL{{ mysqlVersion ? ' [' + mysqlVersion + ']' : '' }} {{ mysqlRunning ? '\u25b6' : '\u23f8' }}
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -139,7 +139,7 @@
             <div class="toolbar-left">
               <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd('redis', c)">
                 <el-button size="small" :type="redisRunning ? 'default' : 'danger'">
-                  Redis {{ redisRunning ? '\u25b6' : '\u23f8' }}
+                  Redis{{ redisVersion ? ' [' + redisVersion + ']' : '' }} {{ redisRunning ? '\u25b6' : '\u23f8' }}
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -222,6 +222,7 @@ watch(searchQuery, () => { page.value = 1 })
 const mysqlReady = ref(false)
 const mysqlInstalled = ref(false)
 const mysqlRunning = ref(false)
+const mysqlVersion = ref('')
 const installingMysql = ref(false)
 const installProgressMysql = ref(0)
 const installErrorMysql = ref('')
@@ -229,6 +230,7 @@ const installErrorMysql = ref('')
 const redisReady = ref(false)
 const redisInstalled = ref(false)
 const redisRunning = ref(false)
+const redisVersion = ref('')
 const installingRedis = ref(false)
 const installProgressRedis = ref(0)
 const installErrorRedis = ref('')
@@ -238,6 +240,7 @@ async function checkMysql() {
     const data = await apiFetch('/api/mysql/status')
     mysqlInstalled.value = data.installed
     mysqlRunning.value = data.running
+    mysqlVersion.value = data.version || ''
     mysqlReady.value = true
   } catch {
     mysqlInstalled.value = false
@@ -251,6 +254,7 @@ async function checkRedis() {
     const data = await apiFetch('/api/redis/status')
     redisInstalled.value = data.installed
     redisRunning.value = data.running
+    redisVersion.value = data.version || ''
     redisReady.value = true
   } catch {
     redisInstalled.value = false
