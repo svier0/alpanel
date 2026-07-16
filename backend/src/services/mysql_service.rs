@@ -239,14 +239,18 @@ pub fn change_root_pw(new_pw: &str) -> AppResult<String> {
         return Err(AppError::BadRequest("密码不能为空".to_string()));
     }
     let current_pw = get_root_pw();
-    let mut cmd = std::process::Command::new(MYSQL_ADMIN);
-    cmd.arg("-uroot").arg("--socket").arg(SOCK_FILE);
+    let sql = format!(
+        "ALTER USER 'root'@'localhost' IDENTIFIED BY '{}'; FLUSH PRIVILEGES;",
+        new_pw.replace('\'', "''")
+    );
+    let mut cmd = std::process::Command::new(MYSQL_CLIENT);
+    cmd.arg("-uroot").arg("-S").arg(SOCK_FILE);
     if !current_pw.is_empty() {
-        cmd.arg("-p").arg(&current_pw);
+        cmd.arg(format!("-p{}", current_pw));
     }
-    cmd.arg("password").arg(new_pw);
+    cmd.arg("-e").arg(sql);
     let output = cmd.output()
-        .map_err(|e| AppError::Internal(format!("无法执行 mariadb-admin 命令: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("无法执行 mariadb 命令: {}", e)))?;
     if output.status.success() {
         pool::set_config("mysql_root", &base64_encode(new_pw.as_bytes()));
         Ok("root 密码已修改".to_string())
