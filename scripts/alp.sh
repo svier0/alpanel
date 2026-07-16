@@ -485,6 +485,11 @@ install_mysql() {
 
     if [ -f "$ext_dir/usr/bin/mariadbd" ]; then
         cp -r "$ext_dir/usr/bin/." "$bin_dir/" 2>/dev/null || true
+        # 删除生产环境不需要的工具，缩减约 53M
+        for f in myisamchk myisam_ftdump myisamlog myisampack \
+                 mariadb-embedded mariadb-ldb mariadb-slap myrocks_hotbackup; do
+            rm -f "$bin_dir/$f" 2>/dev/null || true
+        done
         chmod +x "$bin_dir/"* 2>/dev/null || true
         apply_rpath "/www/server/mysql/lib" "$bin_dir/mariadbd" "$bin_dir/mariadb"
         ln -sf "$bin_dir/mariadb" /usr/bin/mysql
