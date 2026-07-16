@@ -50,3 +50,9 @@ pub async fn change_root_pw(
     let message = mysql_service::change_root_pw(&body.password)?;
     Ok(Json(serde_json::json!({ "message": message })))
 }
+
+pub async fn get_root_pw(headers: HeaderMap) -> AppResult<Json<serde_json::Value>> {
+    check_auth(&headers)?;
+    let password = mysql_service::get_root_pw();
+    Ok(Json(serde_json::json!({ "password": password })))
+}

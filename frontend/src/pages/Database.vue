@@ -391,9 +391,13 @@ function genRootPw() {
   rootPwDialog.password = s
 }
 
-function openRootPw() {
+async function openRootPw() {
   rootPwDialog.password = ''
   rootPwDialog.visible = true
+  try {
+    const data = await apiFetch('/api/mysql/root_pw')
+    rootPwDialog.password = data.password || ''
+  } catch {}
 }
 
 const changingRootPw = ref(false)
