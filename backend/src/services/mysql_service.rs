@@ -239,19 +239,12 @@ pub fn change_root_pw(new_pw: &str) -> AppResult<String> {
         return Err(AppError::BadRequest("密码不能为空".to_string()));
     }
     let current_pw = get_root_pw();
-    if current_pw.is_empty() {
-        return Err(AppError::Internal(
-            "暂未设置 root 密码，无法通过此方式修改。请通过安装时生成的随机密码操作或联系管理员".to_string(),
-        ));
-    }
     let mut cmd = std::process::Command::new(MYSQL_ADMIN);
-    cmd.arg("-uroot")
-        .arg("-p")
-        .arg(&current_pw)
-        .arg("--socket")
-        .arg(SOCK_FILE)
-        .arg("password")
-        .arg(new_pw);
+    cmd.arg("-uroot").arg("--socket").arg(SOCK_FILE);
+    if !current_pw.is_empty() {
+        cmd.arg("-p").arg(&current_pw);
+    }
+    cmd.arg("password").arg(new_pw);
     let output = cmd.output()
         .map_err(|e| AppError::Internal(format!("无法执行 mariadb-admin 命令: {}", e)))?;
     if output.status.success() {
