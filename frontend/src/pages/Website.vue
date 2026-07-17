@@ -89,7 +89,7 @@
               </template>
             </el-table-column>
             <el-table-column label="PHP版本" width="100">
-              <template #default="{ row }"><span class="link-cell" @click="">{{ row.php ? row.php : '静态' }}</span></template>
+              <template #default="{ row }"><span class="link-cell" @click="">{{ row.php || '静态' }}</span></template>
             </el-table-column>
             <el-table-column label="SSL证书" width="110">
               <template #default="{ row }">
