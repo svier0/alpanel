@@ -20,16 +20,16 @@
             <span class="ed-tree-path" :title="treePath">{{ treePath }}</span>
           </div>
           <div class="ed-tree-toolbar">
-            <el-tooltip content="上一级" placement="bottom">
+            <el-tooltip content="上一级" placement="bottom" :z-index="5000">
               <button class="ed-tool" :disabled="!canGoUp" @click="goUp"><el-icon><Top /></el-icon></button>
             </el-tooltip>
-            <el-tooltip content="刷新" placement="bottom">
+            <el-tooltip content="刷新" placement="bottom" :z-index="5000">
               <button class="ed-tool" @click="refreshTree"><el-icon><Refresh /></el-icon></button>
             </el-tooltip>
-            <el-tooltip content="新建文件" placement="bottom">
+            <el-tooltip content="新建文件" placement="bottom" :z-index="5000">
               <button class="ed-tool" @click="openCreate(false)"><el-icon><DocumentAdd /></el-icon></button>
             </el-tooltip>
-            <el-tooltip content="新建目录" placement="bottom">
+            <el-tooltip content="新建目录" placement="bottom" :z-index="5000">
               <button class="ed-tool" @click="openCreate(true)"><el-icon><FolderAdd /></el-icon></button>
             </el-tooltip>
           </div>
