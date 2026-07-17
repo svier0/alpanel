@@ -13,6 +13,7 @@ else
     GH_PROXY="https://gh-proxy.com/"
 fi
 apk update
+apk add sqlite
 
 if [ "$(whoami)" != "root" ]; then
     echo "检查到当前非 root 权限进行面板安装"
