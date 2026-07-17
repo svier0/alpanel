@@ -88,7 +88,7 @@
                 <el-input v-model="row.ps" size="small" class="ps-input" @blur="savePs(row, 'normal')" />
               </template>
             </el-table-column>
-            <el-table-column label="PHP版本" width="100">
+            <el-table-column label="PHP" width="100">
               <template #default="{ row }"><span class="link-cell" @click="">{{ row.php || '静态' }}</span></template>
             </el-table-column>
             <el-table-column label="SSL证书" width="110">
