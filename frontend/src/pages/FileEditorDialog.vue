@@ -422,21 +422,33 @@ const ctxMenu = reactive({
 })
 
 function onTreeCtx(node: TreeNode, e: MouseEvent) {
+  closeCtxMenu()
   ctxMenu.node = node
   ctxMenu.isDir = node.is_dir
   ctxMenu.x = e.clientX
   ctxMenu.y = e.clientY
   ctxMenu.visible = true
-  setTimeout(() => {
-    window.addEventListener('click', closeCtxMenu, { once: true })
-    window.addEventListener('contextmenu', closeCtxMenu, { once: true })
-  }, 0)
+  document.addEventListener('mousedown', onDocMouseDown, true)
+  document.addEventListener('contextmenu', onDocCtx, true)
+}
+
+function onDocMouseDown(e: MouseEvent) {
+  if (!(e.target as HTMLElement)?.closest('.ed-ctx')) closeCtxMenu()
+}
+function onDocCtx(e: MouseEvent) {
+  if ((e.target as HTMLElement)?.closest('.ed-tree') || (e.target as HTMLElement)?.closest('.ed-ctx')) return
+  closeCtxMenu()
 }
 
 function closeCtxMenu() {
+  if (!ctxMenu.visible && !document.contains(document.querySelector('.ed-ctx'))) {
+    document.removeEventListener('mousedown', onDocMouseDown, true)
+    document.removeEventListener('contextmenu', onDocCtx, true)
+    return
+  }
   ctxMenu.visible = false
-  window.removeEventListener('click', closeCtxMenu)
-  window.removeEventListener('contextmenu', closeCtxMenu)
+  document.removeEventListener('mousedown', onDocMouseDown, true)
+  document.removeEventListener('contextmenu', onDocCtx, true)
 }
 
 function ctxRefreshDir() {
