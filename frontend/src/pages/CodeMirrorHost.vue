@@ -11,7 +11,7 @@ import {
 } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import {
-  syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput, foldGutter,
+  bracketMatching, indentOnInput, foldGutter,
   StreamLanguage,
 } from '@codemirror/language'
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
@@ -29,7 +29,7 @@ import { toml } from '@codemirror/legacy-modes/mode/toml'
 import { mySQL } from '@codemirror/legacy-modes/mode/sql'
 import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
 import { nginx } from '@codemirror/legacy-modes/mode/nginx'
-import { oneDark } from '@codemirror/theme-one-dark'
+import { ayuDark } from './ayuDark'
 
 export interface CursorPos {
   line: number
@@ -67,7 +67,7 @@ function langExtension(lang: string) {
 }
 
 function themeExtension(dark: boolean) {
-  return dark ? oneDark : []
+  return dark ? ayuDark : []
 }
 
 function buildState() {
@@ -87,7 +87,6 @@ function buildState() {
       highlightActiveLine(),
       highlightSelectionMatches(),
       autocompletion(),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       keymap.of([
         ...closeBracketsKeymap,
         ...defaultKeymap,
