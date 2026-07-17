@@ -237,7 +237,7 @@ function detectLanguage(path: string): string {
     css: 'css', scss: 'css', less: 'css', html: 'html', htm: 'html', vue: 'html', xml: 'html',
     json: 'json', sh: 'shell', bash: 'shell', zsh: 'shell', yml: 'yaml', yaml: 'yaml',
     py: 'python', ini: 'ini', conf: 'ini', cfg: 'ini', sql: 'sql', toml: 'toml',
-    txt: 'text', log: 'text', md: 'markdown',
+    env: 'ini', txt: 'text', log: 'text', md: 'markdown',
   }
   return map[ext] || 'text'
 }
