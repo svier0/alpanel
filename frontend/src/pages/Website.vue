@@ -269,6 +269,9 @@
         <el-form-item label="开机启动">
           <el-checkbox v-model="addOtherDialog.onpower">是否设置开机启动</el-checkbox>
         </el-form-item>
+        <el-form-item label="项目端口">
+          <el-input v-model="addOtherDialog.port" placeholder="如 3000，可为空" />
+        </el-form-item>
         <el-form-item label="项目备注">
           <el-input v-model="addOtherDialog.ps" placeholder="请输入备注,可为空" />
         </el-form-item>
@@ -620,6 +623,7 @@ const addOtherDialog = reactive({
   cmd: '',
   runUser: 'www',
   onpower: false,
+  port: '',
   ps: '',
   domain: '',
 })
@@ -630,6 +634,7 @@ function showAddOtherDialog() {
   addOtherDialog.cmd = ''
   addOtherDialog.runUser = 'www'
   addOtherDialog.onpower = false
+  addOtherDialog.port = ''
   addOtherDialog.ps = ''
   addOtherDialog.domain = ''
   fetchUsers()
@@ -654,6 +659,7 @@ async function handleAddOther() {
         project_cmd: cmd,
         run_user: addOtherDialog.runUser || 'www',
         is_onpower: addOtherDialog.onpower ? 1 : 0,
+        project_port: addOtherDialog.port ? parseInt(addOtherDialog.port, 10) : undefined,
         ps: addOtherDialog.ps || undefined,
         domains,
       }),
