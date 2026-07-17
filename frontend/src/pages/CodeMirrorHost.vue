@@ -12,6 +12,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import {
   syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput, foldGutter,
+  StreamLanguage,
 } from '@codemirror/language'
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
@@ -20,6 +21,14 @@ import { javascript } from '@codemirror/lang-javascript'
 import { css } from '@codemirror/lang-css'
 import { html } from '@codemirror/lang-html'
 import { json } from '@codemirror/lang-json'
+import { shell } from '@codemirror/legacy-modes/mode/shell'
+import { yaml } from '@codemirror/legacy-modes/mode/yaml'
+import { python } from '@codemirror/legacy-modes/mode/python'
+import { properties } from '@codemirror/legacy-modes/mode/properties'
+import { toml } from '@codemirror/legacy-modes/mode/toml'
+import { mySQL } from '@codemirror/legacy-modes/mode/sql'
+import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
+import { nginx } from '@codemirror/legacy-modes/mode/nginx'
 import { oneDark } from '@codemirror/theme-one-dark'
 
 export interface CursorPos {
@@ -45,6 +54,14 @@ function langExtension(lang: string) {
     case 'css': return css()
     case 'html': return html()
     case 'json': return json()
+    case 'shell': return StreamLanguage.define(shell)
+    case 'yaml': return StreamLanguage.define(yaml)
+    case 'python': return StreamLanguage.define(python)
+    case 'ini': return StreamLanguage.define(properties)
+    case 'toml': return StreamLanguage.define(toml)
+    case 'sql': return StreamLanguage.define(mySQL)
+    case 'dockerfile': return StreamLanguage.define(dockerFile)
+    case 'nginx': return StreamLanguage.define(nginx)
     default: return []
   }
 }
