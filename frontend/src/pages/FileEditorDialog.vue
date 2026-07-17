@@ -413,9 +413,11 @@ async function handleCreate() {
 }
 
 function onOpen() {
-  const theme = document.documentElement.classList.contains('dark') ||
-    getComputedStyle(document.body).backgroundColor.includes('rgb(0, 0, 0)')
-  isDark.value = !!theme
+  const isDarkMode =
+    document.documentElement.classList.contains('dark') ||
+    document.documentElement.classList.contains('html-dark') ||
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  isDark.value = !!isDarkMode
   centerWindow()
   treePath.value = props.rootPath || '/'
   openPaths.clear()
