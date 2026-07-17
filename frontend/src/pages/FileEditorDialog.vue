@@ -380,12 +380,29 @@ async function loadFileContent(tab: EditTab) {
     tab.original = tab.content
     tab.dirty = false
     tab.loaded = true
+    if (tab.language === 'text') {
+      const lang = detectShebang(tab.content)
+      if (lang) tab.language = lang
+    }
   } catch (e: any) {
     ElMessage.error(e?.message || '读取失败')
     tabs.splice(tabs.indexOf(tab), 1)
   } finally {
     tab.loading = false
   }
+}
+
+function detectShebang(content: string): string | null {
+  const nl = content.indexOf('\n')
+  const first = (nl >= 0 ? content.slice(0, nl) : content).trimEnd()
+  if (!first.startsWith('#!')) return null
+  const lower = first.toLowerCase()
+  if (lower.includes('bash') || lower.includes('sh') || lower.includes('zsh')) return 'shell'
+  if (lower.includes('python')) return 'python'
+  if (lower.includes('php')) return 'php'
+  if (lower.includes('perl')) return 'python'
+  if (lower.includes('node') || lower.includes('javascript')) return 'javascript'
+  return 'shell'
 }
 
 function onContentChange(path: string, val: string) {
