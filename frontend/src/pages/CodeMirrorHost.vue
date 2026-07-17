@@ -29,7 +29,7 @@ import { toml } from '@codemirror/legacy-modes/mode/toml'
 import { mySQL } from '@codemirror/legacy-modes/mode/sql'
 import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
 import { nginx } from '@codemirror/legacy-modes/mode/nginx'
-import { sublime } from '@uiw/codemirror-theme-sublime'
+import { oneDark } from '@codemirror/theme-one-dark'
 
 export interface CursorPos {
   line: number
@@ -67,7 +67,7 @@ function langExtension(lang: string) {
 }
 
 function themeExtension(dark: boolean) {
-  return dark ? sublime : []
+  return dark ? oneDark : []
 }
 
 function buildState() {
