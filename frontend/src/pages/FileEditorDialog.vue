@@ -39,8 +39,12 @@
               :loading="treeLoading"
               :active-path="activePath"
               :open-paths="openPaths"
+              :renaming-path="renamingPath"
               @toggle="onToggleNode"
               @select="onSelectFile"
+              @ctx="onTreeCtx"
+              @rename="onTreeRename"
+              @cancel-rename="cancelRename"
             />
           </div>
         </div>
@@ -81,6 +85,26 @@
       </div>
 
       <div class="ed-resize" @mousedown.stop="onResizeMouseDown" />
+
+      <div
+        v-if="ctxMenu.visible"
+        class="ed-ctx"
+        :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px', zIndex: zIndex + 10 }"
+        @click.stop
+      >
+        <template v-if="ctxMenu.isDir">
+          <div class="ed-ctx-item" @click="ctxRefreshDir">刷新目录</div>
+          <div class="ed-ctx-item" @click="ctxOpenSubdir">打开子目录</div>
+          <div class="ed-ctx-item" @click="ctxNewDir">新建目录</div>
+          <div class="ed-ctx-item" @click="ctxNewFile">新建文件</div>
+        </template>
+        <template v-else>
+          <div class="ed-ctx-item" @click="ctxRename">重命名</div>
+          <div class="ed-ctx-item" @click="ctxDownload">下载</div>
+        </template>
+        <div class="ed-ctx-sep" />
+        <div class="ed-ctx-item ed-ctx-danger" @click="ctxDelete">删除</div>
+      </div>
     </div>
 
     <div v-if="visible && isMinimized" class="ed-minbar" :style="{ zIndex: zIndex }" @click="restore">
@@ -90,6 +114,9 @@
 
     <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body @closed="createDialog.name=''">
       <el-form @submit.prevent="handleCreate">
+        <el-form-item label="位置">
+          <span class="ed-create-path">{{ createDialog.targetDir || treePath }}</span>
+        </el-form-item>
         <el-form-item :label="createDialog.isDir ? '目录名' : '文件名'">
           <el-input v-model="createDialog.name" placeholder="请输入名称" @keyup.enter="handleCreate" />
         </el-form-item>
@@ -99,6 +126,21 @@
         <el-button type="primary" @click="handleCreate">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="deleteDialog.visible" title="删除" width="400px" append-to-body>
+      <p>确定删除以下项目吗？此操作不可恢复。</p>
+      <ul class="ed-delete-list">
+        <li v-for="item in deleteDialog.items" :key="item.path">
+          <el-icon v-if="item.is_dir"><Folder /></el-icon>
+          <el-icon v-else><Document /></el-icon>
+          <span>{{ item.name }}</span>
+        </li>
+      </ul>
+      <template #footer>
+        <el-button @click="deleteDialog.visible = false">取消</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
+      </template>
+    </el-dialog>
   </Teleport>
 </template>
 
@@ -106,7 +148,8 @@
 import { ref, reactive, computed, watch, ComponentPublicInstance } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Close, Minus, FullScreen, CopyDocument, Document, Top, DocumentAdd, FolderAdd } from '@element-plus/icons-vue'
-import { apiFetch } from '@/utils/api'
+import { apiFetch, authHeaders } from '@/utils/api'
+import { checkRes401 } from '@/utils/api'
 import FileTree, { type TreeNode } from './FileTree.vue'
 import CodeMirrorHost, { type CursorPos } from './CodeMirrorHost.vue'
 
@@ -214,6 +257,8 @@ const openPaths = reactive(new Set<string>())
 const treeNodes = ref<TreeNode[]>([])
 const treeLoading = ref(false)
 const cmHosts = new Map<string, any>()
+const renamingPath = ref('')
+const renamingValue = ref('')
 
 const activeTab = computed(() => tabs.find((t) => t.path === activePath.value) || null)
 
@@ -368,6 +413,175 @@ function closeTab(path: string) {
   }
 }
 
+const ctxMenu = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  node: null as TreeNode | null,
+  isDir: false,
+})
+
+function onTreeCtx(node: TreeNode, e: MouseEvent) {
+  ctxMenu.node = node
+  ctxMenu.isDir = node.is_dir
+  ctxMenu.x = e.clientX
+  ctxMenu.y = e.clientY
+  ctxMenu.visible = true
+  window.addEventListener('click', closeCtxMenu, { once: true })
+  window.addEventListener('contextmenu', closeCtxMenu, { once: true })
+}
+
+function closeCtxMenu() {
+  ctxMenu.visible = false
+  window.removeEventListener('click', closeCtxMenu)
+  window.removeEventListener('contextmenu', closeCtxMenu)
+}
+
+function ctxRefreshDir() {
+  const node = ctxMenu.node
+  closeCtxMenu()
+  if (!node || !node.is_dir) return
+  if (!node.expanded) {
+    onToggleNode(node)
+  } else {
+    loadSubdir(node)
+  }
+}
+
+async function loadSubdir(node: TreeNode) {
+  node.expanded = true
+  openPaths.add(node.path)
+  if (!node.loaded || !node.children?.length) {
+    try {
+      const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(node.path)}`)
+      const items: any[] = data.items || []
+      node.children = [
+        ...items.filter((i) => i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+          .map((i) => ({ name: i.name, path: i.path, is_dir: true, loaded: false, children: [], expanded: openPaths.has(i.path) })),
+        ...items.filter((i) => !i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+          .map((i) => ({ name: i.name, path: i.path, is_dir: false, loaded: true, children: [], expanded: false })),
+      ]
+      node.loaded = true
+    } catch (e: any) {
+      ElMessage.error(e?.message || '目录加载失败')
+    }
+  }
+}
+
+function ctxOpenSubdir() {
+  const node = ctxMenu.node
+  closeCtxMenu()
+  if (!node || !node.is_dir) return
+  loadSubdir(node)
+  loadTree(node.path)
+}
+
+function ctxNewDir() {
+  const node = ctxMenu.node
+  closeCtxMenu()
+  if (!node) return
+  const base = node.is_dir ? node.path : node.path.replace(/\/[^/]*$/, '') || '/'
+  createDialog.name = ''
+  createDialog.isDir = true
+  createDialog.targetDir = base
+  createDialog.visible = true
+}
+
+function ctxNewFile() {
+  const node = ctxMenu.node
+  closeCtxMenu()
+  if (!node) return
+  const base = node.is_dir ? node.path : node.path.replace(/\/[^/]*$/, '') || '/'
+  createDialog.name = ''
+  createDialog.isDir = false
+  createDialog.targetDir = base
+  createDialog.visible = true
+}
+
+function ctxRename() {
+  const node = ctxMenu.node
+  closeCtxMenu()
+  if (!node) return
+  renamingPath.value = node.path
+  renamingValue.value = node.name
+}
+
+function cancelRename() {
+  renamingPath.value = ''
+  renamingValue.value = ''
+}
+
+async function onTreeRename(node: TreeNode) {
+  const oldPath = node.path
+  const newName = renamingValue.value.trim()
+  const oldName = oldPath.split('/').filter(Boolean).pop() || ''
+  cancelRename()
+  if (!newName || newName === oldName) return
+  const parent = oldPath.replace(/\/[^/]*$/, '') || ''
+  const newPath = parent ? `${parent}/${newName}` : `/${newName}`
+  try {
+    await apiFetch('/api/files/rename', {
+      method: 'POST',
+      body: JSON.stringify({ path: oldPath, new_name: newName }),
+    })
+    ElMessage.success('已重命名')
+    if (node.is_dir) {
+      openPaths.delete(oldPath)
+      openPaths.add(newPath)
+    }
+    refreshTree()
+    updateTabPaths(oldPath, newPath)
+  } catch (e: any) {
+    ElMessage.error(e?.message || '重命名失败')
+  }
+}
+
+function updateTabPaths(oldPath: string, newPath: string) {
+  for (const tab of tabs) {
+    if (tab.path === oldPath) {
+      tab.path = newPath
+      tab.name = newPath.split('/').filter(Boolean).pop() || newPath
+    } else if (oldPath.endsWith('/') && tab.path.startsWith(oldPath)) {
+      const np = newPath + tab.path.slice(oldPath.length)
+      tab.path = np
+      tab.name = np.split('/').filter(Boolean).pop() || np
+    }
+  }
+}
+
+function ctxDelete() {
+  const node = ctxMenu.node
+  closeCtxMenu()
+  if (!node) return
+  deleteDialog.items = [{ name: node.name, path: node.path, is_dir: node.is_dir }]
+  deleteDialog.visible = true
+}
+
+async function ctxDownload() {
+  const node = ctxMenu.node
+  closeCtxMenu()
+  if (!node || node.is_dir) return
+  try {
+    const res = await fetch(`/api/files/stream?path=${encodeURIComponent(node.path)}`, {
+      headers: authHeaders(),
+    })
+    checkRes401(res)
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(text || res.statusText)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = node.name
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: any) {
+    if (e?.message !== 'unauthorized') ElMessage.error(e?.message || '下载失败')
+  }
+}
+
 async function saveTab(path: string) {
   const tab = tabs.find((t) => t.path === path)
   if (!tab || !tab.dirty) return
@@ -388,17 +602,20 @@ const createDialog = reactive({
   visible: false,
   name: '',
   isDir: false,
+  targetDir: '',
 })
 
 function openCreate(isDir: boolean) {
   createDialog.name = ''
   createDialog.isDir = isDir
+  createDialog.targetDir = treePath.value
   createDialog.visible = true
 }
 
 async function handleCreate() {
   if (!createDialog.name.trim()) return
-  const p = treePath.value.endsWith('/') ? treePath.value + createDialog.name : treePath.value + '/' + createDialog.name
+  const base = createDialog.targetDir || treePath.value
+  const p = base.endsWith('/') ? base + createDialog.name : base + '/' + createDialog.name
   try {
     await apiFetch('/api/files/create', {
       method: 'POST',
@@ -409,6 +626,37 @@ async function handleCreate() {
     refreshTree()
   } catch (e: any) {
     ElMessage.error(e?.message || '创建失败')
+  }
+}
+
+const deleteDialog = reactive({
+  visible: false,
+  items: [] as { name: string; path: string; is_dir: boolean }[],
+})
+
+async function handleDelete() {
+  try {
+    for (const item of deleteDialog.items) {
+      await apiFetch('/api/files/delete', {
+        method: 'POST',
+        body: JSON.stringify({ path: item.path }),
+      })
+      for (let i = tabs.length - 1; i >= 0; i--) {
+        const t = tabs[i]
+        if (t.path === item.path || (item.is_dir && t.path.startsWith(item.path + '/'))) {
+          tabs.splice(i, 1)
+          cmHosts.delete(t.path)
+        }
+      }
+    }
+    ElMessage.success('已删除')
+    deleteDialog.visible = false
+    if (activePath.value === '') {
+      activePath.value = tabs.length ? tabs[0].path : ''
+    }
+    refreshTree()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '删除失败')
   }
 }
 
@@ -681,4 +929,49 @@ watch(() => props.modelValue, (v) => {
 
 .ed-status-right { margin-left: auto; }
 .ed-tabs-spacer { flex: 1; }
+
+.ed-ctx {
+  position: fixed;
+  min-width: 140px;
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  font-size: 12px;
+  user-select: none;
+}
+.ed-ctx-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--el-text-color-regular);
+  white-space: nowrap;
+}
+.ed-ctx-item:hover { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
+.ed-ctx-danger { color: var(--el-color-danger); }
+.ed-ctx-danger:hover { background: var(--el-color-danger-light-9); color: var(--el-color-danger); }
+.ed-ctx-sep { height: 1px; background: var(--el-border-color-lighter); margin: 4px 0; }
+
+.ed-create-path {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  word-break: break-all;
+}
+
+.ed-delete-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 200px;
+  overflow: auto;
+}
+.ed-delete-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.ed-delete-list .el-icon { color: var(--el-text-color-secondary); }
 </style>

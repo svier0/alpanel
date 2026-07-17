@@ -3,9 +3,10 @@
     <template v-for="node in nodes" :key="node.path">
       <div
         class="tree-node"
-        :class="{ active: activePath === node.path && !node.is_dir }"
+        :class="{ active: activePath === node.path && !node.is_dir, renaming: renamingPath === node.path }"
         :style="{ paddingLeft: (depth ?? 0) * 14 + 8 + 'px' }"
         @click="onClick(node)"
+        @contextmenu.prevent="(e: MouseEvent) => emit('ctx', node, e)"
       >
         <span class="tree-arrow" v-if="node.is_dir">
           <el-icon v-if="node.expanded"><ArrowDown /></el-icon>
@@ -14,7 +15,21 @@
         <span class="tree-arrow placeholder" v-else />
         <el-icon v-if="node.is_dir" class="tree-icon"><Folder /></el-icon>
         <el-icon v-else class="tree-icon"><Document /></el-icon>
-        <span class="tree-label">{{ node.name }}</span>
+        <span
+          v-if="renamingPath !== node.path"
+          class="tree-label"
+        >{{ node.name }}</span>
+        <span v-else class="tree-rename" @click.stop>
+          <el-input
+            v-model="renamingValue"
+            size="small"
+            class="tree-rename-input"
+            :suffix-icon="Check"
+            @keyup.enter="emit('rename', node)"
+            @keyup.escape="emit('cancelRename')"
+            @blur="emit('rename', node)"
+          />
+        </span>
       </div>
       <div v-if="node.is_dir && node.expanded && node.children?.length" class="tree-children">
         <FileTree
@@ -36,7 +51,8 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowDown, ArrowRight, Folder, Document } from '@element-plus/icons-vue'
+import { ref, watch, nextTick } from 'vue'
+import { ArrowDown, ArrowRight, Folder, Document, Check } from '@element-plus/icons-vue'
 
 export interface TreeNode {
   name: string
@@ -47,17 +63,35 @@ export interface TreeNode {
   children?: TreeNode[]
 }
 
-defineProps<{
+const props = defineProps<{
   nodes: TreeNode[]
   depth?: number
   loading?: boolean
   activePath?: string
   openPaths?: Set<string>
+  renamingPath?: string
 }>()
+
+const renamingValue = ref('')
+
+watch(() => props.renamingPath, (p) => {
+  if (p) {
+    nextTick(() => {
+      const el = document.querySelector<HTMLInputElement>('.tree-rename-input input')
+      if (el) {
+        el.focus()
+        el.select()
+      }
+    })
+  }
+})
 
 const emit = defineEmits<{
   toggle: [TreeNode]
   select: [TreeNode]
+  ctx: [TreeNode, MouseEvent]
+  rename: [TreeNode]
+  cancelRename: []
 }>()
 
 function onClick(node: TreeNode) {
@@ -98,6 +132,18 @@ function onClick(node: TreeNode) {
 
 .tree-icon { flex-shrink: 0; color: var(--el-text-color-secondary); }
 .tree-label { overflow: hidden; text-overflow: ellipsis; }
+
+.tree-node.renaming { background: var(--el-fill-color-light); }
+.tree-rename { flex: 1; min-width: 0; margin-right: 8px; }
+.tree-rename-input :deep(.el-input__wrapper) {
+  padding-right: 2px;
+}
+.tree-rename-input :deep(.el-input__suffix) {
+  cursor: pointer;
+}
+.tree-rename-input :deep(.el-input__suffix-inner) {
+  color: var(--el-color-primary);
+}
 
 .tree-empty {
   font-size: 12px;
