@@ -36,8 +36,7 @@ async fn main() {
     let jwt_key = jwt_simple::prelude::HS256Key::from_bytes(jwt_secret.as_bytes());
 
     config::init_config(config::AppConfig {
-        panel_user,
-        panel_password,
+        panel_user: panel_user.clone(),
         panel_title,
         panel_theme,
         jwt_secret,
@@ -45,6 +44,10 @@ async fn main() {
     });
 
     db::pool::init_db();
+
+    // 首次初始化：用 .env 中的初始账号密码作为 users 表的初始记录（仅当表为空时）
+    // .env 仅作为安装后查看初始账号密码的用途，用户改密后 .env 不再生效
+    crate::repositories::user_repository::init_user(&panel_user, &panel_password);
 
     let app = routes::routes().fallback(frontend::serve_frontend);
 

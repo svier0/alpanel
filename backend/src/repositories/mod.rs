@@ -1,2 +1,3 @@
 // Data access layer
-// TODO: implement repository layer when database is implemented
+
+pub mod user_repository;

@@ -72,6 +72,10 @@ pub fn init_db() {
     }
 }
 
+pub fn db_conn() -> Option<Connection> {
+    Connection::open(db_path()).ok()
+}
+
 pub fn get_config(key: &str) -> Option<String> {
     let path = db_path();
     let conn = Connection::open(&path).ok()?;
