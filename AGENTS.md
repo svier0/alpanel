@@ -138,6 +138,19 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
 | 文件夹 | 打开、在新标签打开、权限、复制、剪切、粘贴、重命名、删除、创建压缩、属性 |
 | 文件 | 编辑、下载、权限、复制、剪切、粘贴、重命名、删除、创建压缩、解压(.tar.gz)、属性 |
 
+### 在线编辑器（FileEditorDialog）
+
+- 双击文件 / 右键"编辑" 打开 `FileEditorDialog.vue`（Teleport 到 body 的自定义浮窗，非全屏，可拖拽/缩放/最小化/最大化）
+- 左目录树 `FileTree.vue` 递归组件；右多标签 CodeMirror `CodeMirrorHost.vue`（CodeMirror 6 + 官方 `@codemirror/theme-one-dark`）
+- 目录树右键菜单：目录→刷新目录/打开子目录/新建目录/新建文件/重命名/删除；文件→重命名/下载/删除
+  - "打开子目录"= 修改树上方目录地址；"新建"在右击目录下；重命名为内联编辑框（框内 ✓ 确认，回车/失焦确认，Esc 取消）
+  - 重命名同步更新已打开标签页路径；删除同步关闭相关标签页
+- 右键菜单用显式 `document` mousedown/contextmenu 捕获监听（非 `once`），`onTreeCtx` 先 `closeCtxMenu()` 清旧监听再重开，否则二次右键会被遗留监听瞬间关掉
+- 确认弹框（新建/删除 `el-dialog`）加 `:z-index="zIndex + 100"` 防被编辑器窗口遮挡
+- `detectLanguage`：php/js/ts/css/html/json/sh/bash/zsh→shell/yml/yaml→yaml/py/ini/conf/cfg/env→ini( properties )/sql→mySQL/toml/md→markdown/txt/log→text/Dockerfile→dockerfile/nginx.conf/*.conf→nginx
+- **shebang 推断**：`loadFileContent` 后若 language 为 text，取首行 `#!` 推断（sh/bash/zsh→shell，python/perl→python，php，node→javascript），切换 language 经 `langCompartment` 自动重刷
+- shell 高亮使用 `@codemirror/legacy-modes/mode/shell`（StreamLanguage），**按命令词表上色**（`start`/`stop` 等在内故黄，`status` 不在故白），不识别函数定义；此为上游限制，不手写主题覆盖
+
 ## 部署模型
 
 ```
