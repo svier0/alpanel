@@ -125,7 +125,7 @@ const isMaximized = ref(false)
 const isMinimized = ref(false)
 const zIndex = ref(3000)
 let zCounter = 3000
-const win = reactive({ x: 60, y: 60, w: 960, h: 640 })
+const win = reactive({ x: 60, y: 60, w: 1200, h: 740 })
 const windowStyle = computed(() => {
   if (isMaximized.value) return { zIndex: zIndex.value }
   if (isMinimized.value) return { display: 'none' }
@@ -527,7 +527,7 @@ watch(() => props.modelValue, (v) => {
 }
 
 .ed-tree {
-  width: 280px;
+  width: 260px;
   flex-shrink: 0;
   border-right: 1px solid var(--el-border-color-lighter);
   display: flex;
