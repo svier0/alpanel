@@ -1,89 +1,87 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    fullscreen
-    :show-close="false"
-    append-to-body
-    class="editor-dialog"
-    @open="onOpen"
-    @closed="onClosed"
-  >
-    <template #header>
-      <div class="ed-header">
+  <Teleport to="body">
+    <div v-if="visible" class="ed-window" :class="{ maximized: isMaximized }" :style="windowStyle" @mousedown="bringFront">
+      <div class="ed-titlebar" @mousedown="onTitleMouseDown">
         <span class="ed-title">在线编辑器</span>
-        <div class="ed-header-spacer" />
-        <el-button size="small" @click="close">关闭</el-button>
-      </div>
-    </template>
-
-    <div class="ed-body">
-      <!-- 目录树 -->
-      <div class="ed-tree">
-        <div class="ed-tree-head">
-          <span>目录</span>
-          <el-button size="small" text :icon="Refresh" @click="loadTree(rootPath)" />
-        </div>
-        <div class="ed-tree-body">
-          <FileTree
-            :nodes="treeNodes"
-            :loading="treeLoading"
-            :active-path="activePath"
-            :open-paths="openPaths"
-            @toggle="onToggleNode"
-            @select="onSelectFile"
-          />
+        <div class="ed-title-spacer" />
+        <div class="ed-win-btns">
+          <button class="ed-win-btn" title="最小化" @click.stop="minimize"><el-icon><Minus /></el-icon></button>
+          <button class="ed-win-btn" :title="isMaximized ? '还原' : '最大化'" @click.stop="toggleMaximize">
+            <el-icon v-if="isMaximized"><CopyDocument /></el-icon>
+            <el-icon v-else><FullScreen /></el-icon>
+          </button>
+          <button class="ed-win-btn ed-win-close" title="关闭" @click.stop="close"><el-icon><Close /></el-icon></button>
         </div>
       </div>
 
-      <!-- 编辑区 -->
-      <div class="ed-main">
-        <div class="ed-tabs">
-          <div
-            v-for="tab in tabs"
-            :key="tab.path"
-            class="ed-tab"
-            :class="{ active: activePath === tab.path }"
-            @click="switchTab(tab.path)"
-          >
-            <span class="ed-tab-name">{{ tab.name }}</span>
-            <span class="ed-tab-dirty" v-if="tab.dirty">●</span>
-            <el-icon class="ed-tab-close" @click.stop="closeTab(tab.path)"><Close /></el-icon>
+      <div class="ed-body">
+        <div class="ed-tree">
+          <div class="ed-tree-head">
+            <span>目录</span>
+            <el-button size="small" text :icon="Refresh" @click="loadTree(rootPath)" />
           </div>
-          <div class="ed-tabs-spacer" />
+          <div class="ed-tree-body">
+            <FileTree
+              :nodes="treeNodes"
+              :loading="treeLoading"
+              :active-path="activePath"
+              :open-paths="openPaths"
+              @toggle="onToggleNode"
+              @select="onSelectFile"
+            />
+          </div>
         </div>
 
-        <div class="ed-editor-wrap">
-          <div v-if="tabs.length === 0" class="ed-empty">
-            <el-empty description="双击左侧文件打开编辑" />
-          </div>
-          <template v-for="tab in tabs" :key="tab.path">
-            <div v-show="activePath === tab.path" class="ed-cm-host" :ref="(el) => setCmHost(el, tab.path)">
-              <CodeMirrorHost
-                v-if="activePath === tab.path"
-                :value="tab.content"
-                :language="tab.language"
-                :dark="isDark"
-                @update:value="(v: string) => onContentChange(tab.path, v)"
-                @cursor="(p: CursorPos) => onCursor(tab.path, p)"
-              />
+        <div class="ed-main">
+          <div class="ed-tabs">
+            <div v-for="tab in tabs" :key="tab.path" class="ed-tab" :class="{ active: activePath === tab.path }" @click="switchTab(tab.path)">
+              <span class="ed-tab-name">{{ tab.name }}</span>
+              <span v-if="tab.dirty" class="ed-tab-dirty">●</span>
+              <el-icon class="ed-tab-close" @click.stop="closeTab(tab.path)"><Close /></el-icon>
             </div>
-          </template>
-          <div v-if="activeTab" class="ed-statusbar">
-            <span class="ed-status-item">行:{{ activeTab.cursor.line }} 列:{{ activeTab.cursor.col }}</span>
-            <span class="ed-status-item">UTF-8</span>
-            <span class="ed-status-item">{{ activeTab.language }}</span>
-            <span class="ed-status-item ed-status-right">{{ activeTab.dirty ? '未保存' : '已保存' }}</span>
+            <div class="ed-tabs-spacer" />
+          </div>
+
+          <div class="ed-editor-wrap">
+            <div v-if="tabs.length === 0" class="ed-empty">
+              <el-empty description="双击左侧文件打开编辑" />
+            </div>
+            <template v-for="tab in tabs" :key="tab.path">
+              <div v-show="activePath === tab.path" class="ed-cm-host" :ref="setCmHostRef">
+                <CodeMirrorHost
+                  v-if="activePath === tab.path"
+                  :value="tab.content"
+                  :language="tab.language"
+                  :dark="isDark"
+                  @update:value="onContentChange(tab.path, $event)"
+                  @cursor="onCursor(tab.path, $event)"
+                />
+              </div>
+            </template>
+            <div v-if="activeTab" class="ed-statusbar">
+              <span class="ed-status-item">行:{{ activeTab.cursor.line }} 列:{{ activeTab.cursor.col }}</span>
+              <span class="ed-status-item">UTF-8</span>
+              <span class="ed-status-item">{{ activeTab.language }}</span>
+              <span class="ed-status-item ed-status-right">{{ activeTab.dirty ? '未保存' : '已保存' }}</span>
+            </div>
           </div>
         </div>
       </div>
+
+      <div class="ed-resize" @mousedown.stop="onResizeMouseDown" />
     </div>
-  </el-dialog>
+
+    <div v-if="visible && isMinimized" class="ed-minbar" :style="{ zIndex: zIndex }" @click="restore">
+      <el-icon><Document /></el-icon>
+      <span>在线编辑器</span>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, ComponentPublicInstance } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Close } from '@element-plus/icons-vue'
+import { Refresh, Close, Minus, FullScreen, CopyDocument, Document } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
 import FileTree, { type TreeNode } from './FileTree.vue'
 import CodeMirrorHost, { type CursorPos } from './CodeMirrorHost.vue'
@@ -98,6 +96,75 @@ const visible = computed({
 
 const rootPath = props.rootPath || '/www'
 const isDark = ref(false)
+
+// window geometry
+const isMaximized = ref(false)
+const isMinimized = ref(false)
+const zIndex = ref(3000)
+let zCounter = 3000
+const win = reactive({ x: 60, y: 60, w: 960, h: 640 })
+const windowStyle = computed(() => {
+  if (isMaximized.value) return { zIndex: zIndex.value }
+  if (isMinimized.value) return { display: 'none' }
+  return {
+    left: win.x + 'px',
+    top: win.y + 'px',
+    width: win.w + 'px',
+    height: win.h + 'px',
+    zIndex: zIndex.value,
+  }
+})
+
+let dragState: { ox: number; oy: number; mx: number; my: number } | null = null
+function onTitleMouseDown(e: MouseEvent) {
+  if (isMaximized.value) return
+  dragState = { ox: win.x, oy: win.y, mx: e.clientX, my: e.clientY }
+  document.addEventListener('mousemove', onDragMove)
+  document.addEventListener('mouseup', onDragUp)
+}
+function onDragMove(e: MouseEvent) {
+  if (!dragState) return
+  win.x = Math.max(0, dragState.ox + (e.clientX - dragState.mx))
+  win.y = Math.max(0, dragState.oy + (e.clientY - dragState.my))
+}
+function onDragUp() {
+  dragState = null
+  document.removeEventListener('mousemove', onDragMove)
+  document.removeEventListener('mouseup', onDragUp)
+}
+
+let resizeState: { ow: number; oh: number; mx: number; my: number } | null = null
+function onResizeMouseDown(e: MouseEvent) {
+  if (isMaximized.value) return
+  resizeState = { ow: win.w, oh: win.h, mx: e.clientX, my: e.clientY }
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', onResizeUp)
+}
+function onResizeMove(e: MouseEvent) {
+  if (!resizeState) return
+  win.w = Math.max(480, resizeState.ow + (e.clientX - resizeState.mx))
+  win.h = Math.max(320, resizeState.oh + (e.clientY - resizeState.my))
+}
+function onResizeUp() {
+  resizeState = null
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeUp)
+}
+
+function bringFront() {
+  zCounter += 1
+  zIndex.value = zCounter
+}
+function toggleMaximize() {
+  isMaximized.value = !isMaximized.value
+}
+function minimize() {
+  isMinimized.value = true
+}
+function restore() {
+  isMinimized.value = false
+  bringFront()
+}
 
 interface EditTab {
   name: string
@@ -120,8 +187,9 @@ const cmHosts = new Map<string, any>()
 
 const activeTab = computed(() => tabs.find((t) => t.path === activePath.value) || null)
 
-function setCmHost(el: any, path: string) {
-  cmHosts.set(path, el)
+function setCmHostRef(el: Element | ComponentPublicInstance | null) {
+  // el is the host div; we map by active path at mount time
+  if (el) cmHosts.set(activePath.value, el)
 }
 
 function detectLanguage(path: string): string {
@@ -284,7 +352,7 @@ function onOpen() {
   window.addEventListener('keydown', onKeydown)
 }
 
-function onClosed() {
+function onClose() {
   window.removeEventListener('keydown', onKeydown)
 }
 
@@ -297,17 +365,102 @@ function onKeydown(e: KeyboardEvent) {
 
 function close() {
   visible.value = false
+  onClose()
 }
 
 watch(() => props.modelValue, (v) => {
-  if (v) onOpen()
+  if (v) {
+    isMinimized.value = false
+    onOpen()
+  } else {
+    onClose()
+  }
 })
 </script>
 
 <style scoped>
+.ed-window {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  min-width: 480px;
+  min-height: 320px;
+}
+.ed-window.maximized {
+  left: 0 !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0;
+  border: none;
+}
+
+.ed-titlebar {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 8px 0 12px;
+  background: var(--el-fill-color-light);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  cursor: move;
+  flex-shrink: 0;
+  user-select: none;
+}
+.ed-title { font-weight: 600; font-size: 13px; }
+.ed-title-spacer { flex: 1; }
+
+.ed-win-btns { display: flex; gap: 2px; }
+.ed-win-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.ed-win-btn:hover { background: var(--el-fill-color-dark); }
+.ed-win-close:hover { background: var(--el-color-danger); color: #fff; }
+
+.ed-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+}
+
+.ed-minbar {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  background: var(--el-color-primary);
+  color: #fff;
+  font-size: 12px;
+  border-radius: 17px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
 .ed-body {
   display: flex;
-  height: calc(100vh - 54px);
+  flex: 1;
+  min-height: 0;
   background: var(--el-bg-color);
 }
 
@@ -422,20 +575,5 @@ watch(() => props.modelValue, (v) => {
 }
 
 .ed-status-right { margin-left: auto; }
-
-.ed-header { display: flex; align-items: center; width: 100%; }
-.ed-title { font-weight: 600; font-size: 14px; }
-.ed-header-spacer { flex: 1; }
 .ed-tabs-spacer { flex: 1; }
-</style>
-
-<style>
-.editor-dialog .el-dialog__header {
-  margin: 0;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-.editor-dialog .el-dialog__body {
-  padding: 0;
-}
 </style>
