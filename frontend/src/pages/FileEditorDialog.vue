@@ -126,6 +126,12 @@ const isMinimized = ref(false)
 const zIndex = ref(3000)
 let zCounter = 3000
 const win = reactive({ x: 60, y: 60, w: 1200, h: 740 })
+function centerWindow() {
+  const sw = window.innerWidth
+  const sh = window.innerHeight
+  win.x = Math.max(0, Math.round((sw - win.w) / 2))
+  win.y = Math.max(0, Math.round((sh - win.h) / 2))
+}
 const windowStyle = computed(() => {
   if (isMaximized.value) return { zIndex: zIndex.value }
   if (isMinimized.value) return { display: 'none' }
@@ -404,6 +410,7 @@ function onOpen() {
   const theme = document.documentElement.classList.contains('dark') ||
     getComputedStyle(document.body).backgroundColor.includes('rgb(0, 0, 0)')
   isDark.value = !!theme
+  centerWindow()
   treePath.value = props.rootPath || '/'
   openPaths.clear()
   loadTree(treePath.value)
