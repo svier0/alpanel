@@ -186,9 +186,14 @@ MariaDB 是 MySQL 分支，程序内**一律称 MySQL**，`mariadb` 只作为上
 
 ```sql
 users    (id, username, password(md5(md5(pw)+salt)), login_ip, login_time, phone, email, salt)
-sites    (id, name, path, status, project_type, ps, addtime)
+sites    (id, name, path, status, project_type, phpversion, project_cmd, project_port, run_user, is_onpower, ps, addtime)
 domain   (id, pid→sites.id, name, port, addtime)
 ```
+
+- `project_type`: PHP / Other / Proxy（前端由 `/api/sites/types` 动态获取；该接口每个类型带 `visibled` 字段控制 tab 是否显示，Proxy=0 暂未做）
+- `status`: 站点运行状态，`1`(运行中) / `0`(已停止)；新建默认 `0`（未生成 nginx 配置前不视为运行中）
+- `phpversion`: 普通项目 PHP 版本，存 `7.4`/`8.2` 等，空为静态
+- 其它项目(Other)字段：`project_cmd`(执行命令)、`project_port`(运行端口)、`run_user`(运行用户，默认 www)、`is_onpower`(是否开机启动 1/0)
 
 ## 构建命令
 
