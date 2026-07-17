@@ -36,13 +36,13 @@ pub fn init_db() {
             path TEXT,
             status TEXT,
             project_type TEXT,
+            project_cmd TEXT,
+            project_port INTEGER,
+            run_user TEXT,
+            is_onpower INTEGER DEFAULT 0,
             ps TEXT,
             addtime TEXT
         );
-        ALTER TABLE sites ADD COLUMN project_cmd TEXT;
-        ALTER TABLE sites ADD COLUMN project_port INTEGER;
-        ALTER TABLE sites ADD COLUMN run_user TEXT;
-        ALTER TABLE sites ADD COLUMN is_onpower INTEGER DEFAULT 0;
         CREATE TABLE IF NOT EXISTS domain (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             pid INTEGER,
