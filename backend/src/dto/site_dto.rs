@@ -14,6 +14,10 @@ pub struct CreateSiteRequest {
     pub status: Option<String>,
     pub project_type: Option<String>,
     pub ps: Option<String>,
+    pub project_cmd: Option<String>,
+    pub project_port: Option<i64>,
+    pub run_user: Option<String>,
+    pub is_onpower: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -23,6 +27,10 @@ pub struct UpdateSiteRequest {
     pub status: Option<String>,
     pub project_type: Option<String>,
     pub ps: Option<String>,
+    pub project_cmd: Option<String>,
+    pub project_port: Option<i64>,
+    pub run_user: Option<String>,
+    pub is_onpower: Option<i64>,
 }
 
 #[derive(Serialize, Clone)]
@@ -41,5 +49,9 @@ pub struct SiteResponse {
     pub project_type: String,
     pub ps: String,
     pub addtime: String,
+    pub project_cmd: String,
+    pub project_port: i64,
+    pub run_user: String,
+    pub is_onpower: i64,
     pub domains: Vec<DomainInline>,
 }

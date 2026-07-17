@@ -9,4 +9,8 @@ pub struct Site {
     pub project_type: Option<String>,
     pub ps: Option<String>,
     pub addtime: Option<String>,
+    pub project_cmd: Option<String>,
+    pub project_port: Option<i64>,
+    pub run_user: Option<String>,
+    pub is_onpower: Option<i64>,
 }
