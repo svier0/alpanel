@@ -5,7 +5,6 @@ use jwt_simple::prelude::HS256Key;
 
 pub struct AppConfig {
     pub panel_user: String,
-    pub panel_password: String,
     pub panel_title: String,
     pub panel_theme: String,
     pub jwt_secret: String,
