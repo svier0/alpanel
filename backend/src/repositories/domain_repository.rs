@@ -16,7 +16,7 @@ pub fn create_domain(pid: i64, name: &str, port: Option<i64>) -> AppResult<i64> 
     let addtime = now_string();
     conn.execute(
         "INSERT INTO domain (pid, name, port, addtime) VALUES (?1, ?2, ?3, ?4)",
-        [&pid.to_string(), &name, &port.unwrap_or(0).to_string(), &addtime],
+        [&pid.to_string(), &name, &port.unwrap_or(80).to_string(), &addtime],
     )
     .map_err(|e| AppError::Internal(e.to_string()))?;
     Ok(conn.last_insert_rowid())

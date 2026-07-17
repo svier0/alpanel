@@ -402,7 +402,7 @@ async function fetchSites() {
       .map((s: any) => ({
         id: s.id,
         name: s.name,
-        status: s.status || '运行中',
+        status: s.status === '1' ? '运行中' : '已停止',
         root: s.path,
         ps: s.ps || '',
         php: '',
@@ -415,7 +415,7 @@ async function fetchSites() {
       .map((s: any) => ({
         id: s.id,
         name: s.name,
-        status: s.status || '运行中',
+        status: s.status === '1' ? '运行中' : '已停止',
         port: 0,
         root: s.path,
         ps: s.ps || '',
@@ -427,7 +427,7 @@ async function fetchSites() {
       .map((s: any) => ({
         id: s.id,
         domain: s.domains?.[0]?.name || s.name,
-        status: s.status || '运行中',
+        status: s.status === '1' ? '运行中' : '已停止',
         proxyPass: '',
         ps: s.ps || '',
         ssl: false,

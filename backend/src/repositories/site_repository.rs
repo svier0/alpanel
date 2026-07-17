@@ -24,7 +24,7 @@ pub fn create_site(req: &CreateSiteRequest) -> AppResult<i64> {
     };
     let conn = db_conn().ok_or_else(|| AppError::Internal("数据库不可用".into()))?;
     let addtime = now_string();
-    let status = req.status.clone().unwrap_or_else(|| "运行中".into());
+    let status = req.status.clone().unwrap_or_else(|| "0".into());
     let project_type = req.project_type.clone().unwrap_or_else(|| "PHP".into());
     let ps = req.ps.clone().unwrap_or_default();
     conn.execute(
