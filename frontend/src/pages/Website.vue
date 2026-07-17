@@ -89,7 +89,7 @@
               </template>
             </el-table-column>
             <el-table-column label="PHP版本" width="100">
-              <template #default="{ row }"><span class="link-cell" @click="">{{ row.php ? row.php : '纯静态' }}</span></template>
+              <template #default="{ row }"><span class="link-cell" @click="">{{ row.php ? row.php : '静态' }}</span></template>
             </el-table-column>
             <el-table-column label="SSL证书" width="110">
               <template #default="{ row }">
@@ -223,6 +223,13 @@
             placeholder="如需填写多个域名，请换行填写，每行一个域名，默认为80端口&#10;IP地址格式：192.168.1.199&#10;泛解析添加方法 *.domain.com&#10;如另加端口格式为 www.domain.com:88&#10;ipv6格式：[2001:db8:85a3::8a2e:370:7334]:88"
             @input="onDomainInput"
           />
+        </el-form-item>
+        <el-form-item label="PHP版本">
+          <el-select v-model="addSiteDialog.phpversion" placeholder="选择 PHP 版本" style="width:100%">
+            <el-option label="静态" value="" />
+            <el-option label="PHP 7.4" value="7.4" />
+            <el-option label="PHP 8.2" value="8.2" />
+          </el-select>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="addSiteDialog.ps" placeholder="请输入备注,可为空" />
@@ -465,7 +472,7 @@ async function fetchSites() {
         status: s.status === '1' ? '运行中' : '已停止',
         root: s.path,
         ps: s.ps || '',
-        php: '',
+        php: s.phpversion || '',
         ssl: false,
         sslDays: 0,
       }))
@@ -593,6 +600,7 @@ const addSiteDialog = reactive({
   visible: false,
   domain: '',
   ps: '',
+  phpversion: '',
   root: '/www/wwwroot/',
 })
 
@@ -603,6 +611,7 @@ function showAddSiteDialog() {
   }
   addSiteDialog.domain = ''
   addSiteDialog.ps = ''
+  addSiteDialog.phpversion = ''
   addSiteDialog.root = '/www/wwwroot/'
   addSiteDialog.visible = true
 }
@@ -702,6 +711,7 @@ async function handleAddSite() {
         project_type: 'PHP',
         domains,
         path: root,
+        phpversion: addSiteDialog.phpversion || undefined,
         ps: addSiteDialog.ps || undefined,
       }),
     })
