@@ -224,13 +224,6 @@
             @input="onDomainInput"
           />
         </el-form-item>
-        <el-form-item label="PHP版本">
-          <el-select v-model="addSiteDialog.phpversion" placeholder="选择 PHP 版本" style="width:100%">
-            <el-option label="静态" value="" />
-            <el-option label="PHP 7.4" value="7.4" />
-            <el-option label="PHP 8.2" value="8.2" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="addSiteDialog.ps" placeholder="请输入备注,可为空" />
         </el-form-item>
@@ -600,7 +593,6 @@ const addSiteDialog = reactive({
   visible: false,
   domain: '',
   ps: '',
-  phpversion: '',
   root: '/www/wwwroot/',
 })
 
@@ -611,7 +603,6 @@ function showAddSiteDialog() {
   }
   addSiteDialog.domain = ''
   addSiteDialog.ps = ''
-  addSiteDialog.phpversion = ''
   addSiteDialog.root = '/www/wwwroot/'
   addSiteDialog.visible = true
 }
@@ -711,7 +702,6 @@ async function handleAddSite() {
         project_type: 'PHP',
         domains,
         path: root,
-        phpversion: addSiteDialog.phpversion || undefined,
         ps: addSiteDialog.ps || undefined,
       }),
     })
