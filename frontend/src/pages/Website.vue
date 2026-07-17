@@ -64,7 +64,7 @@
           </div>
         </div>
 
-        <template v-if="activeTab === 'normal'">
+        <template v-if="activeTab === 'PHP'">
           <el-table
             :data="pagedNormal"
             size="small"
@@ -114,7 +114,7 @@
           />
         </template>
 
-        <template v-if="activeTab === 'other'">
+        <template v-if="activeTab === 'Other'">
           <el-table
             :data="pagedOther"
             size="small"
@@ -164,7 +164,7 @@
           />
         </template>
 
-        <template v-if="activeTab === 'proxy'">
+        <template v-if="activeTab === 'Proxy'">
           <el-table
             :data="pagedProxy"
             size="small"
@@ -323,13 +323,19 @@ import { apiFetch } from '@/utils/api'
 
 const router = useRouter()
 
-const tabs = [
-  { key: 'normal', label: '普通项目' },
-  { key: 'other', label: '其它项目' },
-  { key: 'proxy', label: '反向代理' },
-]
+const projectTypes = ref<{ name: string; title: string; visibled: number }[]>([])
+const tabs = computed(() =>
+  projectTypes.value.filter(t => t.visibled === 1).map(t => ({ key: t.name, label: t.title }))
+)
 
-const activeTab = ref('normal')
+async function fetchProjectTypes() {
+  try {
+    const data = await apiFetch('/api/sites/types')
+    if (Array.isArray(data)) projectTypes.value = data
+  } catch {}
+}
+
+const activeTab = ref('PHP')
 const searchQuery = ref('')
 const nginxInstalled = ref(false)
 const ngReady = ref(false)
@@ -401,6 +407,11 @@ async function doInstall() {
 
 onMounted(() => {
   checkNginx()
+  fetchProjectTypes().then(() => {
+    if (tabs.value.length && !tabs.value.some(t => t.key === activeTab.value)) {
+      activeTab.value = tabs.value[0].key
+    }
+  })
   fetchSites()
 })
 
@@ -583,7 +594,7 @@ const addSiteDialog = reactive({
 })
 
 function showAddSiteDialog() {
-  if (activeTab.value === 'other') {
+  if (activeTab.value === 'Other') {
     showAddOtherDialog()
     return
   }
