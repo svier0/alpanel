@@ -9,7 +9,6 @@
         @click="activeTab = tab.id"
       >
         <span class="tab-title">{{ tab.title }}</span>
-        <span v-if="tab.type === 'editor'" class="tab-subtitle">{{ tab.path.split('/').pop() }}</span>
         <el-icon v-if="tabs.length > 1" class="tab-close" @click.stop="removeTab(tab.id)"><Close /></el-icon>
       </div>
       <div class="tab-add" @click="addBrowserTab">
@@ -70,13 +69,22 @@
           highlight-current-row
           @current-change="(row: FileItem | null) => tab.selectedFile = row"
           @selection-change="(rows: FileItem[]) => tab.selectedRows = rows"
+          @sort-change="onSortChange(tab, $event)"
+          :default-sort="{ prop: 'name', order: 'ascending' }"
           size="small"
           class="file-table"
           empty-text="暂无文件"
           :cell-style="{ padding: '4px 0' }"
         >
           <el-table-column type="selection" width="40" />
-          <el-table-column label="名称" width="300" :show-overflow-tooltip="true">
+          <el-table-column
+            label="名称"
+            width="300"
+            :show-overflow-tooltip="true"
+            sortable="custom"
+            :sort-orders="['ascending', 'descending']"
+            prop="name"
+          >
             <template #default="{ row }">
               <div v-if="renamingPath === row.path" class="rename-inline">
                 <el-input
@@ -92,14 +100,25 @@
                 <el-icon v-if="row.is_dir" size="14"><FolderOpened /></el-icon>
                 <el-icon v-else-if="row.is_link" size="14"><Link /></el-icon>
                 <el-icon v-else size="14"><Document /></el-icon>
-                {{ row.name }}
+                <span class="file-name-text">{{ row.name }}</span>
+                <template v-if="row.is_link && row.link_target">
+                  <span class="link-arrow"> -> </span>
+                  <span class="link-target">{{ row.link_target }}</span>
+                </template>
               </span>
             </template>
           </el-table-column>
           <el-table-column label="权限/所有者" width="120">
             <template #default="{ row }">{{ row.mode }}<template v-if="row.owner"> / {{ row.owner }}</template></template>
           </el-table-column>
-          <el-table-column label="大小" width="90">
+          <el-table-column
+            label="大小"
+            width="90"
+            sortable="custom"
+            :sort-orders="['ascending', 'descending']"
+            prop="sort_size"
+            :sort-method="sortBySize"
+          >
             <template #default="{ row }">
               <template v-if="row.is_dir">
                 <el-icon v-if="row._calculating" class="is-loading" size="14"><Loading /></el-icon>
@@ -109,7 +128,13 @@
               <span v-else>{{ formatSize(row.size, false) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="修改时间" width="150">
+          <el-table-column
+            label="修改时间"
+            width="150"
+            sortable="custom"
+            :sort-orders="['ascending', 'descending']"
+            prop="modified"
+          >
             <template #default="{ row }">{{ formatTime(row.modified) }}</template>
           </el-table-column>
           <el-table-column label="备注" min-width="160">
@@ -118,17 +143,6 @@
             </template>
           </el-table-column>
         </el-table>
-      </div>
-
-      <div v-else-if="activeTab === tab.id && tab.type === 'editor'" class="editor-panel">
-        <div class="editor-toolbar">
-          <span class="editor-path">{{ tab.path }}</span>
-          <div>
-            <el-button size="small" @click="revertFile(tab)" :disabled="tab.content === tab.original">撤销</el-button>
-            <el-button size="small" type="primary" :loading="tab.saving" @click="saveFile(tab)">保存</el-button>
-          </div>
-        </div>
-        <textarea v-model="tab.content" class="editor-textarea" spellcheck="false"></textarea>
       </div>
     </template>
 
@@ -293,6 +307,8 @@
         <el-button type="primary" @click="dirPickerConfirm">选择当前目录</el-button>
       </template>
     </el-dialog>
+
+    <FileEditorDialog v-model="editorDialog.visible" :initial-file="editorDialog.file" />
   </div>
 </template>
 
@@ -302,6 +318,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading, ArrowDown } from '@element-plus/icons-vue'
 import { apiFetch, authHeaders, checkRes401 } from '@/utils/api'
+import FileEditorDialog from './FileEditorDialog.vue'
 
 interface FileItem {
   name: string
@@ -309,6 +326,7 @@ interface FileItem {
   size: number
   is_dir: boolean
   is_link: boolean
+  link_target: string
   mode: string
   modified: number
   ps: string
@@ -339,19 +357,11 @@ interface BrowserTab {
   loading: boolean
   selectedFile: FileItem | null
   selectedRows: FileItem[]
+  sortProp: 'name' | 'sort_size' | 'modified'
+  sortOrder: 'ascending' | 'descending'
 }
 
-interface EditorTab {
-  id: string
-  title: string
-  type: 'editor'
-  path: string
-  content: string
-  original: string
-  saving: boolean
-}
-
-type Tab = BrowserTab | EditorTab
+type Tab = BrowserTab
 
 const tabs = ref<Tab[]>([])
 const activeTab = ref('')
@@ -384,10 +394,8 @@ const STORAGE_KEY = 'alpanel_file_tabs'
 interface StoredTab {
   id: string
   title: string
-  type: 'browser' | 'editor'
+  type: 'browser'
   path: string
-  content?: string
-  original?: string
 }
 
 function saveTabs() {
@@ -396,7 +404,6 @@ function saveTabs() {
     title: t.title,
     type: t.type,
     path: t.path,
-    ...(t.type === 'editor' ? { content: t.content, original: t.original } : {}),
   }))
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ tabs: data, activeTab: activeTab.value, tabIdSeq }))
 }
@@ -409,10 +416,7 @@ function restoreTabs() {
     if (!saved.tabs?.length) return false
     tabIdSeq = saved.tabIdSeq || 0
     const rest: Tab[] = saved.tabs.map((st: StoredTab) => {
-      if (st.type === 'editor') {
-        return { id: st.id, title: st.title, type: 'editor' as const, path: st.path, content: st.content || '', original: st.original || '', saving: false }
-      }
-      return { id: st.id, title: st.title, type: 'browser' as const, path: st.path, files: [], loading: false, selectedFile: null, selectedRows: [] }
+      return { id: st.id, title: st.title, type: 'browser' as const, path: st.path, files: [], loading: false, selectedFile: null, selectedRows: [], sortProp: 'name', sortOrder: 'ascending' }
     })
     // fetch data first, then assign to tabs.value so Vue tracks from the start
     const browserTabs = rest.filter((t): t is BrowserTab => t.type === 'browser')
@@ -652,8 +656,8 @@ function ctxDelete(path: string, name: string) {
 
 function ctxOpenEditor() {
   if (ctxMenu.type !== 'file' || !ctxMenu.filePath) return
-  const item: FileItem = { name: ctxMenu.fileName, path: ctxMenu.filePath, size: 0, is_dir: false, is_link: false, mode: '', modified: 0, ps: '' }
-  openEditor(item)
+  editorDialog.file = ctxMenu.filePath
+  editorDialog.visible = true
 }
 
 async function ctxDownload() {
@@ -690,6 +694,8 @@ function openInNewTab(path: string) {
     loading: false,
     selectedFile: null,
     selectedRows: [],
+    sortProp: 'name',
+    sortOrder: 'ascending',
   })
   activeTab.value = id
   const tab = tabs.value.find(t => t.id === id) as BrowserTab
@@ -705,53 +711,6 @@ function removeTab(id: string) {
   } else if (activeTab.value === id) {
     activeTab.value = tabs.value[Math.min(idx, tabs.value.length - 1)].id
   }
-}
-
-async function openEditor(item: FileItem) {
-  const existing = tabs.value.find(t => t.type === 'editor' && t.id === item.path) as EditorTab | undefined
-  if (existing) {
-    activeTab.value = existing.id
-    return
-  }
-  const etab: EditorTab = {
-    id: item.path,
-    title: item.name,
-    type: 'editor',
-    path: item.path,
-    content: '',
-    original: '',
-    saving: false,
-  }
-  tabs.value.push(etab)
-  activeTab.value = etab.id
-  try {
-    const data = await apiFetch(`/api/files/read?path=${encodeURIComponent(item.path)}`)
-    etab.content = data.content
-    etab.original = data.content
-  } catch {
-    ElMessage.error('无法读取文件')
-    tabs.value = tabs.value.filter(t => t.id !== etab.id)
-  }
-}
-
-async function saveFile(tab: EditorTab) {
-  tab.saving = true
-  try {
-    await apiFetch('/api/files/write', {
-      method: 'POST',
-      body: JSON.stringify({ path: tab.path, content: tab.content }),
-    })
-    tab.original = tab.content
-    ElMessage.success('已保存')
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
-  } finally {
-    tab.saving = false
-  }
-}
-
-function revertFile(tab: EditorTab) {
-  tab.content = tab.original
 }
 
 const createDialog = reactive({
@@ -816,6 +775,8 @@ function addBrowserTab() {
     loading: false,
     selectedFile: null,
     selectedRows: [],
+    sortProp: 'name',
+    sortOrder: 'ascending',
   })
   activeTab.value = id
   pathInput.value = '/www'
@@ -834,6 +795,8 @@ function addBrowserTabAt(path: string) {
     loading: false,
     selectedFile: null,
     selectedRows: [],
+    sortProp: 'name',
+    sortOrder: 'ascending',
   })
   activeTab.value = id
   pathInput.value = path
@@ -862,6 +825,38 @@ function getSegments(p: string): { name: string; fullPath: string }[] {
   return segs
 }
 
+function sortBySize(a: FileItem, b: FileItem): number {
+  const sa = a.is_dir ? (a._size ?? -1) : a.size
+  const sb = b.is_dir ? (b._size ?? -1) : b.size
+  return sa - sb
+}
+
+function applySort(tab: BrowserTab) {
+  const files = [...tab.files]
+  const dirs = files.filter(f => f.is_dir)
+  const others = files.filter(f => !f.is_dir)
+  const cmp: (a: FileItem, b: FileItem) => number = (a, b) => {
+    if (tab.sortProp === 'sort_size') {
+      return sortBySize(a, b)
+    }
+    if (tab.sortProp === 'modified') {
+      return a.modified - b.modified
+    }
+    return a.name.localeCompare(b.name, 'zh-Hans-CN')
+  }
+  const factor = tab.sortOrder === 'descending' ? -1 : 1
+  dirs.sort((a, b) => cmp(a, b) * factor)
+  others.sort((a, b) => cmp(a, b) * factor)
+  tab.files = [...dirs, ...others]
+}
+
+function onSortChange(tab: BrowserTab, e: { prop?: string; order?: 'ascending' | 'descending' | null }) {
+  if (!e.prop || !e.order) return
+  tab.sortProp = e.prop as BrowserTab['sortProp']
+  tab.sortOrder = e.order
+  applySort(tab)
+}
+
 async function fetchTabList(tab: BrowserTab) {
   tab.loading = true
   try {
@@ -875,6 +870,7 @@ async function fetchTabList(tab: BrowserTab) {
       }
     })
     tab.files = items
+    applySort(tab)
     pathInput.value = tab.path
   } catch (e: any) {
     tab.files = []
@@ -952,8 +948,16 @@ async function calcDirSize(_tab: BrowserTab, row: FileItem) {
 function onRowDoubleClick(tab: BrowserTab, row: FileItem) {
   if (row.is_dir) {
     navigateTab(tab, row.path)
+  } else {
+    editorDialog.file = row.path
+    editorDialog.visible = true
   }
 }
+
+const editorDialog = reactive({
+  visible: false,
+  file: '',
+})
 
 function openCreate(tab: BrowserTab, isDir: boolean) {
   createDialog.name = ''
@@ -1020,7 +1024,6 @@ async function handleDelete() {
         method: 'POST',
         body: JSON.stringify({ path: item.path }),
       })
-      tabs.value = tabs.value.filter(t => !(t.type === 'editor' && t.id === item.path))
     }
     ElMessage.success('已删除')
     deleteDialog.visible = false
@@ -1402,6 +1405,20 @@ function formatTime(ts: number): string {
   flex-shrink: 0;
 }
 
+.file-name .file-name-text {
+  font-weight: 500;
+}
+
+.file-name .link-arrow {
+  color: var(--el-text-color-secondary);
+  margin: 0 2px;
+}
+
+.file-name .link-target {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+}
+
 .is-loading {
   animation: rotating 1s linear infinite;
 }
@@ -1441,51 +1458,6 @@ function formatTime(ts: number): string {
 .ps-input :deep(.el-input__inner) {
   font-size: 12px;
   padding: 0;
-}
-
-.editor-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 8px;
-}
-
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  flex-shrink: 0;
-}
-
-.editor-path {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.editor-textarea {
-  flex: 1;
-  width: 100%;
-  border: 1px solid var(--el-border-color);
-  border-radius: 4px;
-  padding: 8px;
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  resize: none;
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  outline: none;
-  tab-size: 2;
-  min-height: 0;
-}
-
-.editor-textarea:focus {
-  border-color: var(--el-color-primary);
 }
 </style>
 

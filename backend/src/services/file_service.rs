@@ -238,12 +238,29 @@ pub fn list_dir(path_str: &str) -> AppResult<FileListResponse> {
         let item_path = strip_drive_prefix(&to_fwd(&entry.path()), path_str);
         let ps = get_file_ps(&item_path);
 
+        let link_target = if is_link {
+            std::fs::read_link(entry.path())
+                .ok()
+                .map(|p| {
+                    let p = p.to_string_lossy().to_string();
+                    if std::path::Path::new(&p).is_absolute() {
+                        p
+                    } else {
+                        format!("{}/{}", item_path.rsplit('/').skip(1).collect::<Vec<_>>().join("/"), p)
+                    }
+                })
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+
         items.push(FileItem {
             name,
             path: item_path,
             size,
             is_dir,
             is_link,
+            link_target,
             mode,
             owner,
             modified,
