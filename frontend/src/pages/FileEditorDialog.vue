@@ -427,8 +427,10 @@ function onTreeCtx(node: TreeNode, e: MouseEvent) {
   ctxMenu.x = e.clientX
   ctxMenu.y = e.clientY
   ctxMenu.visible = true
-  window.addEventListener('click', closeCtxMenu, { once: true })
-  window.addEventListener('contextmenu', closeCtxMenu, { once: true })
+  setTimeout(() => {
+    window.addEventListener('click', closeCtxMenu, { once: true })
+    window.addEventListener('contextmenu', closeCtxMenu, { once: true })
+  }, 0)
 }
 
 function closeCtxMenu() {
