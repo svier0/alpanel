@@ -62,7 +62,6 @@
             <template v-for="tab in tabs" :key="tab.path">
               <div v-show="activePath === tab.path" class="ed-cm-host" :ref="setCmHostRef">
                 <CodeMirrorHost
-                  v-if="activePath === tab.path"
                   :value="tab.content"
                   :language="tab.language"
                   :dark="isDark"
@@ -310,8 +309,8 @@ async function openFile(path: string, name: string) {
     dirty: false, cursor: { line: 1, col: 1 }, loaded: false, loading: false,
   }
   tabs.push(tab)
-  activePath.value = path
   await loadFileContent(tab)
+  activePath.value = path
 }
 
 async function loadFileContent(tab: EditTab) {
