@@ -64,10 +64,16 @@ adduser -D -H -S -G www -s /sbin/nologin www 2>/dev/null || true
 chown -R www:www ${setup_path}/wwwroot ${setup_path}/wwwlogs 2>/dev/null || true
 
 PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alpanel-${VERSION}-${PKG_ARCH}.tar.gz"
+DIST_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/download/${VERSION}/dist-${VERSION}.tar.gz"
 wget -O /tmp/alpanel.tar.gz ${GH_PROXY}$PANEL_DOWNLOAD_URL
 tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/
 chmod +x /www/server/panel/alpanel
 rm -f /tmp/alpanel.tar.gz
+
+wget -O /tmp/dist.tar.gz ${GH_PROXY}$DIST_DOWNLOAD_URL
+mkdir -p /www/server/panel/dist
+tar -xzf /tmp/dist.tar.gz -C /www/server/panel/dist/
+rm -f /tmp/dist.tar.gz
 
 wget -O /usr/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
 chmod +x /usr/bin/alp
