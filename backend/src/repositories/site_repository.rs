@@ -9,7 +9,7 @@ fn now_string() -> String {
 }
 
 const SELECT_COLS: &str =
-    "id, name, path, status, project_type, ps, addtime, project_cmd, project_port, run_user, is_onpower";
+    "id, name, path, status, project_type, phpversion, ps, addtime, project_cmd, project_port, run_user, is_onpower";
 
 fn row_to_site(r: &rusqlite::Row) -> Site {
     Site {
@@ -18,12 +18,13 @@ fn row_to_site(r: &rusqlite::Row) -> Site {
         path: r.get(2).unwrap_or_default(),
         status: r.get(3).ok(),
         project_type: r.get(4).ok(),
-        ps: r.get(5).ok(),
-        addtime: r.get(6).ok(),
-        project_cmd: r.get(7).ok(),
-        project_port: r.get(8).ok(),
-        run_user: r.get(9).ok(),
-        is_onpower: r.get(10).ok(),
+        phpversion: r.get(5).ok(),
+        ps: r.get(6).ok(),
+        addtime: r.get(7).ok(),
+        project_cmd: r.get(8).ok(),
+        project_port: r.get(9).ok(),
+        run_user: r.get(10).ok(),
+        is_onpower: r.get(11).ok(),
     }
 }
 
@@ -45,19 +46,21 @@ pub fn create_site(req: &CreateSiteRequest) -> AppResult<i64> {
     let addtime = now_string();
     let status = req.status.clone().unwrap_or_else(|| "0".into());
     let project_type = req.project_type.clone().unwrap_or_else(|| "PHP".into());
+    let phpversion = req.phpversion.clone().unwrap_or_default();
     let ps = req.ps.clone().unwrap_or_default();
     let project_cmd = req.project_cmd.clone().unwrap_or_default();
     let project_port = req.project_port.unwrap_or(0);
     let run_user = req.run_user.clone().unwrap_or_else(|| "www".into());
     let is_onpower = req.is_onpower.unwrap_or(0);
     conn.execute(
-        "INSERT INTO sites (name, path, status, project_type, ps, addtime, project_cmd, project_port, run_user, is_onpower) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO sites (name, path, status, project_type, phpversion, ps, addtime, project_cmd, project_port, run_user, is_onpower) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         [
             &name,
             &path,
             &status,
             &project_type,
+            &phpversion,
             &ps,
             &addtime,
             &project_cmd,
@@ -137,6 +140,10 @@ pub fn update_site(id: i64, req: &UpdateSiteRequest) -> AppResult<()> {
         conn.execute("UPDATE sites SET project_type = ?1 WHERE id = ?2", [project_type, &id.to_string()])
             .ok();
     }
+    if let Some(phpversion) = &req.phpversion {
+        conn.execute("UPDATE sites SET phpversion = ?1 WHERE id = ?2", [phpversion, &id.to_string()])
+            .ok();
+    }
     if let Some(ps) = &req.ps {
         conn.execute("UPDATE sites SET ps = ?1 WHERE id = ?2", [ps, &id.to_string()])
             .ok();
@@ -188,6 +195,7 @@ pub fn to_response(s: &Site) -> SiteResponse {
         path: s.path.clone(),
         status: s.status.clone().unwrap_or_default(),
         project_type: s.project_type.clone().unwrap_or_default(),
+        phpversion: s.phpversion.clone().unwrap_or_default(),
         ps: s.ps.clone().unwrap_or_default(),
         addtime: s.addtime.clone().unwrap_or_default(),
         project_cmd: s.project_cmd.clone().unwrap_or_default(),

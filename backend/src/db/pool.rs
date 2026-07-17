@@ -36,6 +36,7 @@ pub fn init_db() {
             path TEXT,
             status TEXT,
             project_type TEXT,
+            phpversion TEXT,
             project_cmd TEXT,
             project_port INTEGER,
             run_user TEXT,

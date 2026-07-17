@@ -7,6 +7,7 @@ pub struct Site {
     pub path: String,
     pub status: Option<String>,
     pub project_type: Option<String>,
+    pub phpversion: Option<String>,
     pub ps: Option<String>,
     pub addtime: Option<String>,
     pub project_cmd: Option<String>,
