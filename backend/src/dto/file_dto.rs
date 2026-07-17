@@ -12,6 +12,7 @@ pub struct FileItem {
     pub size: u64,
     pub is_dir: bool,
     pub is_link: bool,
+    pub link_target: String,
     pub mode: String,
     pub owner: String,
     pub modified: u64,
