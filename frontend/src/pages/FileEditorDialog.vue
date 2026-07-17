@@ -114,7 +114,7 @@
       <span>在线编辑器</span>
     </div>
 
-    <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body @closed="createDialog.name=''">
+    <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body :z-index="zIndex + 100" @closed="createDialog.name=''">
       <el-form @submit.prevent="handleCreate">
         <el-form-item label="位置">
           <span class="ed-create-path">{{ createDialog.targetDir || treePath }}</span>
@@ -129,7 +129,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="deleteDialog.visible" title="删除" width="400px" append-to-body>
+    <el-dialog v-model="deleteDialog.visible" title="删除" width="400px" append-to-body :z-index="zIndex + 100">
       <p>确定删除以下项目吗？此操作不可恢复。</p>
       <ul class="ed-delete-list">
         <li v-for="item in deleteDialog.items" :key="item.path">
