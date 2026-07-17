@@ -148,9 +148,9 @@
               </template>
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
-              <template #default>
+              <template #default="{ row }">
                 <el-button size="small" link type="primary">设置</el-button>
-                <el-button size="small" link type="primary">删除</el-button>
+                <el-button size="small" link type="danger" @click="handleDelete(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -238,6 +238,52 @@
       <template #footer>
         <el-button @click="addSiteDialog.visible = false">取消</el-button>
         <el-button type="primary" @click="handleAddSite">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="addOtherDialog.visible" title="添加其它项目" width="560px" append-to-body>
+      <el-form label-width="80px">
+        <el-form-item label="根目录" required>
+          <el-input v-model="addOtherDialog.root" placeholder="/www/wwwroot/">
+            <template #append>
+              <el-button @click="openOtherDirPicker">浏览</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="项目名称" required>
+          <el-input v-model="addOtherDialog.name" placeholder="如 node-app" />
+        </el-form-item>
+        <el-form-item label="执行命令" required>
+          <el-input
+            v-model="addOtherDialog.cmd"
+            type="textarea"
+            :rows="3"
+            placeholder="如 node server.js 或 /www/wwwroot/app/start.sh"
+          />
+        </el-form-item>
+        <el-form-item label="运行用户">
+          <el-select v-model="addOtherDialog.runUser" filterable placeholder="选择运行用户" style="width:100%">
+            <el-option v-for="u in systemUsers" :key="u" :label="u" :value="u" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="开机启动">
+          <el-checkbox v-model="addOtherDialog.onpower">是否设置开机启动</el-checkbox>
+        </el-form-item>
+        <el-form-item label="项目备注">
+          <el-input v-model="addOtherDialog.ps" placeholder="请输入备注,可为空" />
+        </el-form-item>
+        <el-form-item label="绑定域名">
+          <el-input
+            v-model="addOtherDialog.domain"
+            type="textarea"
+            :rows="4"
+            placeholder="每行一个域名，默认为80端口&#10;如另加端口格式为 www.domain.com:88"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addOtherDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="handleAddOther">确定</el-button>
       </template>
     </el-dialog>
 
@@ -537,10 +583,82 @@ const addSiteDialog = reactive({
 })
 
 function showAddSiteDialog() {
+  if (activeTab.value === 'other') {
+    showAddOtherDialog()
+    return
+  }
   addSiteDialog.domain = ''
   addSiteDialog.ps = ''
   addSiteDialog.root = '/www/wwwroot/'
   addSiteDialog.visible = true
+}
+
+const systemUsers = ref<string[]>(['www'])
+
+async function fetchUsers() {
+  try {
+    const data = await apiFetch('/api/system/users')
+    if (Array.isArray(data) && data.length) systemUsers.value = data
+  } catch {}
+}
+
+const addOtherDialog = reactive({
+  visible: false,
+  root: '/www/wwwroot/',
+  name: '',
+  cmd: '',
+  runUser: 'www',
+  onpower: false,
+  ps: '',
+  domain: '',
+})
+
+function showAddOtherDialog() {
+  addOtherDialog.root = '/www/wwwroot/'
+  addOtherDialog.name = ''
+  addOtherDialog.cmd = ''
+  addOtherDialog.runUser = 'www'
+  addOtherDialog.onpower = false
+  addOtherDialog.ps = ''
+  addOtherDialog.domain = ''
+  fetchUsers()
+  addOtherDialog.visible = true
+}
+
+async function handleAddOther() {
+  const name = addOtherDialog.name.trim()
+  const root = addOtherDialog.root.trim()
+  const cmd = addOtherDialog.cmd.trim()
+  if (!root) { ElMessage.error('请填写根目录'); return }
+  if (!name) { ElMessage.error('请填写项目名称'); return }
+  if (!cmd) { ElMessage.error('请填写执行命令'); return }
+  const domains = parseDomains(addOtherDialog.domain)
+  try {
+    await apiFetch('/api/sites', {
+      method: 'POST',
+      body: JSON.stringify({
+        project_type: 'Other',
+        name,
+        path: root,
+        project_cmd: cmd,
+        run_user: addOtherDialog.runUser || 'www',
+        is_onpower: addOtherDialog.onpower ? 1 : 0,
+        ps: addOtherDialog.ps || undefined,
+        domains,
+      }),
+    })
+    ElMessage.success('项目创建成功')
+    addOtherDialog.visible = false
+    refreshTable()
+  } catch (e: any) {
+    ElMessage.error((e && e.message) || '创建项目失败')
+  }
+}
+
+function openOtherDirPicker() {
+  dirPicker.currentPath = addOtherDialog.root || '/www/wwwroot/'
+  fetchDirs(dirPicker.currentPath)
+  dirPicker.visible = true
 }
 
 function onDomainInput() {

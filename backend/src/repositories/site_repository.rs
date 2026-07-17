@@ -8,6 +8,25 @@ fn now_string() -> String {
     chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+const SELECT_COLS: &str =
+    "id, name, path, status, project_type, ps, addtime, project_cmd, project_port, run_user, is_onpower";
+
+fn row_to_site(r: &rusqlite::Row) -> Site {
+    Site {
+        id: r.get(0).ok(),
+        name: r.get(1).unwrap_or_default(),
+        path: r.get(2).unwrap_or_default(),
+        status: r.get(3).ok(),
+        project_type: r.get(4).ok(),
+        ps: r.get(5).ok(),
+        addtime: r.get(6).ok(),
+        project_cmd: r.get(7).ok(),
+        project_port: r.get(8).ok(),
+        run_user: r.get(9).ok(),
+        is_onpower: r.get(10).ok(),
+    }
+}
+
 pub fn create_site(req: &CreateSiteRequest) -> AppResult<i64> {
     use crate::errors::AppError;
     let path = req.path.trim().to_string();
@@ -27,9 +46,25 @@ pub fn create_site(req: &CreateSiteRequest) -> AppResult<i64> {
     let status = req.status.clone().unwrap_or_else(|| "0".into());
     let project_type = req.project_type.clone().unwrap_or_else(|| "PHP".into());
     let ps = req.ps.clone().unwrap_or_default();
+    let project_cmd = req.project_cmd.clone().unwrap_or_default();
+    let project_port = req.project_port.unwrap_or(0);
+    let run_user = req.run_user.clone().unwrap_or_else(|| "www".into());
+    let is_onpower = req.is_onpower.unwrap_or(0);
     conn.execute(
-        "INSERT INTO sites (name, path, status, project_type, ps, addtime) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        [&name, &path, &status, &project_type, &ps, &addtime],
+        "INSERT INTO sites (name, path, status, project_type, ps, addtime, project_cmd, project_port, run_user, is_onpower) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        [
+            &name,
+            &path,
+            &status,
+            &project_type,
+            &ps,
+            &addtime,
+            &project_cmd,
+            &project_port.to_string(),
+            &run_user,
+            &is_onpower.to_string(),
+        ],
     )
     .map_err(|e| AppError::Internal(e.to_string()))?;
     let site_id = conn.last_insert_rowid();
@@ -46,14 +81,14 @@ pub fn list_sites(project_type: Option<&str>) -> Vec<Site> {
         None => return vec![],
     };
     let sql = match project_type {
-        Some(_) => "SELECT id, name, path, status, project_type, ps, addtime FROM sites WHERE project_type = ? ORDER BY id DESC",
-        None => "SELECT id, name, path, status, project_type, ps, addtime FROM sites ORDER BY id DESC",
+        Some(_) => format!("SELECT {} FROM sites WHERE project_type = ? ORDER BY id DESC", SELECT_COLS),
+        None => format!("SELECT {} FROM sites ORDER BY id DESC", SELECT_COLS),
     };
-    let mut stmt = match conn.prepare(sql) {
+    let mut stmt = match conn.prepare(&sql) {
         Ok(s) => s,
         Err(_) => return vec![],
     };
-    let rows = match project_type {
+    let mut rows = match project_type {
         Some(pt) => stmt.query([pt]),
         None => stmt.query([]),
     };
@@ -63,34 +98,17 @@ pub fn list_sites(project_type: Option<&str>) -> Vec<Site> {
     };
     let mut out = vec![];
     while let Ok(Some(r)) = rows.next() {
-        out.push(Site {
-            id: r.get(0).ok(),
-            name: r.get(1).unwrap_or_default(),
-            path: r.get(2).unwrap_or_default(),
-            status: r.get(3).ok(),
-            project_type: r.get(4).ok(),
-            ps: r.get(5).ok(),
-            addtime: r.get(6).ok(),
-        });
+        out.push(row_to_site(&r));
     }
     out
 }
 
 pub fn get_site(id: i64) -> Option<Site> {
     let conn = db_conn()?;
-    let mut stmt = conn
-        .prepare("SELECT id, name, path, status, project_type, ps, addtime FROM sites WHERE id = ?")
-        .ok()?;
+    let sql = format!("SELECT {} FROM sites WHERE id = ?", SELECT_COLS);
+    let mut stmt = conn.prepare(&sql).ok()?;
     let mut rows = stmt.query([id]).ok()?;
-    rows.next().ok()?.map(|r| Site {
-        id: r.get(0).ok(),
-        name: r.get(1).unwrap_or_default(),
-        path: r.get(2).unwrap_or_default(),
-        status: r.get(3).ok(),
-        project_type: r.get(4).ok(),
-        ps: r.get(5).ok(),
-        addtime: r.get(6).ok(),
-    })
+    rows.next().ok()?.map(|r| row_to_site(&r))
 }
 
 pub fn update_site(id: i64, req: &UpdateSiteRequest) -> AppResult<()> {
@@ -121,6 +139,24 @@ pub fn update_site(id: i64, req: &UpdateSiteRequest) -> AppResult<()> {
     }
     if let Some(ps) = &req.ps {
         conn.execute("UPDATE sites SET ps = ?1 WHERE id = ?2", [ps, &id.to_string()])
+            .ok();
+    }
+    if let Some(project_cmd) = &req.project_cmd {
+        conn.execute("UPDATE sites SET project_cmd = ?1 WHERE id = ?2", [project_cmd, &id.to_string()])
+            .ok();
+    }
+    if let Some(project_port) = &req.project_port {
+        let v = project_port.to_string();
+        conn.execute("UPDATE sites SET project_port = ?1 WHERE id = ?2", [&v, &id.to_string()])
+            .ok();
+    }
+    if let Some(run_user) = &req.run_user {
+        conn.execute("UPDATE sites SET run_user = ?1 WHERE id = ?2", [run_user, &id.to_string()])
+            .ok();
+    }
+    if let Some(is_onpower) = &req.is_onpower {
+        let v = is_onpower.to_string();
+        conn.execute("UPDATE sites SET is_onpower = ?1 WHERE id = ?2", [&v, &id.to_string()])
             .ok();
     }
     Ok(())
@@ -154,6 +190,10 @@ pub fn to_response(s: &Site) -> SiteResponse {
         project_type: s.project_type.clone().unwrap_or_default(),
         ps: s.ps.clone().unwrap_or_default(),
         addtime: s.addtime.clone().unwrap_or_default(),
+        project_cmd: s.project_cmd.clone().unwrap_or_default(),
+        project_port: s.project_port.unwrap_or(0),
+        run_user: s.run_user.clone().unwrap_or_else(|| "www".into()),
+        is_onpower: s.is_onpower.unwrap_or(0),
         domains,
     }
 }

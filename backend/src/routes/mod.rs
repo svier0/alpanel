@@ -5,6 +5,7 @@ mod nginx_routes;
 mod redis_routes;
 mod settings_routes;
 mod site_routes;
+mod system_routes;
 
 pub fn routes() -> axum::Router<()> {
     auth_routes::routes()
@@ -14,4 +15,5 @@ pub fn routes() -> axum::Router<()> {
         .merge(nginx_routes::routes())
         .merge(redis_routes::routes())
         .merge(site_routes::routes())
+        .merge(system_routes::routes())
 }
