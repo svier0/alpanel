@@ -1,6 +1,6 @@
 use axum::{Json, http::HeaderMap};
 
-use crate::dto::site_dto::{CreateSiteRequest, SiteResponse, UpdateSiteRequest};
+use crate::dto::site_dto::{project_type_list, CreateSiteRequest, SiteResponse, UpdateSiteRequest};
 use crate::errors::AppResult;
 use crate::middleware::auth::check_auth;
 use crate::repositories::site_repository;
@@ -14,6 +14,13 @@ pub async fn list_sites(
         .map(|s| site_repository::to_response(&s))
         .collect();
     Ok(Json(sites))
+}
+
+pub async fn get_project_types(
+    headers: HeaderMap,
+) -> AppResult<Json<Vec<crate::dto::site_dto::ProjectTypeInfo>>> {
+    check_auth(&headers)?;
+    Ok(Json(crate::dto::site_dto::project_type_list()))
 }
 
 pub async fn create_site(

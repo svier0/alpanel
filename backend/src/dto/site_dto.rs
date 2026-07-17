@@ -55,3 +55,18 @@ pub struct SiteResponse {
     pub is_onpower: i64,
     pub domains: Vec<DomainInline>,
 }
+
+#[derive(Serialize)]
+pub struct ProjectTypeInfo {
+    pub name: String,
+    pub title: String,
+    pub visibled: i64,
+}
+
+pub fn project_type_list() -> Vec<ProjectTypeInfo> {
+    vec![
+        ProjectTypeInfo { name: "PHP".into(), title: "普通项目".into(), visibled: 1 },
+        ProjectTypeInfo { name: "Other".into(), title: "其它项目".into(), visibled: 1 },
+        ProjectTypeInfo { name: "Proxy".into(), title: "反向代理".into(), visibled: 0 },
+    ]
+}
