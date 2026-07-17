@@ -23,6 +23,7 @@
     "@codemirror/view": "^6.43.6",
     "@element-plus/icons-vue": "^2.3.1",
     "@lezer/highlight": "^1.2.3",
+    "@uiw/codemirror-theme-sublime": "^4.25.11",
     "element-plus": "^2.9.7",
     "vue": "^3.5.39",
     "vue-i18n": "10",
