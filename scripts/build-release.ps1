@@ -18,3 +18,11 @@ foreach ($t in $targets) {
     & tar -czf $out -C $dir alpanel
     Write-Host "Packaged: $out"
 }
+
+# 前端单独打包为 dist-<version>.tar.gz
+Push-Location "$root\frontend"
+bun run build
+Pop-Location
+$distOut = "$root\releases\dist-$version.tar.gz"
+& tar -czf $distOut -C "$root\frontend\dist" .
+Write-Host "Packaged: $distOut"
