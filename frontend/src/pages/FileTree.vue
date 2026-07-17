@@ -38,8 +38,13 @@
           :loading="loading"
           :active-path="activePath"
           :open-paths="openPaths"
+          :renaming-path="renamingPath"
+          :renaming-value="renamingValue"
           @toggle="(n: TreeNode) => emit('toggle', n)"
           @select="(n: TreeNode) => emit('select', n)"
+          @ctx="(n: TreeNode, e: MouseEvent) => emit('ctx', n, e)"
+          @rename="(n: TreeNode) => emit('rename', n)"
+          @cancel-rename="emit('cancelRename')"
         />
       </div>
       <div v-else-if="node.is_dir && node.expanded && !node.children?.length" class="tree-empty" :style="{ paddingLeft: ((depth ?? 0) + 1) * 14 + 24 + 'px' }">
@@ -70,9 +75,14 @@ const props = defineProps<{
   activePath?: string
   openPaths?: Set<string>
   renamingPath?: string
+  renamingValue?: string
 }>()
 
-const renamingValue = ref('')
+const renamingValue = ref(props.renamingValue || '')
+
+watch(() => props.renamingValue, (v) => {
+  if (v !== undefined) renamingValue.value = v
+})
 
 watch(() => props.renamingPath, (p) => {
   if (p) {

@@ -40,6 +40,7 @@
               :active-path="activePath"
               :open-paths="openPaths"
               :renaming-path="renamingPath"
+              :renaming-value="renamingValue"
               @toggle="onToggleNode"
               @select="onSelectFile"
               @ctx="onTreeCtx"
@@ -97,6 +98,7 @@
           <div class="ed-ctx-item" @click="ctxOpenSubdir">打开子目录</div>
           <div class="ed-ctx-item" @click="ctxNewDir">新建目录</div>
           <div class="ed-ctx-item" @click="ctxNewFile">新建文件</div>
+          <div class="ed-ctx-item" @click="ctxRename">重命名</div>
         </template>
         <template v-else>
           <div class="ed-ctx-item" @click="ctxRename">重命名</div>
