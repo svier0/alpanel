@@ -17,8 +17,21 @@
       <div class="ed-body">
         <div class="ed-tree">
           <div class="ed-tree-head">
-            <span>目录</span>
-            <el-button size="small" text :icon="Refresh" @click="loadTree(rootPath)" />
+            <span class="ed-tree-path" :title="treePath">{{ treePath }}</span>
+          </div>
+          <div class="ed-tree-toolbar">
+            <el-tooltip content="上一级" placement="bottom">
+              <button class="ed-tool" :disabled="!canGoUp" @click="goUp"><el-icon><Top /></el-icon></button>
+            </el-tooltip>
+            <el-tooltip content="刷新" placement="bottom">
+              <button class="ed-tool" @click="refreshTree"><el-icon><Refresh /></el-icon></button>
+            </el-tooltip>
+            <el-tooltip content="新建文件" placement="bottom">
+              <button class="ed-tool" @click="openCreate(false)"><el-icon><DocumentAdd /></el-icon></button>
+            </el-tooltip>
+            <el-tooltip content="新建目录" placement="bottom">
+              <button class="ed-tool" @click="openCreate(true)"><el-icon><FolderAdd /></el-icon></button>
+            </el-tooltip>
           </div>
           <div class="ed-tree-body">
             <FileTree
@@ -75,13 +88,25 @@
       <el-icon><Document /></el-icon>
       <span>在线编辑器</span>
     </div>
+
+    <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body @closed="createDialog.name=''">
+      <el-form @submit.prevent="handleCreate">
+        <el-form-item :label="createDialog.isDir ? '目录名' : '文件名'">
+          <el-input v-model="createDialog.name" placeholder="请输入名称" @keyup.enter="handleCreate" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="handleCreate">确定</el-button>
+      </template>
+    </el-dialog>
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, ComponentPublicInstance } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Close, Minus, FullScreen, CopyDocument, Document } from '@element-plus/icons-vue'
+import { Refresh, Close, Minus, FullScreen, CopyDocument, Document, Top, DocumentAdd, FolderAdd } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
 import FileTree, { type TreeNode } from './FileTree.vue'
 import CodeMirrorHost, { type CursorPos } from './CodeMirrorHost.vue'
@@ -94,7 +119,6 @@ const visible = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
-const rootPath = props.rootPath || '/www'
 const isDark = ref(false)
 
 // window geometry
@@ -180,15 +204,20 @@ interface EditTab {
 
 const tabs = reactive<EditTab[]>([])
 const activePath = ref('')
-const openPaths = reactive(new Set<string>([rootPath]))
+const treePath = ref(props.rootPath || '/')
+const openPaths = reactive(new Set<string>())
 const treeNodes = ref<TreeNode[]>([])
 const treeLoading = ref(false)
 const cmHosts = new Map<string, any>()
 
 const activeTab = computed(() => tabs.find((t) => t.path === activePath.value) || null)
 
+function canGoUp(): boolean {
+  const p = treePath.value.replace(/\/$/, '')
+  return p !== '' && p !== '/'
+}
+
 function setCmHostRef(el: Element | ComponentPublicInstance | null) {
-  // el is the host div; we map by active path at mount time
   if (el) cmHosts.set(activePath.value, el)
 }
 
@@ -207,6 +236,7 @@ async function loadTree(path: string) {
   treeLoading.value = true
   try {
     const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(path)}`)
+    treePath.value = data.path || path
     const items: any[] = data.items || []
     const children: TreeNode[] = items
       .filter((i) => i.is_dir)
@@ -216,7 +246,7 @@ async function loadTree(path: string) {
       .filter((i) => !i.is_dir)
       .sort((a, b) => a.name.localeCompare(b.name, 'zh'))
       .map((i) => ({ name: i.name, path: i.path, is_dir: false, loaded: true, children: [], expanded: false }))
-    setTreeNodes(path, [...children, ...files])
+    treeNodes.value = [...children, ...files]
   } catch (e: any) {
     ElMessage.error(e?.message || '目录加载失败')
   } finally {
@@ -224,27 +254,16 @@ async function loadTree(path: string) {
   }
 }
 
-function setTreeNodes(path: string, children: TreeNode[]) {
-  if (path === rootPath) {
-    treeNodes.value = [{ name: rootPath, path: rootPath, is_dir: true, loaded: true, expanded: true, children }]
-    return
-  }
-  const node = findNode(treeNodes.value, path)
-  if (node) {
-    node.children = children
-    node.loaded = true
-  }
+async function refreshTree() {
+  await loadTree(treePath.value)
 }
 
-function findNode(nodes: TreeNode[], path: string): TreeNode | null {
-  for (const n of nodes) {
-    if (n.path === path) return n
-    if (n.children?.length) {
-      const found = findNode(n.children, path)
-      if (found) return found
-    }
-  }
-  return null
+async function goUp() {
+  if (!canGoUp()) return
+  const p = treePath.value.replace(/\/$/, '')
+  const idx = p.lastIndexOf('/')
+  const parent = idx <= 0 ? '/' : p.substring(0, idx) || '/'
+  await loadTree(parent)
 }
 
 async function onToggleNode(node: TreeNode) {
@@ -255,7 +274,21 @@ async function onToggleNode(node: TreeNode) {
   node.expanded = !node.expanded
   if (node.expanded) {
     openPaths.add(node.path)
-    if (!node.loaded || !node.children?.length) await loadTree(node.path)
+    if (!node.loaded || !node.children?.length) {
+      try {
+        const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(node.path)}`)
+        const items: any[] = data.items || []
+        node.children = [
+          ...items.filter((i) => i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+            .map((i) => ({ name: i.name, path: i.path, is_dir: true, loaded: false, children: [], expanded: openPaths.has(i.path) })),
+          ...items.filter((i) => !i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+            .map((i) => ({ name: i.name, path: i.path, is_dir: false, loaded: true, children: [], expanded: false })),
+        ]
+        node.loaded = true
+      } catch (e: any) {
+        ElMessage.error(e?.message || '目录加载失败')
+      }
+    }
   } else {
     openPaths.delete(node.path)
   }
@@ -340,11 +373,41 @@ async function saveTab(path: string) {
   }
 }
 
+const createDialog = reactive({
+  visible: false,
+  name: '',
+  isDir: false,
+})
+
+function openCreate(isDir: boolean) {
+  createDialog.name = ''
+  createDialog.isDir = isDir
+  createDialog.visible = true
+}
+
+async function handleCreate() {
+  if (!createDialog.name.trim()) return
+  const p = treePath.value.endsWith('/') ? treePath.value + createDialog.name : treePath.value + '/' + createDialog.name
+  try {
+    await apiFetch('/api/files/create', {
+      method: 'POST',
+      body: JSON.stringify({ path: p, type: createDialog.isDir ? 'dir' : 'file' }),
+    })
+    ElMessage.success(createDialog.isDir ? '目录已创建' : '文件已创建')
+    createDialog.visible = false
+    refreshTree()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '创建失败')
+  }
+}
+
 function onOpen() {
   const theme = document.documentElement.classList.contains('dark') ||
     getComputedStyle(document.body).backgroundColor.includes('rgb(0, 0, 0)')
   isDark.value = !!theme
-  loadTree(rootPath)
+  treePath.value = props.rootPath || '/'
+  openPaths.clear()
+  loadTree(treePath.value)
   if (props.initialFile) {
     const name = props.initialFile.split('/').filter(Boolean).pop() || props.initialFile
     openFile(props.initialFile, name)
@@ -465,7 +528,7 @@ watch(() => props.modelValue, (v) => {
 }
 
 .ed-tree {
-  width: 260px;
+  width: 280px;
   flex-shrink: 0;
   border-right: 1px solid var(--el-border-color-lighter);
   display: flex;
@@ -474,15 +537,43 @@ watch(() => props.modelValue, (v) => {
 }
 
 .ed-tree-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
   border-bottom: 1px solid var(--el-border-color-lighter);
   flex-shrink: 0;
 }
+.ed-tree-path {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ed-tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  flex-shrink: 0;
+}
+.ed-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 15px;
+}
+.ed-tool:hover:not(:disabled) { background: var(--el-fill-color-dark); color: var(--el-color-primary); }
+.ed-tool:disabled { color: var(--el-text-color-disabled); cursor: not-allowed; }
 
 .ed-tree-body {
   flex: 1;

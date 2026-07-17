@@ -308,7 +308,7 @@
       </template>
     </el-dialog>
 
-    <FileEditorDialog v-model="editorDialog.visible" :initial-file="editorDialog.file" />
+    <FileEditorDialog v-model="editorDialog.visible" :root-path="editorDialog.rootPath" :initial-file="editorDialog.file" />
   </div>
 </template>
 
@@ -656,6 +656,7 @@ function ctxDelete(path: string, name: string) {
 
 function ctxOpenEditor() {
   if (ctxMenu.type !== 'file' || !ctxMenu.filePath) return
+  editorDialog.rootPath = ctxMenu.tab?.path || '/www'
   editorDialog.file = ctxMenu.filePath
   editorDialog.visible = true
 }
@@ -949,6 +950,7 @@ function onRowDoubleClick(tab: BrowserTab, row: FileItem) {
   if (row.is_dir) {
     navigateTab(tab, row.path)
   } else {
+    editorDialog.rootPath = tab.path
     editorDialog.file = row.path
     editorDialog.visible = true
   }
@@ -957,6 +959,7 @@ function onRowDoubleClick(tab: BrowserTab, row: FileItem) {
 const editorDialog = reactive({
   visible: false,
   file: '',
+  rootPath: '/www',
 })
 
 function openCreate(tab: BrowserTab, isDir: boolean) {
