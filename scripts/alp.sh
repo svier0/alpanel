@@ -2,6 +2,7 @@
 set -eu
 
 ENV_FILE="/www/server/panel/.env"
+DB_FILE="/www/server/panel/data/db/alpanel.db"
 
 help() {
     echo "Alpanel 面板管理工具"
@@ -106,10 +107,27 @@ restart() {
     echo "面板服务已重启"
 }
 
+ensure_sqlite() {
+    if ! command -v sqlite3 >/dev/null 2>&1; then
+        echo "需要 sqlite3 来修改用户表, 正在安装..."
+        apk add sqlite >/dev/null 2>&1 || { echo "错误: 安装 sqlite 失败" >&2; exit 1; }
+    fi
+}
+
+user_id() {
+    sqlite3 "$DB_FILE" "SELECT id FROM users ORDER BY id LIMIT 1;" 2>/dev/null | head -1
+}
+
 set_username() {
     val=$(prompt "请输入新登录账号")
     [ -n "$val" ] || { echo "账号不能为空" >&2; exit 1; }
-    update_env "PANEL_USER" "$val"
+    ensure_sqlite
+    uid=$(user_id)
+    [ -n "$uid" ] || { echo "错误: 未找到用户记录" >&2; exit 1; }
+    sqlite3 "$DB_FILE" "UPDATE users SET username='$val' WHERE id=$uid;" 2>/dev/null \
+        || { echo "错误: 修改账号失败" >&2; exit 1; }
+    echo "登录账号已修改为: $val"
+    echo "(注意: .env 中的初始账号仅作安装记录, 不再用于登录)"
 }
 
 set_password() {
@@ -120,7 +138,17 @@ set_password() {
         echo "两次输入的密码不一致" >&2
         exit 1
     fi
-    update_env "PANEL_PASSWORD" "$pw"
+    ensure_sqlite
+    uid=$(user_id)
+    [ -n "$uid" ] || { echo "错误: 未找到用户记录" >&2; exit 1; }
+    # 密码存储格式: md5(md5(pw) + salt)
+    pw_md5=$(printf '%s' "$pw" | md5sum | awk '{print $1}')
+    salt=$(head -c 16 /dev/urandom | md5sum | awk '{print $1}')
+    final=$(printf '%s%s' "$pw_md5" "$salt" | md5sum | awk '{print $1}')
+    sqlite3 "$DB_FILE" "UPDATE users SET password='$final', salt='$salt' WHERE id=$uid;" 2>/dev/null \
+        || { echo "错误: 修改密码失败" >&2; exit 1; }
+    echo "登录密码已修改"
+    echo "(注意: .env 中的初始密码仅作安装记录, 不再用于登录)"
 }
 
 set_port() {
