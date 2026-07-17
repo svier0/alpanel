@@ -21,6 +21,7 @@ import { javascript } from '@codemirror/lang-javascript'
 import { css } from '@codemirror/lang-css'
 import { html } from '@codemirror/lang-html'
 import { json } from '@codemirror/lang-json'
+import { markdown } from '@codemirror/lang-markdown'
 import { shell } from '@codemirror/legacy-modes/mode/shell'
 import { yaml } from '@codemirror/legacy-modes/mode/yaml'
 import { python } from '@codemirror/legacy-modes/mode/python'
@@ -54,6 +55,7 @@ function langExtension(lang: string) {
     case 'css': return css()
     case 'html': return html()
     case 'json': return json()
+    case 'markdown': return markdown()
     case 'shell': return StreamLanguage.define(shell)
     case 'yaml': return StreamLanguage.define(yaml)
     case 'python': return StreamLanguage.define(python)
