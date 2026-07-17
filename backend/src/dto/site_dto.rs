@@ -1,8 +1,15 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
-pub struct CreateSiteRequest {
+pub struct CreateDomainInline {
     pub name: String,
+    pub port: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct CreateSiteRequest {
+    pub name: Option<String>,
+    pub domains: Vec<CreateDomainInline>,
     pub path: String,
     pub status: Option<String>,
     pub project_type: Option<String>,
@@ -18,6 +25,13 @@ pub struct UpdateSiteRequest {
     pub ps: Option<String>,
 }
 
+#[derive(Serialize, Clone)]
+pub struct DomainInline {
+    pub id: i64,
+    pub name: String,
+    pub port: i64,
+}
+
 #[derive(Serialize)]
 pub struct SiteResponse {
     pub id: i64,
@@ -27,4 +41,5 @@ pub struct SiteResponse {
     pub project_type: String,
     pub ps: String,
     pub addtime: String,
+    pub domains: Vec<DomainInline>,
 }

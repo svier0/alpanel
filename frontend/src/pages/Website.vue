@@ -98,9 +98,9 @@
               </template>
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
-              <template #default>
+              <template #default="{ row }">
                 <el-button size="small" link type="primary">设置</el-button>
-                <el-button size="small" link type="primary">删除</el-button>
+                <el-button size="small" link type="danger" @click="handleDelete(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -271,7 +271,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, RefreshRight } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
 
@@ -355,6 +355,7 @@ async function doInstall() {
 
 onMounted(() => {
   checkNginx()
+  fetchSites()
 })
 
 interface NormalItem {
@@ -389,24 +390,53 @@ interface ProxyItem {
   sslDays: number
 }
 
-const normalList = ref<NormalItem[]>([
-  { id: 1, name: 'example.com', status: '运行中', root: '/www/wwwroot/example.com', ps: '公司官网', php: '82', ssl: true, sslDays: 31 },
-  { id: 2, name: 'blog.example.com', status: '运行中', root: '/www/wwwroot/blog.example.com', ps: '个人博客', php: '74', ssl: true, sslDays: 15 },
-  { id: 3, name: 'test.example.com', status: '停止', root: '/www/wwwroot/test.example.com', ps: '', php: '82', ssl: false, sslDays: 0 },
-  { id: 4, name: 'admin.example.com', status: '运行中', root: '/www/wwwroot/admin.example.com', ps: '后台管理', php: '74', ssl: true, sslDays: 89 },
-])
+const normalList = ref<NormalItem[]>([])
+const otherList = ref<OtherItem[]>([])
+const proxyList = ref<ProxyItem[]>([])
 
-const otherList = ref<OtherItem[]>([
-  { id: 1, name: 'node-app', status: '运行中', port: 3001, root: '/www/wwwroot/node-app', ps: 'Node.js 服务', ssl: false, sslDays: 0 },
-  { id: 2, name: 'python-api', status: '运行中', port: 5000, root: '/www/wwwroot/python-api', ps: '', ssl: false, sslDays: 0 },
-  { id: 3, name: 'go-service', status: '停止', port: 8080, root: '/www/wwwroot/go-service', ps: 'Go 后端', ssl: true, sslDays: 120 },
-])
-
-const proxyList = ref<ProxyItem[]>([
-  { id: 1, domain: 'api.example.com', status: '运行中', proxyPass: 'http://localhost:8080', ps: 'API 代理', ssl: true, sslDays: 45 },
-  { id: 2, domain: 'ws.example.com', status: '运行中', proxyPass: 'http://localhost:3000', ps: '', ssl: true, sslDays: 7 },
-  { id: 3, domain: 'cdn.example.com', status: '停止', proxyPass: 'http://localhost:9000', ps: 'CDN 代理', ssl: false, sslDays: 0 },
-])
+async function fetchSites() {
+  try {
+    const data = await apiFetch('/api/sites')
+    normalList.value = (data || [])
+      .filter((s: any) => (s.project_type || 'PHP') === 'PHP')
+      .map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        status: s.status || '运行中',
+        root: s.path,
+        ps: s.ps || '',
+        php: '',
+        ssl: false,
+        sslDays: 0,
+      }))
+    // 其它项目 / 反向代理 暂未实现
+    otherList.value = (data || [])
+      .filter((s: any) => (s.project_type || '') === 'Other')
+      .map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        status: s.status || '运行中',
+        port: 0,
+        root: s.path,
+        ps: s.ps || '',
+        ssl: false,
+        sslDays: 0,
+      }))
+    proxyList.value = (data || [])
+      .filter((s: any) => (s.project_type || '') === 'Proxy')
+      .map((s: any) => ({
+        id: s.id,
+        domain: s.domains?.[0]?.name || s.name,
+        status: s.status || '运行中',
+        proxyPass: '',
+        ps: s.ps || '',
+        ssl: false,
+        sslDays: 0,
+      }))
+  } catch {
+    ElMessage.error('获取站点列表失败')
+  }
+}
 
 const pageSize = 10
 const page = ref(1)
@@ -429,7 +459,7 @@ const filteredOther = computed(() => {
 const filteredProxy = computed(() => {
   if (!searchQuery.value) return proxyList.value
   const q = searchQuery.value.toLowerCase()
-  return proxyList.value.filter(x => x.domain.toLowerCase().includes(q) || x.proxyPass.toLowerCase().includes(q) || x.ps.toLowerCase().includes(q))
+  return proxyList.value.filter(x => x.domain.toLowerCase().includes(q) || x.ps.toLowerCase().includes(q))
 })
 
 const pagedNormal = computed(() => {
@@ -448,9 +478,51 @@ const pagedProxy = computed(() => {
 })
 
 function refreshTable() {
+  fetchSites()
 }
 
-function savePs(_row: any, _tab: string) {
+async function handleDelete(row: any) {
+  try {
+    await ElMessageBox.confirm(`确定删除站点「${row.name}」吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await apiFetch(`/api/sites/${row.id}`, { method: 'DELETE' })
+    ElMessage.success('已删除')
+    refreshTable()
+  } catch {
+    ElMessage.error('删除失败')
+  }
+}
+
+function parseDomains(input: string): { name: string; port: number | null }[] {
+  return input
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(s => {
+      const idx = s.lastIndexOf(':')
+      if (idx > 0 && /^\d+$/.test(s.slice(idx + 1))) {
+        return { name: s.slice(0, idx), port: parseInt(s.slice(idx + 1), 10) }
+      }
+      return { name: s, port: null }
+    })
+}
+
+async function savePs(row: any, _tab: string) {
+  try {
+    await apiFetch(`/api/sites/${row.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ps: row.ps }),
+    })
+  } catch {
+    ElMessage.error('保存备注失败')
+  }
 }
 
 function goFile(path: string) {
@@ -477,8 +549,33 @@ function onDomainInput() {
   addSiteDialog.root = '/www/wwwroot/' + firstLine
 }
 
-function handleAddSite() {
-  addSiteDialog.visible = false
+async function handleAddSite() {
+  const domains = parseDomains(addSiteDialog.domain)
+  if (domains.length === 0) {
+    ElMessage.error('请至少填写一个域名')
+    return
+  }
+  const root = addSiteDialog.root.trim()
+  if (!root) {
+    ElMessage.error('请填写根目录')
+    return
+  }
+  try {
+    await apiFetch('/api/sites', {
+      method: 'POST',
+      body: JSON.stringify({
+        project_type: 'PHP',
+        domains,
+        path: root,
+        ps: addSiteDialog.ps || undefined,
+      }),
+    })
+    ElMessage.success('站点创建成功')
+    addSiteDialog.visible = false
+    refreshTable()
+  } catch (e: any) {
+    ElMessage.error((e && e.message) || '创建站点失败')
+  }
 }
 
 const dirPicker = reactive({
