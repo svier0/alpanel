@@ -39,11 +39,17 @@ cd frontend && bun install && bun run dev
 
 The `scripts/alp.sh` script provides panel service management on the server:
 
-| Command    | Action             |
-|------------|--------------------|
-| `alp 11`   | Start panel        |
-| `alp 12`   | Stop panel         |
-| `alp 13`   | Restart panel      |
-| `alp 21`   | Change username    |
-| `alp 22`   | Change password    |
-| `alp 31`   | Change port        |
+| Command    | Action                          |
+|------------|---------------------------------|
+| `alp 11`   | Start panel                     |
+| `alp 12`   | Stop panel                      |
+| `alp 13`   | Restart panel                   |
+| `alp 21`   | Change username                 |
+| `alp 22`   | Change password                 |
+| `alp 31`   | Change port                     |
+| `alp 51`   | Install Nginx                   |
+| `alp 52`   | Install PHP (multi-version)     |
+| `alp 53`   | Install MySQL                   |
+| `alp 54`   | Install Redis                   |
+| `alp 61`   | Force reset MySQL root password |
+| `alp 99`   | Uninstall panel (irreversible)  |
