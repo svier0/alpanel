@@ -227,11 +227,17 @@ function setCmHostRef(el: Element | ComponentPublicInstance | null) {
 }
 
 function detectLanguage(path: string): string {
-  const ext = path.split('.').pop()?.toLowerCase() || ''
+  const base = path.split('/').filter(Boolean).pop() || ''
+  const lower = base.toLowerCase()
+  if (lower === 'dockerfile') return 'dockerfile'
+  if (lower === 'nginx.conf' || lower.endsWith('.conf')) return 'nginx'
+  const ext = lower.includes('.') ? lower.split('.').pop()! : ''
   const map: Record<string, string> = {
     php: 'php', js: 'javascript', ts: 'javascript', mjs: 'javascript', cjs: 'javascript',
     css: 'css', scss: 'css', less: 'css', html: 'html', htm: 'html', vue: 'html', xml: 'html',
-    json: 'json', md: 'markdown', txt: 'text', log: 'text',
+    json: 'json', sh: 'shell', bash: 'shell', zsh: 'shell', yml: 'yaml', yaml: 'yaml',
+    py: 'python', ini: 'ini', conf: 'ini', cfg: 'ini', sql: 'sql', toml: 'toml',
+    txt: 'text', log: 'text', md: 'text',
   }
   return map[ext] || 'text'
 }
