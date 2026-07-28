@@ -1,7 +1,7 @@
 # scripts/wsl-run.ps1
 
 Set-Location $PSScriptRoot\..\frontend
-bun run build
+pnpm run build
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Set-Location $PSScriptRoot\..\backend

@@ -21,7 +21,7 @@ foreach ($t in $targets) {
 
 # 前端单独打包为 dist-<version>.tar.gz
 Push-Location "$root\frontend"
-bun run build
+pnpm run build
 Pop-Location
 $distOut = "$root\releases\dist-$version.tar.gz"
 & tar -czf $distOut -C "$root\frontend\dist" .

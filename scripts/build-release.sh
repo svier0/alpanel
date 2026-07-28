@@ -19,7 +19,7 @@ done
 
 # 前端单独打包为 dist-<version>.tar.gz
 cd ../frontend
-bun run build
+pnpm run build
 cd ..
 dist_out="releases/dist-$version.tar.gz"
 tar -czf "$dist_out" -C frontend/dist .
