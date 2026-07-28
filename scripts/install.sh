@@ -4,6 +4,26 @@ DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/master/scripts/in
 VERSION="0.1.0"
 ALP_DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/master/scripts/alp.sh"
 
+PANEL_PORT_ARG=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --port)
+            shift
+            if [ -z "$1" ] || ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 1 ] || [ "$1" -gt 65535 ]; then
+                echo "错误: --port 需要 1-65535 之间的数字"
+                exit 1
+            fi
+            PANEL_PORT_ARG="$1"
+            shift
+            ;;
+        *)
+            echo "错误: 未知参数 $1"
+            echo "用法: bash install.sh [--port 端口号]"
+            exit 1
+            ;;
+    esac
+done
+
 if wget --spider --timeout=1 --tries=1 -q https://www.google.com > /dev/null 2>&1; then
     REPO_URL="/etc/apk/repositories"
     GH_PROXY=""
@@ -79,7 +99,11 @@ wget -O /usr/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
 chmod +x /usr/bin/alp
 
 ENV_FILE="/www/server/panel/.env"
-PANEL_PORT=$(shuf -i 10000-65535 -n 1)
+if [ -n "$PANEL_PORT_ARG" ]; then
+    PANEL_PORT="$PANEL_PORT_ARG"
+else
+    PANEL_PORT=$(shuf -i 10000-65535 -n 1)
+fi
 PANEL_USER="admin"
 PANEL_PASSWORD=$(tr -dc A-Za-z0-9 < /dev/urandom | head -c 16)
 
