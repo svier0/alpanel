@@ -14,7 +14,7 @@ Linux 服务器管理面板（类宝塔），Rust + Axum 后端 + Vue 3 前端�
 - WSL 单核低内存，禁止在里面编译
 - 用户有疑问先回复再改代码
 - 禁止把用户电脑当wsl(例如，需要操作wsl中的/www目录，却访问d:\www)
-- 本项目禁止使用node/npm
+- 本项目禁止使用npm，应使用pnpm
 - **改文件即时提交**（每改完一个文件立刻 commit）
 - git push 必须关证书校验：`git -c http.sslVerify=false push origin master`（Windows schannel 吊销检查失败）；无 GPG key，提交为 unsigned
 - 禁止 `apk add`。patchelf 仅可临时用：mktemp 目录 + `apk fetch --recursive patchelf`，用 `LD_LIBRARY_PATH=$tmp/usr/lib:$tmp/lib` 调用，用完 `rm -rf`
@@ -206,9 +206,9 @@ domain   (id, pid→sites.id, name, port, addtime)
 
 | 用途 | 命令 |
 |------|------|
-| 前端开发热更新 | `cd frontend && bun run dev` (Vite :5173) |
-| 前端生产构建 | `cd frontend && bun run build` |
-| 完整调试（构建→推WSL→运行） | `cd frontend && bun run backend` (调 wsl-run.ps1) |
+| 前端开发热更新 | `cd frontend && pnpm run dev` (Vite :5173) |
+| 前端生产构建 | `cd frontend && pnpm run build` |
+| 完整调试（构建→推WSL→运行） | `cd frontend && pnpm run backend` (调 wsl-run.ps1) |
 | 生产发布包 | `scripts/build-release.ps1` → `releases/alpanel-<ver>-<target>.tar.gz` |
 
 - 默认 target 为 Linux musl，`.cargo/config.toml` 控制双架构

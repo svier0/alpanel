@@ -32,7 +32,7 @@ alpanel/
 cd backend && cargo run
 
 # Frontend
-cd frontend && bun install && bun run dev
+cd frontend && pnpm install && pnpm run dev
 ```
 
 ## Management (alp.sh)
