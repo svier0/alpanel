@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh"
 VERSION="0.1.0"
@@ -9,7 +9,13 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --port)
             shift
-            if [ -z "$1" ] || ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 1 ] || [ "$1" -gt 65535 ]; then
+            case "$1" in
+                ''|*[!0-9]*)
+                    echo "错误: --port 需要 1-65535 之间的数字"
+                    exit 1
+                    ;;
+            esac
+            if [ "$1" -lt 1 ] || [ "$1" -gt 65535 ]; then
                 echo "错误: --port 需要 1-65535 之间的数字"
                 exit 1
             fi
@@ -18,7 +24,7 @@ while [ $# -gt 0 ]; do
             ;;
         *)
             echo "错误: 未知参数 $1"
-            echo "用法: bash install.sh [--port 端口号]"
+            echo "用法: sh install.sh [--port 端口号]"
             exit 1
             ;;
     esac
