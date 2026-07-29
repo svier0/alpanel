@@ -11,7 +11,7 @@
           />
           <el-icon v-else class="os-logo-icon"><Monitor /></el-icon>
           <el-tooltip :content="'系统：' + osInfo.os_pretty + ' ' + osInfo.os_arch" placement="bottom">
-            <span>{{ osInfo.os_name }} {{ osInfo.os_version }}</span>
+            <span>{{ osInfo.os_id.charAt(0).toUpperCase() + osInfo.os_id.slice(1) }} {{ osInfo.os_version }}</span>
           </el-tooltip>
         </div>
         <div class="header-right">
