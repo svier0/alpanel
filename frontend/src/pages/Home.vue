@@ -45,7 +45,7 @@ const osLogo = ref('')
 
 const logoMap: Record<string, string> = {
   debian: 'https://www.debian.org/logos/openlogo-nd.svg',
-  alpine: 'https://alpinelinux.org/alpinelogo.svg',
+  alpine: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/alpine-linux.svg',
   ubuntu: 'https://ubuntu.com/static/images/logos/logo-ubuntu.svg',
 }
 
