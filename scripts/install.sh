@@ -108,7 +108,7 @@ ENV_FILE="/www/server/panel/.env"
 if [ -n "$PANEL_PORT_ARG" ]; then
     PANEL_PORT="$PANEL_PORT_ARG"
 else
-    PANEL_PORT=$(shuf -i 5556-65535 -n 1)
+    PANEL_PORT=$(shuf -i 8888-65535 -n 1)
 fi
 PANEL_USER="admin"
 PANEL_PASSWORD=$(tr -dc A-Za-z0-9 < /dev/urandom | head -c 16)

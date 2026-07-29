@@ -24,9 +24,9 @@ async fn main() {
     }
 
     let port_raw = std::env::var("PANEL_PORT").unwrap_or_else(|_| {
-        "5556".to_string()
+        "8888".to_string()
     });
-    let port: u16 = port_raw.parse().unwrap_or(5556);
+    let port: u16 = port_raw.parse().unwrap_or(8888);
 
     let env = config::read_env();
 
