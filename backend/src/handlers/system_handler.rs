@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::errors::AppResult;
 use crate::middleware::auth::check_auth;
+use crate::db::pool::db_conn;
 
 #[derive(Serialize)]
 pub struct SystemInfo {
@@ -147,6 +148,14 @@ pub struct SystemStat {
     pub disks: Vec<DiskStat>,
     pub net: Vec<NetStat>,
     pub disk_io: DiskIo,
+    pub overview: Overview,
+}
+
+#[derive(Serialize)]
+pub struct Overview {
+    pub sites: i64,
+    pub databases: i64,
+    pub apps: i64,
 }
 
 #[derive(Serialize)]
@@ -287,6 +296,19 @@ pub async fn system_stat(
     // Disk I/O from /proc/diskstats
     let disk_io = parse_disk_io();
 
+    // Overview from database
+    let overview = {
+        let sites = db_conn()
+            .map(|c| c.query_row("SELECT COUNT(*) FROM sites", [], |r| r.get(0)).unwrap_or(0))
+            .unwrap_or(0);
+        let databases = 0i64;
+        let mut apps = 0i64;
+        if std::path::Path::new("/www/server/nginx/sbin/nginx").exists() { apps += 1; }
+        if std::path::Path::new("/www/server/mysql/bin/mariadbd").exists() { apps += 1; }
+        if std::path::Path::new("/www/server/redis/bin/redis-server").exists() { apps += 1; }
+        Overview { sites, databases, apps }
+    };
+
     Ok(Json(SystemStat {
         loadavg,
         cpu: CpuStat {
@@ -304,6 +326,7 @@ pub async fn system_stat(
         disks,
         net,
         disk_io,
+        overview,
     }))
 }
 

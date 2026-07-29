@@ -158,6 +158,7 @@ interface SystemStat {
   disks: { mount: string; total: number; used: number; percent: number }[]
   net: { name: string; rx_bytes: number; tx_bytes: number }[]
   disk_io: { name: string; read_bytes: number; write_bytes: number }
+  overview: { sites: number; databases: number; apps: number }
 }
 interface AppInfo { name: string; running: boolean }
 
@@ -305,6 +306,7 @@ onMounted(async () => {
     try {
       const s: SystemStat = await apiFetch('/api/system/stat')
       updateRings(s)
+      overview.value = s.overview
 
       // net delta
       const ifaces = s.net.map(n => n.name)
@@ -340,18 +342,9 @@ onMounted(async () => {
         a.running = data?.running ?? false
       } catch {}
     }
-    try {
-      const sites = await apiFetch('/api/sites')
-      overview.value.sites = Array.isArray(sites) ? sites.length : 0
-    } catch {}
-    try {
-      const dbs = await apiFetch('/api/mysql/databases')
-      overview.value.databases = Array.isArray(dbs) ? dbs.length : 0
-    } catch {}
-    overview.value.apps = apps.value.filter(a => a.running).length
   }
   await poll()
-  timer = setInterval(poll, 3000)
+  timer = setInterval(poll, 5000)
 })
 
 onUnmounted(() => {
