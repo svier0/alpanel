@@ -11,6 +11,7 @@ pub struct SystemInfo {
     pub os_version: String,
     pub os_pretty: String,
     pub os_arch: String,
+    pub os_uptime: String,
 }
 
 pub async fn system_info(
@@ -39,6 +40,23 @@ pub async fn system_info(
 
     let os_arch = std::env::consts::ARCH.to_string();
 
+    let os_uptime = std::fs::read_to_string("/proc/uptime")
+        .ok()
+        .and_then(|s| s.split('.').next()?.parse::<u64>().ok())
+        .map(|secs| {
+            let days = secs / 86400;
+            let hours = (secs % 86400) / 3600;
+            let mins = (secs % 3600) / 60;
+            if days > 0 {
+                format!("{}天 {}小时 {}分钟", days, hours, mins)
+            } else if hours > 0 {
+                format!("{}小时 {}分钟", hours, mins)
+            } else {
+                format!("{}分钟", mins)
+            }
+        })
+        .unwrap_or_else(|| "未知".to_string());
+
     if os_pretty.is_empty() {
         os_pretty = "Unknown".to_string();
     }
@@ -49,6 +67,7 @@ pub async fn system_info(
         os_version,
         os_pretty,
         os_arch,
+        os_uptime,
     }))
 }
 
