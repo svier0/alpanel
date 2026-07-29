@@ -10,7 +10,7 @@
             @error="osLogo = ''"
           />
           <el-icon v-else class="os-logo-icon"><Monitor /></el-icon>
-          <span>{{ osInfo.os_name }} {{ osInfo.os_version }}</span>
+          <span>{{ osInfo.os_name }}</span>
         </div>
         <div class="header-right">
           <span class="header-version">v{{ VERSION }}</span>
