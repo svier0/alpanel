@@ -15,6 +15,10 @@ pub struct SystemInfo {
     pub os_pretty: String,
     pub os_arch: String,
     pub os_uptime: String,
+    pub hostname: String,
+    pub kernel: String,
+    pub ip: String,
+    pub boot_time: String,
 }
 
 pub async fn system_info(
@@ -50,15 +54,49 @@ pub async fn system_info(
             let days = secs / 86400;
             let hours = (secs % 86400) / 3600;
             let mins = (secs % 3600) / 60;
-            if days > 0 {
-                format!("{}天 {}小时 {}分钟", days, hours, mins)
-            } else if hours > 0 {
-                format!("{}小时 {}分钟", hours, mins)
-            } else {
-                format!("{}分钟", mins)
-            }
+            let secs = secs % 60;
+            format!("{}天 {}小时 {}分钟 {}秒", days, hours, mins, secs)
         })
         .unwrap_or_else(|| "未知".to_string());
+
+    let hostname = std::fs::read_to_string("/proc/sys/kernel/hostname")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+
+    let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+
+    let ip = std::process::Command::new("ip")
+        .args(["-4", "addr", "show", "scope", "global"])
+        .output()
+        .ok()
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout);
+            s.lines()
+                .find(|l| l.trim().starts_with("inet"))
+                .and_then(|l| l.trim().split_whitespace().nth(1))
+                .map(|a| a.split('/').next().unwrap_or(a).to_string())
+        })
+        .unwrap_or_default();
+
+    let boot_time = std::fs::read_to_string("/proc/stat")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("btime"))
+                .and_then(|l| l.split_whitespace().nth(1))
+                .and_then(|v| v.parse::<i64>().ok())
+                .map(|ts| {
+                    let dt = chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
+                        .unwrap_or_default();
+                    dt
+                })
+        })
+        .unwrap_or_default();
 
     if os_pretty.is_empty() {
         os_pretty = "Unknown".to_string();
@@ -71,6 +109,10 @@ pub async fn system_info(
         os_pretty,
         os_arch,
         os_uptime,
+        hostname,
+        kernel,
+        ip,
+        boot_time,
     }))
 }
 
@@ -99,9 +141,17 @@ pub async fn list_users(
 
 #[derive(Serialize)]
 pub struct SystemStat {
+    pub loadavg: LoadAvg,
     pub cpu: CpuStat,
     pub mem: MemStat,
     pub disks: Vec<DiskStat>,
+}
+
+#[derive(Serialize)]
+pub struct LoadAvg {
+    pub load1: f64,
+    pub load5: f64,
+    pub load15: f64,
 }
 
 #[derive(Serialize)]
@@ -201,7 +251,22 @@ pub async fn system_stat(
     // Disk from df -B1
     let disks = parse_df();
 
+    // Load average from /proc/loadavg
+    let loadavg = std::fs::read_to_string("/proc/loadavg")
+        .unwrap_or_default();
+    let load_parts: Vec<f64> = loadavg
+        .split_whitespace()
+        .take(3)
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    let loadavg = LoadAvg {
+        load1: load_parts.first().copied().unwrap_or(0.0),
+        load5: load_parts.get(1).copied().unwrap_or(0.0),
+        load15: load_parts.get(2).copied().unwrap_or(0.0),
+    };
+
     Ok(Json(SystemStat {
+        loadavg,
         cpu: CpuStat {
             name: cpu_name,
             physical_count,
