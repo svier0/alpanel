@@ -51,7 +51,11 @@ async fn main() {
 
     let app = routes::routes().fallback(frontend::serve_frontend);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let host = env.get("PANEL_HOST").cloned().unwrap_or_else(|| "0.0.0.0".to_string());
+    let addr: SocketAddr = format!("{}:{}", host, port).parse().unwrap_or_else(|_| {
+        eprintln!("Invalid PANEL_HOST or PANEL_PORT, falling back to 0.0.0.0:{}", port);
+        SocketAddr::from(([0, 0, 0, 0], port))
+    });
     info!("Alpanel listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
