@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::LazyLock;
-use axum::{Json, http::HeaderMap};
+use axum::{Json, http::HeaderMap, extract::Path};
 use serde::Serialize;
 
 use crate::errors::AppResult;
@@ -144,6 +144,7 @@ pub async fn list_users(
 pub struct SystemStat {
     pub loadavg: LoadAvg,
     pub cpu: CpuStat,
+    pub cpu_detail: CpuDetail,
     pub mem: MemStat,
     pub disks: Vec<DiskStat>,
     pub net: Vec<NetStat>,
@@ -189,6 +190,33 @@ pub struct CpuStat {
 }
 
 #[derive(Serialize)]
+pub struct CpuDetail {
+    pub freq: u32,
+    pub per_core: Vec<f64>,
+    pub breakdown: CpuBreakdown,
+    pub top_procs: Vec<ProcStat>,
+}
+
+#[derive(Serialize)]
+pub struct CpuBreakdown {
+    pub user: f64,
+    pub nice: f64,
+    pub system: f64,
+    pub idle: f64,
+    pub iowait: f64,
+    pub irq: f64,
+    pub softirq: f64,
+    pub steal: f64,
+}
+
+#[derive(Serialize)]
+pub struct ProcStat {
+    pub pid: u32,
+    pub name: String,
+    pub cpu_percent: f64,
+}
+
+#[derive(Serialize)]
 pub struct MemStat {
     pub total: u64,
     pub used: u64,
@@ -208,7 +236,20 @@ struct CpuRaw {
     idle: u64,
 }
 
+struct CoreRaw {
+    total: u64,
+    idle: u64,
+    user: u64,
+    nice: u64,
+    system: u64,
+    iowait: u64,
+    irq: u64,
+    softirq: u64,
+    steal: u64,
+}
+
 static PREV_CPU: LazyLock<Mutex<Option<CpuRaw>>> = LazyLock::new(|| Mutex::new(None));
+static PREV_CORES: LazyLock<Mutex<Vec<CoreRaw>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 
 pub async fn system_stat(
     headers: HeaderMap,
@@ -254,6 +295,80 @@ pub async fn system_stat(
         }
     };
     *PREV_CPU.lock().unwrap() = raw;
+
+    // ── CPU Detail ──
+    // frequency
+    let freq = cpuinfo.lines()
+        .find(|l| l.contains("cpu MHz"))
+        .and_then(|l| l.split(':').nth(1))
+        .and_then(|v| v.trim().split('.').next())
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(0);
+
+    // per-core usage & breakdown from /proc/stat
+    let stat_content = std::fs::read_to_string("/proc/stat").unwrap_or_default();
+    let core_lines: Vec<&str> = stat_content.lines().filter(|l| l.starts_with("cpu") && l.as_bytes().get(3).map_or(false, |c| c.is_ascii_digit())).collect();
+    let mut cores_now = Vec::new();
+    for line in &core_lines {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 5 { continue; }
+        let vals: Vec<u64> = parts[1..].iter().filter_map(|s| s.parse().ok()).collect();
+        if vals.len() < 8 { continue; }
+        cores_now.push(CoreRaw {
+            total: vals.iter().sum(),
+            idle: vals[3],
+            user: vals[0], nice: vals[1], system: vals[2],
+            iowait: vals[4], irq: vals[5], softirq: vals[6], steal: vals[7],
+        });
+    }
+    let mut per_core = Vec::new();
+    let mut detail = CoreRaw { total: 0, idle: 0, user: 0, nice: 0, system: 0, iowait: 0, irq: 0, softirq: 0, steal: 0 };
+    {
+        let mut prev = PREV_CORES.lock().unwrap();
+        for (i, now) in cores_now.iter().enumerate() {
+            if let Some(p) = prev.get(i) {
+                let dt = now.total - p.total;
+                if dt > 0 {
+                    let pct = ((dt - (now.idle - p.idle)) as f64 / dt as f64) * 100.0;
+                    per_core.push(pct);
+                    detail.user += now.user - p.user;
+                    detail.nice += now.nice - p.nice;
+                    detail.system += now.system - p.system;
+                    detail.idle += now.idle - p.idle;
+                    detail.iowait += now.iowait - p.iowait;
+                    detail.irq += now.irq - p.irq;
+                    detail.softirq += now.softirq - p.softirq;
+                    detail.steal += now.steal - p.steal;
+                }
+            }
+        }
+        *prev = cores_now;
+    }
+    let d_total = detail.total as f64;
+    let breakdown = if d_total > 0.0 {
+        CpuBreakdown {
+            user: detail.user as f64 / d_total * 100.0,
+            nice: detail.nice as f64 / d_total * 100.0,
+            system: detail.system as f64 / d_total * 100.0,
+            idle: detail.idle as f64 / d_total * 100.0,
+            iowait: detail.iowait as f64 / d_total * 100.0,
+            irq: detail.irq as f64 / d_total * 100.0,
+            softirq: detail.softirq as f64 / d_total * 100.0,
+            steal: detail.steal as f64 / d_total * 100.0,
+        }
+    } else {
+        CpuBreakdown { user: 0.0, nice: 0.0, system: 0.0, idle: 0.0, iowait: 0.0, irq: 0.0, softirq: 0.0, steal: 0.0 }
+    };
+
+    // Top 5 processes by CPU
+    let top_procs = parse_top_procs();
+
+    let cpu_detail = CpuDetail {
+        freq,
+        per_core,
+        breakdown,
+        top_procs,
+    };
 
     // Memory from /proc/meminfo
     let meminfo = std::fs::read_to_string("/proc/meminfo").unwrap_or_default();
@@ -318,6 +433,7 @@ pub async fn system_stat(
             logical_count: logical,
             usage_percent,
         },
+        cpu_detail,
         mem: MemStat {
             total: mem_total,
             used: mem_used,
@@ -415,4 +531,69 @@ fn parse_disk_io() -> DiskIo {
         };
     }
     DiskIo { name: String::new(), read_bytes: 0, write_bytes: 0 }
+}
+
+fn parse_top_procs() -> Vec<ProcStat> {
+    let uptime = std::fs::read_to_string("/proc/uptime")
+        .ok()
+        .and_then(|s| s.split('.').next()?.parse::<f64>().ok())
+        .unwrap_or(1.0);
+    let clk_tck = 100.0;
+    let mut procs = Vec::new();
+    let dir = match std::fs::read_dir("/proc") {
+        Ok(d) => d,
+        Err(_) => return procs,
+    };
+    for entry in dir.flatten() {
+        let pid_str = match entry.file_name().to_str() {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let pid: u32 = match pid_str.parse() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        let stat_path = entry.path().join("stat");
+        let content = match std::fs::read_to_string(&stat_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        // find comm end: first ')' after '('
+        let comm_end = match content.rfind(')') {
+            Some(i) => i,
+            None => continue,
+        };
+        let after = &content[comm_end + 2..];
+        let fields: Vec<&str> = after.split_whitespace().collect();
+        if fields.len() < 17 { continue; }
+        let utime: f64 = fields[11].parse().unwrap_or(0.0);
+        let stime: f64 = fields[12].parse().unwrap_or(0.0);
+        let starttime: f64 = fields[19].parse().unwrap_or(0.0);
+        let total_jiffies = uptime * clk_tck - starttime;
+        let cpu_pct = if total_jiffies > 0.0 {
+            (utime + stime) / total_jiffies * 100.0
+        } else {
+            0.0
+        };
+        let comm = &content[content.find('(').unwrap_or(0) + 1..comm_end];
+        procs.push(ProcStat {
+            pid,
+            name: comm.to_string(),
+            cpu_percent: cpu_pct,
+        });
+    }
+    procs.sort_by(|a, b| b.cpu_percent.partial_cmp(&a.cpu_percent).unwrap_or(std::cmp::Ordering::Equal));
+    procs.truncate(5);
+    procs
+}
+
+pub async fn kill_process(
+    headers: HeaderMap,
+    Path(pid): Path<u32>,
+) -> AppResult<Json<serde_json::Value>> {
+    check_auth(&headers)?;
+    let _ = std::process::Command::new("kill")
+        .arg(pid.to_string())
+        .output();
+    Ok(Json(serde_json::json!({"ok": true})))
 }

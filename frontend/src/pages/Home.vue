@@ -27,9 +27,38 @@
           <template #header><span class="sect-title">状态</span></template>
 <div class="rings-row">
   <div v-for="(r, idx) in rings" :key="r.label" class="ring-item">
-    <el-tooltip v-if="idx === 0" placement="bottom" :disabled="!r.tooltip">
+    <el-tooltip v-if="idx === 0" placement="bottom" :disabled="!r.tooltip.length">
       <template #content>
         <div v-for="line in r.tooltip" :key="line">{{ line }}</div>
+      </template>
+      <el-progress type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
+        <template #default>{{ r.pct.toFixed(1) }}%</template>
+      </el-progress>
+    </el-tooltip>
+    <el-tooltip v-else-if="idx === 1 && cpuDetail" placement="bottom">
+      <template #content>
+        <div class="tooltip-title">{{ cpuDetail.cpu_name }} * {{ cpuDetail.physical_count }}</div>
+        <div>物理核心{{ cpuDetail.core_count }} 逻辑核心{{ cpuDetail.logical_count }} CPU 频率{{ cpuDetail.freq }} MHz</div>
+        <div class="tooltip-sub">核心使用率：</div>
+        <div class="tooltip-wrap">
+          <span v-for="(p, ci) in cpuDetail.per_core" :key="ci" class="tooltip-core">{{ 'CPU-' + ci + ': ' + p.toFixed(2) + '%' }}</span>
+        </div>
+        <div class="tooltip-sub">CPU占用：</div>
+        <div>用户态: {{ cpuDetail.breakdown.user.toFixed(2) }}% 内核态: {{ cpuDetail.breakdown.system.toFixed(2) }}% Nice: {{ cpuDetail.breakdown.nice.toFixed(2) }}% 空闲: {{ cpuDetail.breakdown.idle.toFixed(2) }}%</div>
+        <div>I/O: {{ cpuDetail.breakdown.iowait.toFixed(2) }}% 硬中断: {{ cpuDetail.breakdown.irq.toFixed(2) }}% 软中断: {{ cpuDetail.breakdown.softirq.toFixed(2) }}% 被VM抢占: {{ cpuDetail.breakdown.steal.toFixed(2) }}%</div>
+        <div class="tooltip-sub">CPU占用率Top5进程：</div>
+        <div class="tooltip-table">
+          <div class="tooltip-tr">
+            <span class="tooltip-td-name">进程</span>
+            <span class="tooltip-td-pct">占比</span>
+            <span class="tooltip-td-action">操作</span>
+          </div>
+          <div v-for="p in cpuDetail.top_procs" :key="p.pid" class="tooltip-tr">
+            <span class="tooltip-td-name">{{ p.name }}</span>
+            <span class="tooltip-td-pct">{{ p.cpu_percent.toFixed(2) }}%</span>
+            <span class="tooltip-td-action"><el-button size="small" type="danger" link @click="killProc(p.pid)">结束</el-button></span>
+          </div>
+        </div>
       </template>
       <el-progress type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
         <template #default>{{ r.pct.toFixed(1) }}%</template>
@@ -162,6 +191,12 @@ interface OsInfo {
 interface SystemStat {
   loadavg: { load1: number; load5: number; load15: number }
   cpu: { name: string; physical_count: number; core_count: number; logical_count: number; usage_percent: number }
+  cpu_detail: {
+    freq: number
+    per_core: number[]
+    breakdown: { user: number; nice: number; system: number; idle: number; iowait: number; irq: number; softirq: number; steal: number }
+    top_procs: { pid: number; name: string; cpu_percent: number }[]
+  }
   mem: { total: number; used: number; percent: number }
   disks: { mount: string; total: number; used: number; percent: number }[]
   net: { name: string; rx_bytes: number; tx_bytes: number }[]
@@ -182,6 +217,16 @@ const apps = ref<AppInfo[]>([
 ])
 const overview = ref({ sites: 0, databases: 0, apps: 0 })
 const memo = ref(localStorage.getItem('alpanel_memo') || '')
+const cpuDetail = ref<{
+  cpu_name: string
+  physical_count: number
+  core_count: number
+  logical_count: number
+  freq: number
+  per_core: number[]
+  breakdown: { user: number; nice: number; system: number; idle: number; iowait: number; irq: number; softirq: number; steal: number }
+  top_procs: { pid: number; name: string; cpu_percent: number }[]
+} | null>(null)
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
 const chartMode = ref('net')
 const chartIface = ref('')
@@ -295,6 +340,13 @@ function saveMemo() {
   localStorage.setItem('alpanel_memo', memo.value)
 }
 
+// ── Kill process ──
+async function killProc(pid: number) {
+  try {
+    await apiFetch(`/api/system/kill/${pid}`, { method: 'POST' })
+  } catch {}
+}
+
 // ── App ──
 async function handleSrvCmd(app: AppInfo, cmd: string) {
   const name = app.name.toLowerCase()
@@ -320,6 +372,7 @@ onMounted(async () => {
       const s: SystemStat = await apiFetch('/api/system/stat')
       updateRings(s)
       overview.value = s.overview
+      cpuDetail.value = { ...s.cpu_detail, cpu_name: s.cpu.name, physical_count: s.cpu.physical_count, core_count: s.cpu.core_count, logical_count: s.cpu.logical_count }
 
       // net delta
       const ifaces = s.net.map(n => n.name)
@@ -464,6 +517,17 @@ onUnmounted(() => {
 }
 .si-l { color: var(--el-text-color-secondary); white-space: nowrap; }
 .si-v { color: var(--el-text-color-primary); text-align: right; margin-left: 12px; }
+
+/* Tooltip */
+.tooltip-title { font-weight: 600; margin-bottom: 4px; }
+.tooltip-sub { font-weight: 600; margin-top: 6px; margin-bottom: 2px; }
+.tooltip-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.tooltip-core { white-space: nowrap; }
+.tooltip-table { width: 100%; }
+.tooltip-tr { display: flex; gap: 8px; padding: 2px 0; }
+.tooltip-td-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tooltip-td-pct { width: 60px; text-align: right; }
+.tooltip-td-action { width: 40px; text-align: center; }
 
 /* App */
 .app-list { display: flex; flex-direction: column; gap: 6px; }

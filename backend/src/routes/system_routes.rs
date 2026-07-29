@@ -1,4 +1,4 @@
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 
 use crate::handlers::system_handler;
@@ -8,4 +8,5 @@ pub fn routes() -> Router<()> {
         .route("/api/system/users", get(system_handler::list_users))
         .route("/api/system/info", get(system_handler::system_info))
         .route("/api/system/stat", get(system_handler::system_stat))
+        .route("/api/system/kill/:pid", post(system_handler::kill_process))
 }
