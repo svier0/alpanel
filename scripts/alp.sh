@@ -80,7 +80,7 @@ read_password() {
 
 start() {
     start-stop-daemon --start --make-pidfile --pidfile /var/run/alpanel.pid \
-        --background --exec /www/server/panel/alpanel -- serve
+        --background --chdir /www/server/panel --exec /www/server/panel/alpanel -- serve
     echo "面板服务已启动"
 }
 

@@ -18,12 +18,15 @@ mod services;
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    dotenvy::dotenv().ok();
+    match dotenvy::dotenv() {
+        Ok(_) => {}
+        Err(_) => {}
+    }
 
-    let port: u16 = std::env::var("PANEL_PORT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(5555);
+    let port_raw = std::env::var("PANEL_PORT").unwrap_or_else(|_| {
+        "5556".to_string()
+    });
+    let port: u16 = port_raw.parse().unwrap_or(5556);
 
     let env = config::read_env();
 
@@ -51,8 +54,7 @@ async fn main() {
 
     let app = routes::routes().fallback(frontend::serve_frontend);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    info!("Alpanel listening on {}", addr);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
