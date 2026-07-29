@@ -10,7 +10,9 @@
             @error="osLogo = ''"
           />
           <el-icon v-else class="os-logo-icon"><Monitor /></el-icon>
-          <span>{{ osInfo.os_name }}</span>
+          <el-tooltip :content="'系统：' + osInfo.os_pretty + ' ' + osInfo.os_arch" placement="bottom">
+            <span>{{ osInfo.os_name }} {{ osInfo.os_version }}</span>
+          </el-tooltip>
         </div>
         <div class="header-right">
           <span class="header-version">v{{ VERSION }}</span>
@@ -35,12 +37,14 @@ const VERSION = '0.1.0'
 const { t } = useI18n()
 
 interface OsInfo {
+  os_id: string
   os_name: string
   os_version: string
-  os_id: string
+  os_pretty: string
+  os_arch: string
 }
 
-const osInfo = ref<OsInfo>({ os_name: '', os_version: '', os_id: '' })
+const osInfo = ref<OsInfo>({ os_id: '', os_name: '', os_version: '', os_pretty: '', os_arch: '' })
 const osLogo = ref('')
 
 const logoMap: Record<string, string> = {
