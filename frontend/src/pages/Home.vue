@@ -25,15 +25,23 @@
       <div class="home-left">
         <el-card class="section-card" shadow="never">
           <template #header><span class="sect-title">状态</span></template>
-          <div class="rings-row">
-            <div v-for="r in rings" :key="r.label" class="ring-item">
-              <el-progress type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
-                <template #default>{{ r.pct.toFixed(1) }}%</template>
-              </el-progress>
-              <div class="ring-label">{{ r.label }}</div>
-              <div class="ring-desc">{{ r.desc }}</div>
-            </div>
-          </div>
+<div class="rings-row">
+  <div v-for="(r, idx) in rings" :key="r.label" class="ring-item">
+    <el-tooltip v-if="idx === 0" placement="bottom" :disabled="!r.tooltip">
+      <template #content>
+        <div v-for="line in r.tooltip" :key="line">{{ line }}</div>
+      </template>
+      <el-progress type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
+        <template #default>{{ r.pct.toFixed(1) }}%</template>
+      </el-progress>
+    </el-tooltip>
+    <el-progress v-else type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
+      <template #default>{{ r.pct.toFixed(1) }}%</template>
+    </el-progress>
+    <div class="ring-label">{{ r.label }}</div>
+    <div class="ring-desc">{{ r.desc }}</div>
+  </div>
+</div>
         </el-card>
 
         <el-card class="section-card" shadow="never">
@@ -186,7 +194,7 @@ const logoMap: Record<string, string> = {
 }
 
 // ── Rings ──
-const rings = ref<{ label: string; pct: number; desc: string }[]>([])
+const rings = ref<{ label: string; pct: number; desc: string; tooltip: string[] }[]>([])
 function ringColor(pct: number) {
   if (pct >= 90) return '#f56c6c'
   if (pct >= 60) return '#e6a23c'
@@ -197,10 +205,15 @@ function updateRings(s: SystemStat) {
   let diskPct = 0
   if (s.disks.length > 0) diskPct = s.disks[0].percent
   rings.value = [
-    { label: '负载', pct: Math.min(loadPct, 100), desc: `${s.loadavg.load1.toFixed(2)} / ${s.cpu.logical_count}核心` },
-    { label: 'CPU', pct: s.cpu.usage_percent, desc: `${s.cpu.logical_count}核心` },
-    { label: '内存', pct: s.mem.percent, desc: fmtSize(s.mem.used) + ' / ' + fmtSize(s.mem.total) },
-    { label: '磁盘', pct: diskPct, desc: fmtSize(s.disks[0]?.used || 0) + ' / ' + fmtSize(s.disks[0]?.total || 0) },
+    { label: '负载', pct: Math.min(loadPct, 100), desc: `${s.loadavg.load1.toFixed(2)} / ${s.cpu.logical_count}核心`,
+      tooltip: [
+        `最近 1 分钟平均负载${s.loadavg.load1.toFixed(2)}`,
+        `最近 5 分钟平均负载${s.loadavg.load5.toFixed(2)}`,
+        `最近 15 分钟平均负载${s.loadavg.load15.toFixed(2)}`,
+      ] },
+    { label: 'CPU', pct: s.cpu.usage_percent, desc: `${s.cpu.logical_count}核心`, tooltip: [] },
+    { label: '内存', pct: s.mem.percent, desc: fmtSize(s.mem.used) + ' / ' + fmtSize(s.mem.total), tooltip: [] },
+    { label: '磁盘', pct: diskPct, desc: fmtSize(s.disks[0]?.used || 0) + ' / ' + fmtSize(s.disks[0]?.total || 0), tooltip: [] },
   ]
 }
 
