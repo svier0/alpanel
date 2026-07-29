@@ -1,4 +1,7 @@
 export default {
+  header: {
+    restart: '重启',
+  },
   menu: {
     home: '首页',
     website: '网站',

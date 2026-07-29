@@ -1,4 +1,7 @@
 export default {
+  header: {
+    restart: 'Restart',
+  },
   menu: {
     home: 'Home',
     website: 'Websites',

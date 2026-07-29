@@ -1,7 +1,47 @@
 use axum::{Json, http::HeaderMap};
+use serde::Serialize;
 
 use crate::errors::AppResult;
 use crate::middleware::auth::check_auth;
+
+#[derive(Serialize)]
+pub struct SystemInfo {
+    pub os_name: String,
+    pub os_version: String,
+    pub os_id: String,
+}
+
+pub async fn system_info(
+    headers: HeaderMap,
+) -> AppResult<Json<SystemInfo>> {
+    check_auth(&headers)?;
+
+    let mut os_name = String::new();
+    let mut os_version = String::new();
+    let mut os_id = String::new();
+
+    if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
+        for line in content.lines() {
+            if let Some(val) = line.strip_prefix("PRETTY_NAME=") {
+                os_name = val.trim_matches('"').to_string();
+            } else if let Some(val) = line.strip_prefix("VERSION_ID=") {
+                os_version = val.trim_matches('"').to_string();
+            } else if let Some(val) = line.strip_prefix("ID=") {
+                os_id = val.trim_matches('"').to_string();
+            }
+        }
+    }
+
+    if os_name.is_empty() {
+        os_name = "Unknown".to_string();
+    }
+
+    Ok(Json(SystemInfo {
+        os_name,
+        os_version,
+        os_id,
+    }))
+}
 
 pub async fn list_users(
     headers: HeaderMap,
