@@ -336,15 +336,16 @@ onMounted(async () => {
       if (chartData.length > MAX_POINTS) chartData.splice(0, chartData.length - MAX_POINTS)
       drawChart()
     } catch {}
-    for (const a of apps.value) {
-      try {
-        const data = await apiFetch(`/api/${a.name.toLowerCase()}/status`)
-        a.running = data?.running ?? false
-      } catch {}
-    }
   }
   await poll()
   timer = setInterval(poll, 5000)
+  // check app status once
+  for (const a of apps.value) {
+    try {
+      const data = await apiFetch(`/api/${a.name.toLowerCase()}/status`)
+      a.running = data?.running ?? false
+    } catch {}
+  }
 })
 
 onUnmounted(() => {
