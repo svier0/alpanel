@@ -145,6 +145,22 @@ pub struct SystemStat {
     pub cpu: CpuStat,
     pub mem: MemStat,
     pub disks: Vec<DiskStat>,
+    pub net: Vec<NetStat>,
+    pub disk_io: DiskIo,
+}
+
+#[derive(Serialize)]
+pub struct NetStat {
+    pub name: String,
+    pub rx_bytes: u64,
+    pub tx_bytes: u64,
+}
+
+#[derive(Serialize)]
+pub struct DiskIo {
+    pub name: String,
+    pub read_bytes: u64,
+    pub write_bytes: u64,
 }
 
 #[derive(Serialize)]
@@ -265,6 +281,12 @@ pub async fn system_stat(
         load15: load_parts.get(2).copied().unwrap_or(0.0),
     };
 
+    // Network from /proc/net/dev
+    let net = parse_net();
+
+    // Disk I/O from /proc/diskstats
+    let disk_io = parse_disk_io();
+
     Ok(Json(SystemStat {
         loadavg,
         cpu: CpuStat {
@@ -280,6 +302,8 @@ pub async fn system_stat(
             percent: mem_percent,
         },
         disks,
+        net,
+        disk_io,
     }))
 }
 
@@ -326,4 +350,46 @@ fn parse_df() -> Vec<DiskStat> {
         disks.push(DiskStat { mount, total, used, percent });
     }
     disks
+}
+
+fn parse_net() -> Vec<NetStat> {
+    let content = match std::fs::read_to_string("/proc/net/dev") {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut list = Vec::new();
+    for line in content.lines().skip(2) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 10 { continue; }
+        let name = parts[0].trim_end_matches(':');
+        // skip loopback
+        if name == "lo" { continue; }
+        let rx_bytes: u64 = parts[1].parse().unwrap_or(0);
+        let tx_bytes: u64 = parts[9].parse().unwrap_or(0);
+        list.push(NetStat { name: name.to_string(), rx_bytes, tx_bytes });
+    }
+    list
+}
+
+fn parse_disk_io() -> DiskIo {
+    let content = match std::fs::read_to_string("/proc/diskstats") {
+        Ok(c) => c,
+        Err(_) => return DiskIo { name: String::new(), read_bytes: 0, write_bytes: 0 },
+    };
+    for line in content.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 14 { continue; }
+        let name = parts[2];
+        // skip partitions (sda1, sda2) and loop, ram, nbd
+        if name.chars().any(|c| c.is_ascii_digit()) { continue; }
+        if name.starts_with("loop") || name.starts_with("ram") || name.starts_with("nbd") { continue; }
+        let rd_sectors: u64 = parts[5].parse().unwrap_or(0);
+        let wr_sectors: u64 = parts[9].parse().unwrap_or(0);
+        return DiskIo {
+            name: name.to_string(),
+            read_bytes: rd_sectors * 512,
+            write_bytes: wr_sectors * 512,
+        };
+    }
+    DiskIo { name: String::new(), read_bytes: 0, write_bytes: 0 }
 }

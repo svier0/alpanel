@@ -54,12 +54,26 @@
           </div>
         </el-card>
 
-        <el-card class="section-card chart-card" shadow="never">
-          <template #header><span class="sect-title">监控</span></template>
-          <div class="chart-wrap">
-            <canvas ref="chartCanvas" width="700" height="200"></canvas>
-          </div>
-        </el-card>
+<el-card class="section-card chart-card" shadow="never">
+  <template #header>
+    <div class="chart-header">
+      <span class="sect-title">监控</span>
+      <div class="chart-tools">
+        <el-radio-group v-model="chartMode" size="small">
+          <el-radio-button value="net">流量</el-radio-button>
+          <el-radio-button value="disk">磁盘</el-radio-button>
+        </el-radio-group>
+        <el-select v-model="chartIface" size="small" style="width:100px" placeholder="所有">
+          <el-option label="所有" value="" />
+          <el-option v-for="n in netIfaces" :key="n" :label="n" :value="n" />
+        </el-select>
+      </div>
+    </div>
+  </template>
+  <div class="chart-wrap">
+    <canvas ref="chartCanvas" width="700" height="200"></canvas>
+  </div>
+</el-card>
       </div>
 
       <div class="home-right">
@@ -129,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { RefreshRight, Monitor } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
 
@@ -142,6 +156,8 @@ interface SystemStat {
   cpu: { name: string; physical_count: number; core_count: number; logical_count: number; usage_percent: number }
   mem: { total: number; used: number; percent: number }
   disks: { mount: string; total: number; used: number; percent: number }[]
+  net: { name: string; rx_bytes: number; tx_bytes: number }[]
+  disk_io: { name: string; read_bytes: number; write_bytes: number }
 }
 interface AppInfo { name: string; running: boolean }
 
@@ -158,6 +174,9 @@ const apps = ref<AppInfo[]>([
 const overview = ref({ sites: 0, databases: 0, apps: 0 })
 const memo = ref(localStorage.getItem('alpanel_memo') || '')
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
+const chartMode = ref('net')
+const chartIface = ref('')
+const netIfaces = ref<string[]>([])
 
 const logoMap: Record<string, string> = {
   debian: 'https://www.debian.org/logos/openlogo-nd.svg',
@@ -186,7 +205,23 @@ function updateRings(s: SystemStat) {
 
 // ── Chart ──
 const MAX_POINTS = 300
-const chartData: number[] = []
+interface ChartPoint { rx: number; tx: number; rd: number; wr: number }
+const chartData: ChartPoint[] = []
+let prevNet: Record<string, { rx: number; tx: number }> = {}
+let prevDiskIo = { rd: 0, wr: 0 }
+
+function getChartLine(): { data: number[]; label: string; color: string }[] {
+  if (chartMode.value === 'net') {
+    const iface = chartIface.value
+    const data = chartData.map(p => iface ? p.rx : p.rx + p.tx)
+    return [{ data, label: iface || '总流量', color: '#409eff' }]
+  }
+  return [
+    { data: chartData.map(p => p.rd), label: '读取', color: '#67c23a' },
+    { data: chartData.map(p => p.wr), label: '写入', color: '#e6a23c' },
+  ]
+}
+
 function drawChart() {
   const cvs = chartCanvas.value
   if (!cvs) return
@@ -194,12 +229,17 @@ function drawChart() {
   if (!ctx) return
   const w = cvs.width, h = cvs.height
   ctx.clearRect(0, 0, w, h)
-  const data = chartData.slice(-MAX_POINTS)
-  if (data.length < 2) return
+
+  const lines = getChartLine()
+  const allData = lines.flatMap(l => l.data).filter(v => v > 0)
+  if (allData.length < 2) return
+
+  const maxVal = Math.max(...allData) * 1.1
   const pad = 20
   const cw = w - pad * 2
   const ch = h - pad * 2
-  const max = 100
+
+  // grid
   ctx.strokeStyle = '#e0e0e0'
   ctx.lineWidth = 0.5
   for (let i = 0; i <= 4; i++) {
@@ -208,22 +248,25 @@ function drawChart() {
     ctx.moveTo(pad, y)
     ctx.lineTo(w - pad, y)
     ctx.stroke()
-    ctx.fillStyle = '#999'
-    ctx.font = '10px sans-serif'
-    ctx.textAlign = 'right'
-    ctx.fillText(`${(max - max / 4 * i).toFixed(0)}%`, pad - 4, y + 3)
   }
+
+  // lines
   const step = cw / (MAX_POINTS - 1)
-  const offset = MAX_POINTS - data.length
-  ctx.strokeStyle = '#409eff'
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  for (let i = 0; i < data.length; i++) {
-    const x = pad + (offset + i) * step
-    const y = pad + ch - (data[i] / max) * ch
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+  const offset = MAX_POINTS - chartData.length
+  for (const line of lines) {
+    ctx.strokeStyle = line.color
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    let drawn = false
+    for (let i = 0; i < line.data.length; i++) {
+      if (line.data[i] === 0) continue
+      const x = pad + (offset + i) * step
+      const y = pad + ch - (line.data[i] / maxVal) * ch
+      if (!drawn) { ctx.moveTo(x, y); drawn = true }
+      else ctx.lineTo(x, y)
+    }
+    if (drawn) ctx.stroke()
   }
-  ctx.stroke()
 }
 
 function fmtSize(bytes: number): string {
@@ -262,9 +305,34 @@ onMounted(async () => {
     try {
       const s: SystemStat = await apiFetch('/api/system/stat')
       updateRings(s)
-      chartData.push(s.cpu.usage_percent)
+
+      // net delta
+      const ifaces = s.net.map(n => n.name)
+      if (netIfaces.value.length === 0) netIfaces.value = ifaces
+      if (ifaces.length > 0 && !chartIface.value && ifaces[0]) chartIface.value = ifaces[0]
+      let rx = 0, tx = 0
+      const targetIface = chartIface.value || ''
+      for (const n of s.net) {
+        if (targetIface && n.name !== targetIface) continue
+        const prev = prevNet[n.name]
+        if (prev) {
+          rx += n.rx_bytes - prev.rx
+          tx += n.tx_bytes - prev.tx
+        }
+        prevNet[n.name] = { rx: n.rx_bytes, tx: n.tx_bytes }
+      }
+      // disk delta
+      const prev = prevDiskIo
+      let rd = 0, wr = 0
+      if (s.disk_io.name) {
+        if (prev.rd > 0) rd = s.disk_io.read_bytes - prev.rd
+        if (prev.wr > 0) wr = s.disk_io.write_bytes - prev.wr
+        prevDiskIo = { rd: s.disk_io.read_bytes, wr: s.disk_io.write_bytes }
+      }
+
+      chartData.push({ rx, tx, rd, wr })
       if (chartData.length > MAX_POINTS) chartData.splice(0, chartData.length - MAX_POINTS)
-      nextTick(() => drawChart())
+      drawChart()
     } catch {}
     for (const a of apps.value) {
       try {
@@ -367,6 +435,16 @@ onUnmounted(() => {
 .ov-label { font-size: 12px; color: var(--el-text-color-secondary); margin-top: 2px; }
 
 /* Chart */
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chart-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .chart-wrap { width: 100%; }
 .chart-wrap canvas { width: 100%; height: 200px; }
 
