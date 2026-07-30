@@ -549,8 +549,8 @@ onUnmounted(() => {
 
 /* Rings */
 .rings-row {
-  display: flex;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   padding: 4px 0;
 }
