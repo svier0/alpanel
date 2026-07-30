@@ -81,6 +81,7 @@ const allPlugins = computed(() => {
     if (existing) {
       existing.installed = true
       existing.upgradable = existing.versions !== l.versions
+      existing.logo = `/static/img/plugins/icon/${l.name}.png`
     } else {
       map.set(l.name, { ...l, installed: true, upgradable: false, logo: `/static/img/plugins/icon/${l.name}.png` })
     }

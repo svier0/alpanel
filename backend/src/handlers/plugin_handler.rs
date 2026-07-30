@@ -67,13 +67,18 @@ pub async fn remote_plugins() -> AppResult<Json<Vec<PluginInfo>>> {
     let tmp = std::env::temp_dir().join("alpanel_plugins.json");
     let url = "https://raw.githubusercontent.com/svier0/alpanel-plugins/master/index.json";
 
-    let status = std::process::Command::new("wget")
-        .args(["-q", "-O", tmp.to_str().unwrap_or("/tmp/alpanel_plugins.json"), url])
-        .status()
-        .map_err(|_| crate::errors::AppError::Internal("无法执行 wget".into()))?;
+    let tmp_str = tmp.to_str().unwrap_or("/tmp/alpanel_plugins.json").to_string();
 
-    if !status.success() {
-        return Err(crate::errors::AppError::Internal("无法获取远程插件列表".into()));
+    let result = tokio::task::spawn_blocking(move || {
+        let out = std::process::Command::new("wget")
+            .args(["-q", "--timeout=10", "-O", &tmp_str, &url])
+            .output()?;
+        Ok::<_, std::io::Error>(out.status.success())
+    }).await.map_err(|_| crate::errors::AppError::Internal("任务执行失败".into()))?;
+
+    match result {
+        Ok(true) => {}
+        _ => return Err(crate::errors::AppError::Internal("无法获取远程插件列表".into())),
     }
 
     let content = std::fs::read_to_string(&tmp)
