@@ -36,10 +36,10 @@
         </el-table-column>
         <el-table-column label="操作" width="150" align="center">
           <template #default="{ row }">
-            <el-button v-if="!row.installed" size="small" type="primary" @click="install(row)">安装</el-button>
+            <el-button v-if="!row.installed" size="small" type="primary" disabled>安装</el-button>
             <template v-else>
-              <el-button v-if="row.upgradable" size="small" type="warning" @click="install(row)">更新</el-button>
-              <el-button size="small" type="danger" @click="uninstall(row)">卸载</el-button>
+              <el-button v-if="row.upgradable" size="small" type="warning" disabled>更新</el-button>
+              <el-button size="small" type="danger" disabled>卸载</el-button>
             </template>
           </template>
         </el-table-column>
@@ -52,7 +52,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { RefreshRight, FolderOpened } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
 import { apiFetch } from '@/utils/api'
 
 interface PluginItem {
@@ -107,22 +106,6 @@ async function loadAll() {
       ...p, installed: false, upgradable: false, logo: `${GH_RAW}/plugins/${p.name}/icon.png`
     }))
   } catch { remotePlugins.value = [] }
-}
-
-async function install(row: PluginItem) {
-  try {
-    await apiFetch('/api/plugins/install', { method: 'POST', body: JSON.stringify({ name: row.name }) })
-    ElMessage.success('安装成功')
-    await loadAll()
-  } catch { ElMessage.error('安装失败') }
-}
-
-async function uninstall(row: PluginItem) {
-  try {
-    await apiFetch('/api/plugins/uninstall', { method: 'POST', body: JSON.stringify({ name: row.name }) })
-    ElMessage.success('卸载成功')
-    await loadAll()
-  } catch { ElMessage.error('卸载失败') }
 }
 
 function goDir(name: string) {
