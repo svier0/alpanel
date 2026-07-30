@@ -34,6 +34,28 @@ pub async fn serve_frontend(uri: Uri) -> Response {
     if path.is_empty() {
         return serve_index().await;
     }
+
+    // plugin static files: /plugin/{name}/...
+    if let Some(rest) = path.strip_prefix("plugin/") {
+        let mut parts = rest.splitn(2, '/');
+        let name = parts.next().unwrap_or("");
+        let file = parts.next().unwrap_or("");
+        // validate plugin name
+        if !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-') {
+            let plugin_path = PathBuf::from("/www/server/panel/plugin").join(name).join(file);
+            if let Ok(data) = tokio::fs::read(&plugin_path).await {
+                let mime = mime_guess::from_path(&plugin_path).first_or_octet_stream();
+                return Response::builder()
+                    .status(StatusCode::OK)
+                    .header(header::CONTENT_TYPE, mime.as_ref())
+                    .body(Body::from(data))
+                    .unwrap()
+                    .into_response();
+            }
+        }
+        return serve_index().await;
+    }
+
     let file_path = dist_dir().join(path);
     match tokio::fs::read(&file_path).await {
         Ok(data) => {

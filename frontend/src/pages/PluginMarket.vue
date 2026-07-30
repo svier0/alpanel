@@ -17,7 +17,7 @@
           <template #default="{ row }">
             <div class="plugin-name-cell">
               <img v-if="row.logo" :src="row.logo" class="plugin-logo" />
-              <span>{{ row.title }}</span>
+              <span class="link-name" @click="openPlugin(row)">{{ row.title }}</span>
             </div>
           </template>
         </el-table-column>
@@ -34,24 +34,29 @@
             <span v-else class="status-missing">未安装</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" align="center">
+        <el-table-column label="操作" width="200" align="center">
           <template #default="{ row }">
-            <el-button v-if="!row.installed" size="small" type="primary" disabled>安装</el-button>
+            <el-button v-if="!row.installed" size="small" type="primary" @click="doAction(row, 'install')">安装</el-button>
             <template v-else>
-              <el-button v-if="row.upgradable" size="small" type="warning" disabled>更新</el-button>
-              <el-button size="small" type="danger" disabled>卸载</el-button>
+              <el-button v-if="row.upgradable" size="small" type="warning" @click="doAction(row, 'update')">更新</el-button>
+              <el-button size="small" type="danger" @click="doAction(row, 'uninstall')">卸载</el-button>
             </template>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
+
+    <el-dialog v-model="dialog.visible" :title="dialog.title" width="800px" top="5vh" append-to-body destroy-on-close>
+      <iframe v-if="dialog.src" :src="dialog.src" class="plugin-iframe" />
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { RefreshRight, FolderOpened } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { apiFetch } from '@/utils/api'
 
 interface PluginItem {
@@ -70,6 +75,7 @@ const router = useRouter()
 const activeTab = ref('installed')
 const localPlugins = ref<PluginItem[]>([])
 const remotePlugins = ref<PluginItem[]>([])
+const dialog = reactive({ visible: false, title: '', src: '' })
 
 const GH_RAW = 'https://raw.githubusercontent.com/svier0/alpanel-plugins/master'
 
@@ -109,6 +115,26 @@ async function loadAll() {
   } catch { remotePlugins.value = [] }
 }
 
+function openPlugin(row: PluginItem) {
+  dialog.title = row.title
+  dialog.src = `/plugin/${row.name}/index.html`
+  dialog.visible = true
+}
+
+async function doAction(row: PluginItem, method: string) {
+  try {
+    const res: any = await apiFetch(`/api/plugins/action/${row.name}/${method}`, { method: 'POST' })
+    if (res.code === 0) {
+      ElMessage.success('操作成功')
+      await loadAll()
+    } else {
+      ElMessage.error(res.stderr || '操作失败')
+    }
+  } catch {
+    ElMessage.error('操作失败')
+  }
+}
+
 function goDir(name: string) {
   router.push(`/file?path=/www/server/panel/plugin/${name}`)
 }
@@ -121,8 +147,11 @@ onMounted(loadAll)
 .plugin-header { display: flex; align-items: center; justify-content: space-between; }
 .plugin-name-cell { display: flex; align-items: center; gap: 8px; }
 .plugin-logo { width: 28px; height: 28px; border-radius: 4px; object-fit: contain; }
+.link-name { cursor: pointer; color: var(--el-color-primary); }
+.link-name:hover { text-decoration: underline; }
 .link-icon { cursor: pointer; font-size: 18px; color: var(--el-color-primary); }
 .link-icon:hover { opacity: 0.7; }
 .status-installed { color: var(--el-color-success); }
 .status-missing { color: var(--el-color-info); }
+.plugin-iframe { width: 100%; height: 70vh; border: none; }
 </style>

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use axum::{http::HeaderMap, Json};
+use axum::{extract::Path as AxumPath, http::HeaderMap, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::AppResult;
@@ -90,4 +90,47 @@ pub async fn remote_plugins() -> AppResult<Json<Vec<PluginInfo>>> {
         .map_err(|_| crate::errors::AppError::Internal("解析插件列表失败".into()))?;
 
     Ok(Json(plugins))
+}
+
+fn valid_name(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
+}
+
+fn valid_method(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+pub async fn action(
+    headers: HeaderMap,
+    AxumPath((name, method)): AxumPath<(String, String)>,
+) -> AppResult<Json<serde_json::Value>> {
+    check_auth(&headers)?;
+
+    if !valid_name(&name) {
+        return Err(crate::errors::AppError::BadRequest("非法插件名".into()));
+    }
+    if !valid_method(&method) {
+        return Err(crate::errors::AppError::BadRequest("非法方法名".into()));
+    }
+
+    let sh_path = Path::new("/www/server/panel/plugin").join(&name).join(format!("{}.sh", name));
+    if !sh_path.exists() {
+        return Err(crate::errors::AppError::NotFound("插件脚本不存在".into()));
+    }
+
+    let output = tokio::task::spawn_blocking(move || {
+        std::process::Command::new("sh")
+            .args(["-c", &format!(". '{}' && {}", sh_path.display(), method)])
+            .output()
+    }).await.map_err(|_| crate::errors::AppError::Internal("执行失败".into()))?
+    .map_err(|_| crate::errors::AppError::Internal("无法执行脚本".into()))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    Ok(Json(serde_json::json!({
+        "code": output.status.code(),
+        "stdout": stdout,
+        "stderr": stderr,
+    })))
 }
