@@ -26,42 +26,20 @@ pub struct PluginInfo {
 pub async fn list_plugins(headers: HeaderMap) -> AppResult<Json<Vec<PluginInfo>>> {
     check_auth(&headers)?;
 
-    let plugin_dir = Path::new("/www/server/panel/plugin");
-    let mut plugins = Vec::new();
+    let output = tokio::task::spawn_blocking(|| {
+        std::process::Command::new("alp")
+            .arg("55")
+            .output()
+    }).await.map_err(|_| crate::errors::AppError::Internal("无法执行 alp 命令".into()))?
+    .map_err(|e| crate::errors::AppError::Internal(format!("alp 执行失败: {}", e)))?;
 
-    let entries = match std::fs::read_dir(plugin_dir) {
-        Ok(e) => e,
-        Err(_) => return Ok(Json(plugins)),
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let dir_name = match path.file_name().and_then(|n| n.to_str()) {
-            Some(n) => n.to_string(),
-            None => continue,
-        };
-
-        let json_path = path.join("info.json");
-        if !json_path.exists() {
-            continue;
-        }
-
-        let content = match std::fs::read_to_string(&json_path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-        let info: PluginInfo = match serde_json::from_str(&content) {
-            Ok(i) => i,
-            Err(_) => continue,
-        };
-
-        if info.name == dir_name {
-            plugins.push(info);
-        }
+    if !output.status.success() {
+        return Ok(Json(Vec::new()));
     }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let plugins: Vec<PluginInfo> = serde_json::from_str(stdout.trim())
+        .unwrap_or_default();
 
     Ok(Json(plugins))
 }

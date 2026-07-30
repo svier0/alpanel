@@ -14,10 +14,11 @@ help() {
     echo "  alp 21     修改登录账号"
     echo "  alp 22     修改登录密码"
     echo "  alp 31     修改面板端口"
-    echo "  alp 51     安装 Nginx"
-    echo "  alp 52     安装 PHP (可多版本, 如 alp 52 74)"
-    echo "  alp 53     安装 MySQL"
-    echo "  alp 54     安装 Redis"
+echo "  alp 51     安装 Nginx"
+  echo "  alp 52     安装 PHP (可多版本, 如 alp 52 74)"
+  echo "  alp 53     安装 MySQL"
+  echo "  alp 54     安装 Redis"
+  echo "  alp 55     查看已安装插件"
     echo "  alp 61     强制修改 MySQL root 密码 (无需旧密码)"
     echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
     echo "  alp 0      取消"
@@ -843,6 +844,25 @@ force_mysql_pw() {
     echo "MySQL root 密码已修改为: $newpw"
 }
 
+list_plugins() {
+    plugin_dir="/www/server/panel/plugin"
+    printf "["
+    first=1
+    for dir in "$plugin_dir"/*/; do
+        [ -d "$dir" ] || continue
+        json="${dir}info.json"
+        [ -f "$json" ] || continue
+        name=$(basename "$dir")
+        content=$(cat "$json")
+        dir_name=$(echo "$content" | jq -r '.name // empty')
+        [ "$dir_name" = "$name" ] || continue
+        [ "$first" -eq 1 ] && first=0 || printf ","
+        printf "%s" "$content"
+    done
+    printf "]"
+    echo ""
+}
+
 case "${1:-}" in
     "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -866,6 +886,7 @@ case "${1:-}" in
     52)  install_php "${2:-}" ;;
     53)  install_mysql ;;
     54)  install_redis ;;
+    55)  list_plugins ;;
     61)  force_mysql_pw ;;
     99)  uninstall ;;
     *)
