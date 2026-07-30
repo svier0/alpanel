@@ -19,6 +19,7 @@ echo "  alp 51     安装 Nginx"
   echo "  alp 53     安装 MySQL"
   echo "  alp 54     安装 Redis"
   echo "  alp 55     查看已安装插件"
+  echo "  alp 56     插件市场（获取远程插件列表）"
     echo "  alp 61     强制修改 MySQL root 密码 (无需旧密码)"
     echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
     echo "  alp 0      取消"
@@ -863,6 +864,11 @@ list_plugins() {
     echo ""
 }
 
+list_market() {
+    url="https://raw.githubusercontent.com/svier0/alpanel-plugins/master/index.json"
+    wget -q --timeout=10 -O - "$url" 2>/dev/null || { echo "[]"; exit 1; }
+}
+
 case "${1:-}" in
     "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -887,6 +893,7 @@ case "${1:-}" in
     53)  install_mysql ;;
     54)  install_redis ;;
     55)  list_plugins ;;
+    56)  list_market ;;
     61)  force_mysql_pw ;;
     99)  uninstall ;;
     *)
