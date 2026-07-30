@@ -41,7 +41,7 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
   ├── routes/nginx_routes      — /api/nginx/*
   ├── routes/redis_routes      — /api/redis/*
   ├── routes/site_routes       — /api/sites/*（含 /api/sites/types）
-  ├── routes/system_routes     — /api/system/users
+  ├── routes/system_routes     — /api/system/{users,info,stat,kill/{pid}}
   └── frontend.rs              — rust_embed 嵌入前端 dist，SPA 兜底
 ```
 
@@ -61,7 +61,7 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
 ```
 /login          → Login.vue        登录页，token 存 localStorage
 / → DefaultLayout
-  ├── /         → Home.vue         空白占位
+  ├── /         → Home.vue         仪表盘（负载/CPU/内存/挂载点园环、监控折线图、系统信息、应用状态）
   ├── /website  → Website.vue      网站管理（动态标签表格，由 /api/sites/types 生成）
   ├── /file     → File.vue         文件管理器（多标签 + 持久化）
   ├── /database → Database.vue     数据库管理（MySQL/Redis 双标签）
@@ -73,6 +73,16 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
 - `apiFetch()` 封装 fetch，自动带 JWT `Authorization: Bearer xxx`
 - `stores/settings.ts` 管理主题/标题，从 `.env` 读取，localStorage 缓存
 - `App.vue` 包 `<el-config-provider :locale="zhCn">` + 监听系统颜色主题
+
+## Home.vue 要点
+
+- 两列布局：左宽（状态园环+概览+监控折线图）右窄（系统信息+备忘录+应用列表）
+- 园环 grid 一行4列（负载/CPU/内存 + N个挂载点各一个），颜色 <60% 绿 <90% 黄 >=90% 红
+- 监控折线图 15 分钟窗口（180点 @5s），流量/磁盘切换，网卡选择
+- 系统信息：hostname/OS/arch/kernel/IP/开机时间/运行时长
+- 备忘录：localStorage textarea 持久化
+- 应用列表：每个应用调 `/api/<svc>/status` 获 installed/running/version，按钮与 Website/Database 页完全一致（版本号+▶/⏸+启动/停止/重启/重载下拉）
+- 园环 tooltip：负载(1/5/15min)、CPU(型号*频率+per-core%+8项breakdown+Top5进程+killbtn)、内存(total/used/avail/free/cached/shared+Top5)、磁盘(设备/fs_type/总量/已用/可用/占用率+inode信息)
 
 ## Website.vue 要点
 
@@ -213,6 +223,16 @@ domain   (id, pid→sites.id, name, port, addtime)
 
 - 默认 target 为 Linux musl，`.cargo/config.toml` 控制双架构
 - 前端改完必须重编后端（rust_embed 静态嵌入）
+
+## install.sh 依赖
+
+- `apk add sqlite jq vnstat`（root + Alpine 检查后执行）
+- vnstat OpenRC 服务名是 `vnstatd`（不是 `vnstat`），`rc-update add vnstatd default` + `rc-service vnstatd start`
+- 脚本带 `set -e`，wget 下载失败直接退出
+
+## 踩坑
+
+- WSL2 VirtioProxy 内核 bug：`bind()` 返回非标准正值 `2147014883`，musl 不认错，`TcpListener::bind()` 返回 Ok 但端口无效。**默认端口 8888** 已验证可用；`.wslconfig` 不要关闭 VirtioProxy
 
 ## alp 管理命令（scripts/alp.sh）
 
