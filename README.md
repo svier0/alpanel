@@ -47,9 +47,9 @@ The `scripts/alp.sh` script provides panel service management on the server:
 | `alp 21`   | Change username                 |
 | `alp 22`   | Change password                 |
 | `alp 31`   | Change port                     |
-| `alp 51`   | Install Nginx                   |
-| `alp 52`   | Install PHP (multi-version)     |
-| `alp 53`   | Install MySQL                   |
-| `alp 54`   | Install Redis                   |
+| `alp 51`   | List installed plugins          |
+| `alp 52`   | Browse plugin market            |
+| `alp 53`   | Install plugin (e.g. `alp 53 nginx`) |
+| `alp 54`   | Uninstall plugin (e.g. `alp 54 nginx`) |
 | `alp 61`   | Force reset MySQL root password |
 | `alp 99`   | Uninstall panel (irreversible)  |

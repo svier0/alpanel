@@ -37,9 +37,7 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
   ├── routes/auth_routes       — /api/login, /api/verify
   ├── routes/settings_routes   — /api/settings
   ├── routes/file_routes       — /api/files/* (16个端点)
-  ├── routes/mysql_routes      — /api/mysql/*
-  ├── routes/nginx_routes      — /api/nginx/*
-  ├── routes/redis_routes      — /api/redis/*
+  ├── routes/plugin_routes     — /api/plugins/*（action/list/remote）
   ├── routes/site_routes       — /api/sites/*（含 /api/sites/types）
   ├── routes/system_routes     — /api/system/{users,info,stat,kill/{pid}}
   └── frontend.rs              — rust_embed 嵌入前端 dist，SPA 兜底
@@ -198,7 +196,7 @@ MariaDB 是 MySQL 分支，程序内**一律称 MySQL**，`mariadb` 只作为上
 - 软链能直跑：对二进制用临时 `apk fetch --recursive patchelf` 在 mktemp 目录提取 patchelf，再 `--set-rpath` 嵌入 `/www/server/<svc>/lib`，用完 `rm -rf` 临时目录
 - 后端 `services/<svc>_service.rs` 与 `nginx_service.rs` **逐字对齐**（同函数同顺序：init_d / pid_alive / check_installed / check_running / last_error / start / stop / restart / reload / install），handler/routes 亦同
 - 后端控制服务一律经 `/etc/init.d/<svc>`（OpenRC），不经裸 `start-stop-daemon`
-- 路由：`/api/<svc>/{status,install,start,stop,restart,reload}`（<svc>=nginx|mysql|redis），前端 `apiFetch` 非 2xx 抛错 → 调用方 `catch` 设未安装
+- 路由：`/api/plugins/action/<svc>/{status,install,start,stop,restart,reload}`（<svc>=nginx|mysql|redis），前端 `apiFetch` 非 2xx 抛错 → 调用方 `catch` 设未安装
 
 ## 数据库（alpanel.db）
 
@@ -245,11 +243,10 @@ alp 13  → 重启
 alp 21  → 改账号
 alp 22  → 改密码
 alp 31  → 改端口
-alp 51  → 安装 Nginx（apk fetch → 提取到 /www/server/nginx → 生成 OpenRC）
-        站点配置目录: /www/server/panel/vhost/nginx/
-alp 52  → 安装 PHP（可多版本, 如 alp 52 82；版本来自 apk 源 php*）
-alp 53  → 安装 MySQL（apk 源的 mariadb 包，但程序内一律称 mysql；详见下方命名约定）
-alp 54  → 安装 Redis（apk fetch → 提取到 /www/server/redis）
+alp 51  → 查看已安装插件
+alp 52  → 插件市场（获取远程插件列表）
+alp 53  → 安装插件 (如 alp 53 nginx)
+alp 54  → 卸载插件 (如 alp 54 nginx)
 alp 99  → 卸载面板（删 /www 全部、所有服务脚本、www 用户组，不可恢复；需 root 且输入 YES 确认）
 alp 0   → 取消
 ```
