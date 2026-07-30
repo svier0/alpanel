@@ -21,27 +21,8 @@ pub fn init_config(cfg: AppConfig) {
     GLOBAL_CONFIG.set(Arc::new(RwLock::new(cfg))).ok();
 }
 
-fn env_path() -> String {
-    std::env::var("PANEL_ENV").unwrap_or_else(|_| ".env".to_string())
-}
-
-pub fn read_env() -> HashMap<String, String> {
-    let content = std::fs::read_to_string(env_path()).unwrap_or_default();
-    let mut map = HashMap::new();
-    for line in content.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        if let Some((k, v)) = line.split_once('=') {
-            map.insert(k.trim().to_string(), v.trim().to_string());
-        }
-    }
-    map
-}
-
 pub fn write_env(changes: &HashMap<&str, String>) {
-    let path = env_path();
+    let path = std::env::var("PANEL_ENV").unwrap_or_else(|_| ".env".to_string());
     let content = std::fs::read_to_string(&path).unwrap_or_default();
     let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
     for (&key, value) in changes {

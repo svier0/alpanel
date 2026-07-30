@@ -28,14 +28,12 @@ async fn main() {
     });
     let port: u16 = port_raw.parse().unwrap_or(8888);
 
-    let env = config::read_env();
+    let panel_user = std::env::var("PANEL_USER").unwrap_or_else(|_| "admin".to_string());
+    let panel_password = std::env::var("PANEL_PASSWORD").unwrap_or_else(|_| "admin123".to_string());
+    let panel_title = std::env::var("PANEL_TITLE").unwrap_or_else(|_| "Alpanel".to_string());
+    let panel_theme = std::env::var("PANEL_THEME").unwrap_or_else(|_| "auto".to_string());
 
-    let panel_user = env.get("PANEL_USER").cloned().unwrap_or_else(|| "admin".to_string());
-    let panel_password = env.get("PANEL_PASSWORD").cloned().unwrap_or_else(|| "admin123".to_string());
-    let panel_title = env.get("PANEL_TITLE").cloned().unwrap_or_else(|| "Alpanel".to_string());
-    let panel_theme = env.get("PANEL_THEME").cloned().unwrap_or_else(|| "auto".to_string());
-
-    let jwt_secret = env.get("JWT_SECRET").cloned().unwrap_or_else(|| "alpanel_hs256_secret_2026_32bytes!".to_string());
+    let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "alpanel_hs256_secret_2026_32bytes!".to_string());
     let jwt_key = jwt_simple::prelude::HS256Key::from_bytes(jwt_secret.as_bytes());
 
     config::init_config(config::AppConfig {
