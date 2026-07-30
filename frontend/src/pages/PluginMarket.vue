@@ -117,7 +117,7 @@ async function loadAll() {
 
 function openPlugin(row: PluginItem) {
   dialog.title = row.title
-  dialog.src = `/plugin/${row.name}/index.html`
+  dialog.src = `/iframe/${row.name}/index.html`
   dialog.visible = true
 }
 

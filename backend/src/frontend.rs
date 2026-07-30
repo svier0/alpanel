@@ -35,8 +35,8 @@ pub async fn serve_frontend(uri: Uri) -> Response {
         return serve_index().await;
     }
 
-    // plugin static files: /plugin/{name}/...
-    if let Some(rest) = path.strip_prefix("plugin/") {
+    // plugin iframe files: /iframe/{name}/...
+    if let Some(rest) = path.strip_prefix("iframe/") {
         let mut parts = rest.splitn(2, '/');
         let name = parts.next().unwrap_or("");
         let file = parts.next().unwrap_or("");
