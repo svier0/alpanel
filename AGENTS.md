@@ -187,14 +187,14 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
 MariaDB 是 MySQL 分支，程序内**一律称 MySQL**，`mariadb` 只作为上游 apk 名出现，禁止在文件/变量/路由/UI 中写 `mariadb`：
 
 - 允许出现 `mariadb` 的：apk 包名（`mariadb mariadb-client`）、apk 二进制（`mariadbd` 守护进程、`mariadb` 客户端、`mariadb-install-db`）、引擎内部目录 `share/mariadb`（初始化必须用此名）
-- 一律用 `mysql` 的：已安装目录 `/www/server/mysql`、OpenRC 脚本 `/etc/init.d/mysql`、pid/sock/log（`mysql.pid`/`mysql.sock`/`mysql_error.log`）、软链 `/usr/bin/mysql`、后端文件 `mysql_service.rs`/`mysql_handler.rs`/`mysql_routes.rs`、路由 `/api/mysql/*`、UI 文案
+- 一律用 `mysql` 的：已安装目录 `/www/server/mysql`、OpenRC 脚本 `/etc/init.d/mysql`、pid/sock/log（`mysql.pid`/`mysql.sock`/`mysql_error.log`）、软链 `/usr/bin/mysql`、UI 文案
 
 ## 服务部署设计（Nginx / MySQL / Redis）
 
 - 每个服务：`/www/server/<svc>/` 放二进制+lib+conf；`/etc/init.d/<svc>` 为 OpenRC 控制脚本（`start/stop/status/restart/reload`，走 `start-stop-daemon`，带 `RC_SVCNAME` 守卫）；`rc-update add <svc> default` 开机自启
 - `/usr/bin/<svc>` 是**纯软链**指向真实二进制（nginx→sbin/nginx、mysql→bin/mariadbd、redis→bin/redis-server、php<ver>→bin/php<ver>），无 passthrough 脚本
 - 软链能直跑：对二进制用临时 `apk fetch --recursive patchelf` 在 mktemp 目录提取 patchelf，再 `--set-rpath` 嵌入 `/www/server/<svc>/lib`，用完 `rm -rf` 临时目录
-- 后端 `services/<svc>_service.rs` 与 `nginx_service.rs` **逐字对齐**（同函数同顺序：init_d / pid_alive / check_installed / check_running / last_error / start / stop / restart / reload / install），handler/routes 亦同
+- 后端控制服务一律经插件 action 端点：`POST /api/plugins/action/<svc>/{status,install,start,stop,restart,reload}`，`source` 插件脚本后调对应函数
 - 后端控制服务一律经 `/etc/init.d/<svc>`（OpenRC），不经裸 `start-stop-daemon`
 - 路由：`/api/plugins/action/<svc>/{status,install,start,stop,restart,reload}`（<svc>=nginx|mysql|redis），前端 `apiFetch` 非 2xx 抛错 → 调用方 `catch` 设未安装
 
