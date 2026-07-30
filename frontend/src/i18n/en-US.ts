@@ -8,6 +8,7 @@ export default {
     file: 'Files',
     database: 'Databases',
     cron: 'Cron',
+    plugins: 'Plugins',
     settings: 'Settings',
     logout: 'Logout',
   },

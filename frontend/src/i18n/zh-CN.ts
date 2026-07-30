@@ -8,6 +8,7 @@ export default {
     file: '文件',
     database: '数据库',
     cron: '计划任务',
+    plugins: '插件市场',
     settings: '设置',
     logout: '退出登录',
   },

@@ -18,6 +18,7 @@ const router = createRouter({
         { path: 'file', name: 'file', component: () => import('@/pages/File.vue'), meta: { title: 'menu.file' } },
         { path: 'database', name: 'database', component: () => import('@/pages/Database.vue'), meta: { title: 'menu.database' } },
         { path: 'cron', name: 'cron', component: () => import('@/pages/Cron.vue'), meta: { title: 'menu.cron' } },
+        { path: 'plugins', name: 'plugins', component: () => import('@/pages/PluginMarket.vue'), meta: { title: 'menu.plugins' } },
         { path: 'settings', name: 'settings', component: () => import('@/pages/Settings.vue'), meta: { title: 'menu.settings' } },
         { path: 'logout', name: 'logout', component: () => import('@/pages/Logout.vue'), meta: { title: 'menu.logout' } },
       ]

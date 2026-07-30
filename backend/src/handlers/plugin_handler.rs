@@ -20,6 +20,14 @@ pub struct PluginInfo {
     pub home: String,
 }
 
+#[derive(Deserialize)]
+pub struct PluginAction {
+    pub name: String,
+}
+
+const GH_RAW: &str = "https://raw.githubusercontent.com/svier0/alpanel-plugins/master";
+const ICON_DIR: &str = "/www/server/panel/dist/static/img/plugins/icon";
+
 pub async fn list_plugins(headers: HeaderMap) -> AppResult<Json<Vec<PluginInfo>>> {
     check_auth(&headers)?;
 
@@ -61,6 +69,58 @@ pub async fn list_plugins(headers: HeaderMap) -> AppResult<Json<Vec<PluginInfo>>
     }
 
     Ok(Json(plugins))
+}
+
+fn wget(url: &str, dest: &Path) -> Result<(), crate::errors::AppError> {
+    let status = std::process::Command::new("wget")
+        .args(["-q", "-O", dest.to_str().unwrap_or(""), url])
+        .status()
+        .map_err(|_| crate::errors::AppError::Internal("无法执行 wget".into()))?;
+    if !status.success() {
+        return Err(crate::errors::AppError::Internal("下载失败".into()));
+    }
+    Ok(())
+}
+
+pub async fn install_plugin(headers: HeaderMap, Json(body): Json<PluginAction>) -> AppResult<Json<serde_json::Value>> {
+    check_auth(&headers)?;
+
+    let plugin_dir = Path::new("/www/server/panel/plugin").join(&body.name);
+    if plugin_dir.exists() {
+        return Err(crate::errors::AppError::Internal("插件已安装".into()));
+    }
+    std::fs::create_dir_all(&plugin_dir)
+        .map_err(|_| crate::errors::AppError::Internal("创建插件目录失败".into()))?;
+
+    let info_url = format!("{}/plugins/{}/info.json", GH_RAW, body.name);
+    let info_path = plugin_dir.join("info.json");
+    wget(&info_url, &info_path)?;
+
+    let icon_url = format!("{}/plugins/{}/icon.png", GH_RAW, body.name);
+    let icon_dir = Path::new(ICON_DIR);
+    std::fs::create_dir_all(icon_dir).ok();
+    let icon_path = icon_dir.join(format!("{}.png", body.name));
+    if wget(&icon_url, &icon_path).is_err() {
+        // icon optional
+    }
+
+    Ok(Json(serde_json::json!({ "message": "安装成功" })))
+}
+
+pub async fn uninstall_plugin(headers: HeaderMap, Json(body): Json<PluginAction>) -> AppResult<Json<serde_json::Value>> {
+    check_auth(&headers)?;
+
+    let plugin_dir = Path::new("/www/server/panel/plugin").join(&body.name);
+    if !plugin_dir.exists() {
+        return Err(crate::errors::AppError::Internal("插件未安装".into()));
+    }
+    std::fs::remove_dir_all(&plugin_dir)
+        .map_err(|_| crate::errors::AppError::Internal("卸载失败".into()))?;
+
+    let icon_path = Path::new(ICON_DIR).join(format!("{}.png", body.name));
+    std::fs::remove_file(icon_path).ok();
+
+    Ok(Json(serde_json::json!({ "message": "卸载成功" })))
 }
 
 pub async fn remote_plugins() -> AppResult<Json<Vec<PluginInfo>>> {

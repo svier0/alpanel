@@ -35,6 +35,10 @@
             <el-icon><Timer /></el-icon>
             <template #title>{{ t('menu.cron') }}</template>
           </el-menu-item>
+          <el-menu-item index="/plugins">
+            <el-icon><Grid /></el-icon>
+            <template #title>{{ t('menu.plugins') }}</template>
+          </el-menu-item>
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
             <template #title>{{ t('menu.settings') }}</template>
@@ -63,7 +67,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  HomeFilled, Monitor, Document, Coin, Timer, Setting,
+  HomeFilled, Monitor, Document, Coin, Timer, Grid, Setting,
   Fold, Expand, SwitchButton
 } from '@element-plus/icons-vue'
 import { settings, fetchSettings } from '@/stores/settings'
