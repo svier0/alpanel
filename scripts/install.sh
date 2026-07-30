@@ -56,8 +56,8 @@ fi
 
 apk update
 apk add sqlite jq vnstat
-rc-update add vnstat default
-rc-service vnstat start 2>/dev/null || true
+rc-update add vnstatd default
+rc-service vnstatd start 2>/dev/null || true
 
 ARCH=$(uname -m)
 case "$ARCH" in
