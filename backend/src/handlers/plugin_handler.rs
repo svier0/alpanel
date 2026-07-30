@@ -28,7 +28,7 @@ pub async fn list_plugins(headers: HeaderMap) -> AppResult<Json<Vec<PluginInfo>>
 
     let output = tokio::task::spawn_blocking(|| {
         std::process::Command::new("alp")
-            .arg("55")
+            .arg("51")
             .output()
     }).await.map_err(|_| crate::errors::AppError::Internal("无法执行 alp 命令".into()))?
     .map_err(|e| crate::errors::AppError::Internal(format!("alp 执行失败: {}", e)))?;
@@ -47,7 +47,7 @@ pub async fn list_plugins(headers: HeaderMap) -> AppResult<Json<Vec<PluginInfo>>
 pub async fn remote_plugins() -> AppResult<Json<Vec<PluginInfo>>> {
     let output = tokio::task::spawn_blocking(|| {
         std::process::Command::new("alp")
-            .arg("56")
+            .arg("52")
             .output()
     }).await.map_err(|_| crate::errors::AppError::Internal("无法执行 alp 命令".into()))?
     .map_err(|e| crate::errors::AppError::Internal(format!("alp 执行失败: {}", e)))?;
@@ -105,7 +105,7 @@ pub async fn action(
     let output = if method == "install" {
         tokio::task::spawn_blocking(move || {
             std::process::Command::new("alp")
-                .args(["57", &name])
+                .args(["53", &name])
                 .output()
         }).await.map_err(|_| crate::errors::AppError::Internal("执行失败".into()))?
         .map_err(|e| crate::errors::AppError::Internal(format!("alp 执行失败: {}", e)))?

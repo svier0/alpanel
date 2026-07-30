@@ -192,7 +192,7 @@ pub fn reload() -> AppResult<String> {
 
 pub fn install() -> AppResult<String> {
     let output = std::process::Command::new("alp")
-        .args(["57", "mysql"])
+        .args(["53", "mysql"])
         .output()
         .map_err(|e| AppError::Internal(format!("无法执行 alp 命令: {}", e)))?;
     if !output.status.success() {

@@ -11,13 +11,13 @@ help() {
     echo "  alp 11     启动面板服务"
     echo "  alp 12     停止面板服务"
     echo "  alp 13     重启面板服务"
-    echo "  alp 21     修改登录账号"
+echo "  alp 21     修改登录账号"
     echo "  alp 22     修改登录密码"
     echo "  alp 31     修改面板端口"
-  echo "  alp 55     查看已安装插件"
-  echo "  alp 56     插件市场（获取远程插件列表）"
-  echo "  alp 57     安装插件 (如 alp 57 nginx)"
-  echo "  alp 58     卸载插件 (如 alp 58 nginx)"
+    echo "  alp 51     查看已安装插件"
+    echo "  alp 52     插件市场（获取远程插件列表）"
+    echo "  alp 53     安装插件 (如 alp 53 nginx)"
+    echo "  alp 54     卸载插件 (如 alp 54 nginx)"
     echo "  alp 61     强制修改 MySQL root 密码 (无需旧密码)"
     echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
     echo "  alp 0      取消"
@@ -288,10 +288,10 @@ case "${1:-}" in
     21)  set_username ;;
     22)  set_password ;;
     31)  set_port ;;
-    55)  list_plugins ;;
-    56)  list_market ;;
-    57)  install_plugin "${2:-}" ;;
-    58)  uninstall_plugin "${2:-}" ;;
+    51)  list_plugins ;;
+    52)  list_market ;;
+    53)  install_plugin "${2:-}" ;;
+    54)  uninstall_plugin "${2:-}" ;;
     61)  force_mysql_pw ;;
     99)  uninstall ;;
     *)
