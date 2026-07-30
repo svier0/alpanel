@@ -44,8 +44,16 @@
           <span v-for="(p, ci) in cpuDetail.per_core" :key="ci" class="tooltip-core">{{ 'CPU-' + ci + ': ' + p.toFixed(2) + '%' }}</span>
         </div>
         <div class="tooltip-sub">CPU占用：</div>
-        <div>用户态: {{ cpuDetail.breakdown.user.toFixed(2) }}% 内核态: {{ cpuDetail.breakdown.system.toFixed(2) }}% Nice: {{ cpuDetail.breakdown.nice.toFixed(2) }}% 空闲: {{ cpuDetail.breakdown.idle.toFixed(2) }}%</div>
-        <div>I/O: {{ cpuDetail.breakdown.iowait.toFixed(2) }}% 硬中断: {{ cpuDetail.breakdown.irq.toFixed(2) }}% 软中断: {{ cpuDetail.breakdown.softirq.toFixed(2) }}% 被VM抢占: {{ cpuDetail.breakdown.steal.toFixed(2) }}%</div>
+        <div style="display:grid;grid-template-columns:auto auto auto auto;gap:0 6px;width:fit-content">
+          <span>用户态: {{ cpuDetail.breakdown.user.toFixed(2) }}%</span>
+          <span>内核态: {{ cpuDetail.breakdown.system.toFixed(2) }}%</span>
+          <span>Nice: {{ cpuDetail.breakdown.nice.toFixed(2) }}%</span>
+          <span>空闲: {{ cpuDetail.breakdown.idle.toFixed(2) }}%</span>
+          <span>I/O: {{ cpuDetail.breakdown.iowait.toFixed(2) }}%</span>
+          <span>硬中断: {{ cpuDetail.breakdown.irq.toFixed(2) }}%</span>
+          <span>软中断: {{ cpuDetail.breakdown.softirq.toFixed(2) }}%</span>
+          <span>被VM抢占: {{ cpuDetail.breakdown.steal.toFixed(2) }}%</span>
+        </div>
         <div class="tooltip-sub">CPU占用率Top5进程：</div>
         <div class="tooltip-table">
           <div class="tooltip-tr">
@@ -59,6 +67,52 @@
             <span class="tooltip-td-action"><el-button size="small" type="danger" link @click="killProc(p.pid)">结束</el-button></span>
           </div>
         </div>
+      </template>
+      <el-progress type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
+        <template #default>{{ r.pct.toFixed(1) }}%</template>
+      </el-progress>
+    </el-tooltip>
+    <el-tooltip v-else-if="idx === 2 && memDetail" placement="bottom">
+      <template #content>
+        <div class="tooltip-title">系统内存</div>
+        <div style="display:grid;grid-template-columns:auto auto auto auto;gap:0 8px;width:fit-content">
+          <span>总数</span><span>已用</span><span>可用</span><span>使用率</span>
+          <span>{{ fmtSize(memDetail.total) }}</span><span>{{ fmtSize(memDetail.used) }}</span><span>{{ fmtSize(memDetail.avail) }}</span><span>{{ memDetail.percent.toFixed(2) }}%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto auto auto;gap:0 8px;width:fit-content;margin-top:4px">
+          <span>空闲</span><span>缓存</span><span>共享</span>
+          <span>{{ fmtSize(memDetail.free) }}</span><span>{{ fmtSize(memDetail.cached) }}</span><span>{{ fmtSize(memDetail.shared) }}</span>
+        </div>
+        <div class="tooltip-sub">内存占用率Top5进程：</div>
+        <div class="tooltip-table">
+          <div class="tooltip-tr"><span class="tooltip-td-name">进程</span><span class="tooltip-td-pct">内存</span><span class="tooltip-td-pct">占比</span><span class="tooltip-td-action">操作</span></div>
+          <div v-for="p in memDetail.top_procs" :key="p.pid" class="tooltip-tr">
+            <span class="tooltip-td-name">{{ p.name }}</span>
+            <span class="tooltip-td-pct">{{ fmtSize(p.mem_bytes) }}</span>
+            <span class="tooltip-td-pct">{{ p.percent.toFixed(2) }}%</span>
+            <span class="tooltip-td-action"><el-button size="small" type="danger" link @click="killProc(p.pid)">结束</el-button></span>
+          </div>
+        </div>
+      </template>
+      <el-progress type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
+        <template #default>{{ r.pct.toFixed(1) }}%</template>
+      </el-progress>
+    </el-tooltip>
+    <el-tooltip v-else-if="r.diskIdx >= 0 && diskDetail[r.diskIdx]" placement="bottom">
+      <template #content>
+        <div class="tooltip-title">{{ r.label }}</div>
+        <div>类型 {{ diskDetail[r.diskIdx].fs_type }}</div>
+        <div>文件系统 {{ diskDetail[r.diskIdx].device }}</div>
+        <div class="tooltip-sub">磁盘</div>
+        <div>总量：{{ fmtSize(diskDetail[r.diskIdx].total) }}</div>
+        <div>已用：{{ fmtSize(diskDetail[r.diskIdx].used) }}</div>
+        <div>剩余：{{ fmtSize(diskDetail[r.diskIdx].avail) }}</div>
+        <div>占用率：{{ diskDetail[r.diskIdx].percent.toFixed(2) }}%</div>
+        <div class="tooltip-sub">Inode信息</div>
+        <div>总数：{{ diskDetail[r.diskIdx].inode_total }}</div>
+        <div>已用：{{ diskDetail[r.diskIdx].inode_used }}</div>
+        <div>剩余：{{ diskDetail[r.diskIdx].inode_total - diskDetail[r.diskIdx].inode_used }}</div>
+        <div>使用率：{{ diskDetail[r.diskIdx].inode_percent.toFixed(2) }}%</div>
       </template>
       <el-progress type="dashboard" :percentage="r.pct" :color="ringColor(r.pct)" :width="100" :stroke-width="10">
         <template #default>{{ r.pct.toFixed(1) }}%</template>
@@ -198,7 +252,16 @@ interface SystemStat {
     top_procs: { pid: number; name: string; cpu_percent: number }[]
   }
   mem: { total: number; used: number; percent: number }
+  mem_detail: {
+    total: number; used: number; avail: number; free: number; cached: number; shared: number; percent: number
+    top_procs: { pid: number; name: string; mem_bytes: number; percent: number }[]
+  }
   disks: { mount: string; total: number; used: number; percent: number }[]
+  disk_detail: {
+    mount: string; device: string; fs_type: string
+    total: number; used: number; avail: number; percent: number
+    inode_total: number; inode_used: number; inode_percent: number
+  }[]
   net: { name: string; rx_bytes: number; tx_bytes: number }[]
   disk_io: { name: string; read_bytes: number; write_bytes: number }
   overview: { sites: number; databases: number; apps: number }
@@ -227,6 +290,15 @@ const cpuDetail = ref<{
   breakdown: { user: number; nice: number; system: number; idle: number; iowait: number; irq: number; softirq: number; steal: number }
   top_procs: { pid: number; name: string; cpu_percent: number }[]
 } | null>(null)
+const memDetail = ref<{
+  total: number; used: number; avail: number; free: number; cached: number; shared: number; percent: number
+  top_procs: { pid: number; name: string; mem_bytes: number; percent: number }[]
+} | null>(null)
+const diskDetail = ref<{
+  mount: string; device: string; fs_type: string
+  total: number; used: number; avail: number; percent: number
+  inode_total: number; inode_used: number; inode_percent: number
+}[]>([])
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
 const chartMode = ref('net')
 const chartIface = ref('')
@@ -239,7 +311,7 @@ const logoMap: Record<string, string> = {
 }
 
 // ── Rings ──
-const rings = ref<{ label: string; pct: number; desc: string; tooltip: string[] }[]>([])
+const rings = ref<{ label: string; pct: number; desc: string; tooltip: string[]; diskIdx: number }[]>([])
 function ringColor(pct: number) {
   if (pct >= 90) return '#f56c6c'
   if (pct >= 60) return '#e6a23c'
@@ -247,19 +319,21 @@ function ringColor(pct: number) {
 }
 function updateRings(s: SystemStat) {
   const loadPct = s.cpu.logical_count > 0 ? (s.loadavg.load1 / s.cpu.logical_count) * 100 : 0
-  let diskPct = 0
-  if (s.disks.length > 0) diskPct = s.disks[0].percent
-  rings.value = [
+  const ringsArr: { label: string; pct: number; desc: string; tooltip: string[]; diskIdx: number }[] = [
     { label: '负载', pct: Math.min(loadPct, 100), desc: `${s.loadavg.load1.toFixed(2)} / ${s.cpu.logical_count}核心`,
       tooltip: [
         `最近 1 分钟平均负载${s.loadavg.load1.toFixed(2)}`,
         `最近 5 分钟平均负载${s.loadavg.load5.toFixed(2)}`,
         `最近 15 分钟平均负载${s.loadavg.load15.toFixed(2)}`,
-      ] },
-    { label: 'CPU', pct: s.cpu.usage_percent, desc: `${s.cpu.logical_count}核心`, tooltip: [] },
-    { label: '内存', pct: s.mem.percent, desc: fmtSize(s.mem.used) + ' / ' + fmtSize(s.mem.total), tooltip: [] },
-    { label: '磁盘', pct: diskPct, desc: fmtSize(s.disks[0]?.used || 0) + ' / ' + fmtSize(s.disks[0]?.total || 0), tooltip: [] },
+      ], diskIdx: -1 },
+    { label: 'CPU', pct: s.cpu.usage_percent, desc: `${s.cpu.logical_count}核心`, tooltip: [], diskIdx: -1 },
+    { label: '内存', pct: s.mem.percent, desc: fmtSize(s.mem.used) + ' / ' + fmtSize(s.mem.total), tooltip: [], diskIdx: -1 },
   ]
+  for (let i = 0; i < s.disk_detail.length; i++) {
+    const d = s.disk_detail[i]
+    ringsArr.push({ label: d.mount, pct: d.percent, desc: fmtSize(d.used) + ' / ' + fmtSize(d.total), tooltip: [], diskIdx: i })
+  }
+  rings.value = ringsArr
 }
 
 // ── Chart ──
@@ -373,6 +447,8 @@ onMounted(async () => {
       updateRings(s)
       overview.value = s.overview
       cpuDetail.value = { ...s.cpu_detail, cpu_name: s.cpu.name, physical_count: s.cpu.physical_count, core_count: s.cpu.core_count, logical_count: s.cpu.logical_count }
+      memDetail.value = s.mem_detail
+      diskDetail.value = s.disk_detail
 
       // net delta
       const ifaces = s.net.map(n => n.name)
@@ -524,10 +600,10 @@ onUnmounted(() => {
 .tooltip-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
 .tooltip-core { white-space: nowrap; }
 .tooltip-table { width: 100%; }
-.tooltip-tr { display: flex; gap: 8px; padding: 2px 0; }
-.tooltip-td-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tooltip-td-pct { width: 60px; text-align: right; }
-.tooltip-td-action { width: 40px; text-align: center; }
+.tooltip-tr { display: flex; gap: 12px; padding: 4px 0; align-items: center; }
+.tooltip-td-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tooltip-td-pct { width: 70px; text-align: right; flex-shrink: 0; }
+.tooltip-td-action { width: 50px; text-align: center; flex-shrink: 0; }
 
 /* App */
 .app-list { display: flex; flex-direction: column; gap: 6px; }

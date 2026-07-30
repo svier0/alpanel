@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::sync::Mutex;
 use std::sync::LazyLock;
 use axum::{Json, http::HeaderMap, extract::Path};
@@ -146,7 +146,9 @@ pub struct SystemStat {
     pub cpu: CpuStat,
     pub cpu_detail: CpuDetail,
     pub mem: MemStat,
+    pub mem_detail: MemDetail,
     pub disks: Vec<DiskStat>,
+    pub disk_detail: Vec<DiskDetail>,
     pub net: Vec<NetStat>,
     pub disk_io: DiskIo,
     pub overview: Overview,
@@ -224,11 +226,45 @@ pub struct MemStat {
 }
 
 #[derive(Serialize)]
+pub struct MemDetail {
+    pub total: u64,
+    pub used: u64,
+    pub avail: u64,
+    pub free: u64,
+    pub cached: u64,
+    pub shared: u64,
+    pub percent: f64,
+    pub top_procs: Vec<MemProc>,
+}
+
+#[derive(Serialize)]
+pub struct MemProc {
+    pub pid: u32,
+    pub name: String,
+    pub mem_bytes: u64,
+    pub percent: f64,
+}
+
+#[derive(Serialize)]
 pub struct DiskStat {
     pub mount: String,
     pub total: u64,
     pub used: u64,
     pub percent: f64,
+}
+
+#[derive(Serialize)]
+pub struct DiskDetail {
+    pub mount: String,
+    pub device: String,
+    pub fs_type: String,
+    pub total: u64,
+    pub used: u64,
+    pub avail: u64,
+    pub percent: f64,
+    pub inode_total: u64,
+    pub inode_used: u64,
+    pub inode_percent: f64,
 }
 
 struct CpuRaw {
@@ -374,12 +410,27 @@ pub async fn system_stat(
     let meminfo = std::fs::read_to_string("/proc/meminfo").unwrap_or_default();
     let mut mem_total = 0u64;
     let mut mem_avail = 0u64;
+    let mut mem_free = 0u64;
+    let mut mem_cached = 0u64;
+    let mut mem_buffers = 0u64;
+    let mut mem_shmem = 0u64;
+    let mut mem_sreclaimable = 0u64;
     for line in meminfo.lines() {
         if let Some(kv) = line.strip_suffix(" kB") {
             if let Some(val) = kv.strip_prefix("MemTotal:") {
                 mem_total = val.trim().parse().unwrap_or(0) * 1024;
             } else if let Some(val) = kv.strip_prefix("MemAvailable:") {
                 mem_avail = val.trim().parse().unwrap_or(0) * 1024;
+            } else if let Some(val) = kv.strip_prefix("MemFree:") {
+                mem_free = val.trim().parse().unwrap_or(0) * 1024;
+            } else if let Some(val) = kv.strip_prefix("Cached:") {
+                mem_cached = val.trim().parse().unwrap_or(0) * 1024;
+            } else if let Some(val) = kv.strip_prefix("Buffers:") {
+                mem_buffers = val.trim().parse().unwrap_or(0) * 1024;
+            } else if let Some(val) = kv.strip_prefix("Shmem:") {
+                mem_shmem = val.trim().parse().unwrap_or(0) * 1024;
+            } else if let Some(val) = kv.strip_prefix("SReclaimable:") {
+                mem_sreclaimable = val.trim().parse().unwrap_or(0) * 1024;
             }
         }
     }
@@ -387,9 +438,23 @@ pub async fn system_stat(
     let mem_percent = if mem_total > 0 {
         (mem_used as f64 / mem_total as f64) * 100.0
     } else { 0.0 };
+    let mem_cache = mem_cached + mem_sreclaimable + mem_buffers;
+    let mem_top = parse_top_mem_procs(mem_total);
+
+    let mem_detail = MemDetail {
+        total: mem_total,
+        used: mem_used,
+        avail: mem_avail,
+        free: mem_free,
+        cached: mem_cache,
+        shared: mem_shmem,
+        percent: mem_percent,
+        top_procs: mem_top,
+    };
 
     // Disk from df -B1
     let disks = parse_df();
+    let disk_detail = parse_disk_detail();
 
     // Load average from /proc/loadavg
     let loadavg = std::fs::read_to_string("/proc/loadavg")
@@ -439,7 +504,9 @@ pub async fn system_stat(
             used: mem_used,
             percent: mem_percent,
         },
+        mem_detail,
         disks,
+        disk_detail,
         net,
         disk_io,
         overview,
@@ -489,6 +556,73 @@ fn parse_df() -> Vec<DiskStat> {
         disks.push(DiskStat { mount, total, used, percent });
     }
     disks
+}
+
+fn parse_disk_detail() -> Vec<DiskDetail> {
+    // read /proc/mounts for device and fs_type
+    let mounts = std::fs::read_to_string("/proc/mounts").unwrap_or_default();
+    let mut mount_info: Vec<(String, String, String)> = Vec::new();
+    for line in mounts.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 { continue; }
+        let device = parts[0].to_string();
+        let mount = parts[1].to_string();
+        let fs_type = parts[2].to_string();
+        if mount == "/" || (mount.starts_with("/mnt/") && !mount.starts_with("/mnt/wsl")) {
+            mount_info.push((mount, device, fs_type));
+        }
+    }
+
+    // run df -B1 for usage
+    let mut usage: std::collections::HashMap<String, (u64, u64, u64)> = std::collections::HashMap::new();
+    if let Ok(output) = std::process::Command::new("df").arg("-B1").output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines().skip(1) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 6 { continue; }
+            let mount = parts[5].to_string();
+            let total: u64 = parts[1].parse().unwrap_or(0);
+            let used: u64 = parts[2].parse().unwrap_or(0);
+            let avail: u64 = parts[3].parse().unwrap_or(0);
+            usage.insert(mount, (total, used, avail));
+        }
+    }
+
+    // run df -i for inode
+    let mut inode_info: std::collections::HashMap<String, (u64, u64, u64)> = std::collections::HashMap::new();
+    if let Ok(output) = std::process::Command::new("df").arg("-i").output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines().skip(1) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 6 { continue; }
+            let mount = parts[5].to_string();
+            let total: u64 = parts[1].parse().unwrap_or(0);
+            let used: u64 = parts[2].parse().unwrap_or(0);
+            let avail: u64 = parts[3].parse().unwrap_or(0);
+            inode_info.insert(mount, (total, used, avail));
+        }
+    }
+
+    let mut result = Vec::new();
+    for (mount, device, fs_type) in &mount_info {
+        let (total, used, avail) = usage.get(mount).copied().unwrap_or((0, 0, 0));
+        let percent = if total > 0 { (used as f64 / total as f64) * 100.0 } else { 0.0 };
+        let (inode_total, inode_used, _inode_avail) = inode_info.get(mount).copied().unwrap_or((0, 0, 0));
+        let inode_percent = if inode_total > 0 { (inode_used as f64 / inode_total as f64) * 100.0 } else { 0.0 };
+        result.push(DiskDetail {
+            mount: mount.clone(),
+            device: device.clone(),
+            fs_type: fs_type.clone(),
+            total,
+            used,
+            avail,
+            percent,
+            inode_total,
+            inode_used,
+            inode_percent,
+        });
+    }
+    result
 }
 
 fn parse_net() -> Vec<NetStat> {
@@ -583,6 +717,44 @@ fn parse_top_procs() -> Vec<ProcStat> {
         });
     }
     procs.sort_by(|a, b| b.cpu_percent.partial_cmp(&a.cpu_percent).unwrap_or(std::cmp::Ordering::Equal));
+    procs.truncate(5);
+    procs
+}
+
+fn parse_top_mem_procs(mem_total: u64) -> Vec<MemProc> {
+    let mut procs = Vec::new();
+    let dir = match std::fs::read_dir("/proc") {
+        Ok(d) => d,
+        Err(_) => return procs,
+    };
+    for entry in dir.flatten() {
+        let pid_str = match entry.file_name().to_str() {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let pid: u32 = match pid_str.parse() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        let status_path = entry.path().join("status");
+        let content = match std::fs::read_to_string(&status_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let mut name = String::new();
+        let mut vmrss = 0u64;
+        for line in content.lines() {
+            if let Some(val) = line.strip_prefix("Name:") {
+                name = val.trim().to_string();
+            } else if let Some(val) = line.strip_prefix("VmRSS:") {
+                vmrss = val.trim().trim_end_matches(" kB").parse().unwrap_or(0) * 1024;
+            }
+        }
+        if vmrss == 0 { continue; }
+        let pct = if mem_total > 0 { (vmrss as f64 / mem_total as f64) * 100.0 } else { 0.0 };
+        procs.push(MemProc { pid, name, mem_bytes: vmrss, percent: pct });
+    }
+    procs.sort_by(|a, b| b.mem_bytes.cmp(&a.mem_bytes));
     procs.truncate(5);
     procs
 }
