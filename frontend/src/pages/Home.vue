@@ -212,20 +212,19 @@
           <div class="app-list">
             <div v-for="app in apps" :key="app.name" class="app-row">
               <span class="app-name">{{ app.name }}</span>
-              <el-dropdown v-if="app.installed" size="small" trigger="hover" @command="(c: string) => handleSrvCmd(app, c)">
+              <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd(app, c)">
                 <el-button size="small" :type="app.running ? 'default' : 'danger'">
-                  {{ app.name }} {{ app.running ? '▶' : '⏸' }}
+                  {{ app.name }}{{ app.version ? ' [' + app.version + ']' : '' }} {{ app.running ? '▶' : '⏸' }}
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item v-if="!app.running" command="start">启动</el-dropdown-item>
-                    <el-dropdown-item v-if="app.running" command="stop">停止</el-dropdown-item>
+                    <el-dropdown-item command="start" v-if="!app.running">启动</el-dropdown-item>
+                    <el-dropdown-item command="stop" v-if="app.running">停止</el-dropdown-item>
                     <el-dropdown-item command="restart">重启</el-dropdown-item>
                     <el-dropdown-item command="reload">重载</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
-              <el-button v-else size="small" type="info" @click="installApp(app)">未安装</el-button>
             </div>
           </div>
         </el-card>
@@ -267,7 +266,7 @@ interface SystemStat {
   disk_io: { name: string; read_bytes: number; write_bytes: number }
   overview: { sites: number; databases: number; apps: number }
 }
-interface AppInfo { name: string; running: boolean; installed: boolean }
+interface AppInfo { name: string; running: boolean; installed: boolean; version: string }
 
 const info = ref<OsInfo>({
   os_id: '', os_name: '', os_version: '', os_pretty: '', os_arch: '',
@@ -275,9 +274,9 @@ const info = ref<OsInfo>({
 })
 const osLogo = ref('')
 const apps = ref<AppInfo[]>([
-  { name: 'Nginx', running: false, installed: false },
-  { name: 'MySQL', running: false, installed: false },
-  { name: 'Redis', running: false, installed: false },
+  { name: 'Nginx', running: false, installed: false, version: '' },
+  { name: 'MySQL', running: false, installed: false, version: '' },
+  { name: 'Redis', running: false, installed: false, version: '' },
 ])
 const overview = ref({ sites: 0, databases: 0, apps: 0 })
 const memo = ref(localStorage.getItem('alpanel_memo') || '')
@@ -432,15 +431,6 @@ async function handleSrvCmd(app: AppInfo, cmd: string) {
   } catch {}
 }
 
-async function installApp(app: AppInfo) {
-  const name = app.name.toLowerCase()
-  try {
-    await apiFetch(`/api/${name}/install`, { method: 'POST' })
-    app.installed = true
-    app.running = false
-  } catch {}
-}
-
 // ── Polling ──
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -497,6 +487,7 @@ onMounted(async () => {
       const data = await apiFetch(`/api/${a.name.toLowerCase()}/status`)
       a.running = data?.running ?? false
       a.installed = data?.installed ?? false
+      a.version = data?.version ?? ''
     } catch {
       a.installed = false
       a.running = false
