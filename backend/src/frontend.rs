@@ -53,7 +53,12 @@ pub async fn serve_frontend(uri: Uri) -> Response {
                     .into_response();
             }
         }
-        return serve_index().await;
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+            .body(Body::from(""))
+            .unwrap()
+            .into_response();
     }
 
     let file_path = dist_dir().join(path);
