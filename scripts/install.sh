@@ -39,7 +39,9 @@ else
     GH_PROXY="https://gh-proxy.com/"
 fi
 apk update
-apk add sqlite
+apk add sqlite jq vnstat
+rc-update add vnstat default
+service vnstat start 2>/dev/null || true
 
 if [ "$(whoami)" != "root" ]; then
     echo "检查到当前非 root 权限进行面板安装"
