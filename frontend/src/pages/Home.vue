@@ -422,12 +422,17 @@ async function killProc(pid: number) {
 }
 
 // ── App ──
+async function pluginAction(name: string, method: string) {
+  const res: any = await apiFetch(`/api/plugins/action/${name}/${method}`, { method: 'POST' })
+  return res
+}
+
 async function handleSrvCmd(app: AppInfo, cmd: string) {
   const name = app.name.toLowerCase()
   try {
-    await apiFetch(`/api/${name}/${cmd}`, { method: 'POST' })
-    const data = await apiFetch(`/api/${name}/status`)
-    app.running = data?.running ?? false
+    await pluginAction(name, cmd)
+    const res = await pluginAction(name, 'status')
+    app.running = (res.stdout || '').trim() === 'running'
   } catch {}
 }
 
@@ -484,10 +489,15 @@ onMounted(async () => {
   // check app status once
   for (const a of apps.value) {
     try {
-      const data = await apiFetch(`/api/${a.name.toLowerCase()}/status`)
-      a.running = data?.running ?? false
-      a.installed = data?.installed ?? false
-      a.version = data?.version ?? ''
+      const name = a.name.toLowerCase()
+      const res = await pluginAction(name, 'status')
+      const out = (res.stdout || '').trim()
+      a.installed = out === 'running' || out === 'stopped'
+      a.running = out === 'running'
+      if (a.installed) {
+        const v = await pluginAction(name, 'get_version')
+        a.version = (v.stdout || '').trim()
+      }
     } catch {
       a.installed = false
       a.running = false

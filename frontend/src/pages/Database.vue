@@ -235,39 +235,51 @@ const installingRedis = ref(false)
 const installProgressRedis = ref(0)
 const installErrorRedis = ref('')
 
-async function checkMysql() {
+async function pluginAction(svc: string, method: string) {
+  const res: any = await apiFetch(`/api/plugins/action/${svc}/${method}`, { method: 'POST' })
+  return res
+}
+
+async function checkSvc(svc: string) {
+  let installed = false, running = false, version = ''
   try {
-    const data = await apiFetch('/api/mysql/status')
-    mysqlInstalled.value = data.installed
-    mysqlRunning.value = data.running
-    mysqlVersion.value = data.version || ''
-    mysqlReady.value = true
-  } catch {
-    mysqlInstalled.value = false
-    mysqlRunning.value = false
-    mysqlReady.value = true
-  }
+    const res = await pluginAction(svc, 'status')
+    const out = (res.stdout || '').trim()
+    if (out === 'running') { installed = true; running = true }
+    else if (out === 'stopped') { installed = true }
+    if (installed) {
+      const v = await pluginAction(svc, 'get_version')
+      version = (v.stdout || '').trim()
+    }
+  } catch {}
+  return { installed, running, version }
+}
+
+async function checkMysql() {
+  const s = await checkSvc('mysql')
+  mysqlInstalled.value = s.installed
+  mysqlRunning.value = s.running
+  mysqlVersion.value = s.version
+  mysqlReady.value = true
 }
 
 async function checkRedis() {
-  try {
-    const data = await apiFetch('/api/redis/status')
-    redisInstalled.value = data.installed
-    redisRunning.value = data.running
-    redisVersion.value = data.version || ''
-    redisReady.value = true
-  } catch {
-    redisInstalled.value = false
-    redisRunning.value = false
-    redisReady.value = true
-  }
+  const s = await checkSvc('redis')
+  redisInstalled.value = s.installed
+  redisRunning.value = s.running
+  redisVersion.value = s.version
+  redisReady.value = true
 }
 
 async function handleSrvCmd(svc: 'mysql' | 'redis', cmd: string) {
   try {
-    await apiFetch(`/api/${svc}/${cmd}`, { method: 'POST' })
-    const msgs: Record<string, string> = { start: '已启动', stop: '已停止', restart: '已重启', reload: '已重载' }
-    ElMessage.success(`${svc === 'mysql' ? 'MySQL' : 'Redis'}${msgs[cmd] || '操作成功'}`)
+    const res = await pluginAction(svc, cmd)
+    if (res.code === 0) {
+      const msgs: Record<string, string> = { start: '已启动', stop: '已停止', restart: '已重启', reload: '已重载' }
+      ElMessage.success(`${svc === 'mysql' ? 'MySQL' : 'Redis'}${msgs[cmd] || '操作成功'}`)
+    } else {
+      ElMessage.error(res.stderr || '操作失败')
+    }
     if (svc === 'mysql') setTimeout(checkMysql, 1000)
     else setTimeout(checkRedis, 1000)
   } catch {
@@ -283,10 +295,14 @@ async function installMysql() {
     installProgressMysql.value = Math.min(installProgressMysql.value + 3, 90)
   }, 800)
   try {
-    await apiFetch('/api/mysql/install', { method: 'POST' })
+    const res = await pluginAction('mysql', 'install')
     clearInterval(iv)
-    installProgressMysql.value = 100
-    setTimeout(() => { mysqlInstalled.value = true }, 600)
+    if (res.code === 0) {
+      installProgressMysql.value = 100
+      setTimeout(() => { mysqlInstalled.value = true }, 600)
+    } else {
+      installErrorMysql.value = res.stderr || '安装失败'
+    }
   } catch {
     clearInterval(iv)
     installErrorMysql.value = '安装失败，请检查服务端连接'
@@ -303,11 +319,16 @@ async function installRedis() {
     installProgressRedis.value = Math.min(installProgressRedis.value + 5, 90)
   }, 600)
   try {
-    await apiFetch('/api/redis/install', { method: 'POST' })
+    const res = await pluginAction('redis', 'install')
     clearInterval(iv)
-    installProgressRedis.value = 100
-    setTimeout(() => { redisInstalled.value = true }, 600)
+    if (res.code === 0) {
+      installProgressRedis.value = 100
+      setTimeout(() => { redisInstalled.value = true }, 600)
+    } else {
+      installErrorRedis.value = res.stderr || '安装失败'
+    }
   } catch {
+    clearInterval(iv)
     installErrorRedis.value = '安装失败，请检查服务端连接'
   } finally {
     installingRedis.value = false
