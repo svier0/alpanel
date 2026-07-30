@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 DOWNLOAD_URL="https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh"
 VERSION="0.1.0"
@@ -38,11 +39,6 @@ else
     echo "https://mirrors.aliyun.com/alpine/v3.21/community" >> /etc/apk/repositories
     GH_PROXY="https://gh-proxy.com/"
 fi
-apk update
-apk add sqlite jq vnstat
-rc-update add vnstat default
-rc-service vnstat start 2>/dev/null || true
-
 if [ "$(whoami)" != "root" ]; then
     echo "检查到当前非 root 权限进行面板安装"
     echo "请使用以下命令重新执行："
@@ -57,6 +53,11 @@ if [ "$ID" != "alpine" ]; then
     echo "Alpanel 仅支持 Alpine Linux"
     exit 1
 fi
+
+apk update
+apk add sqlite jq vnstat
+rc-update add vnstat default
+rc-service vnstat start 2>/dev/null || true
 
 ARCH=$(uname -m)
 case "$ARCH" in
@@ -93,17 +94,17 @@ chown -R www:www ${setup_path}/wwwroot ${setup_path}/wwwlogs 2>/dev/null || true
 
 PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/latest/download/alpanel-${VERSION}-${PKG_ARCH}.tar.gz"
 DIST_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/download/${VERSION}/dist-${VERSION}.tar.gz"
-wget -O /tmp/alpanel.tar.gz ${GH_PROXY}$PANEL_DOWNLOAD_URL
+wget -O /tmp/alpanel.tar.gz ${GH_PROXY}$PANEL_DOWNLOAD_URL || exit 1
 tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/
 chmod +x /www/server/panel/alpanel
 rm -f /tmp/alpanel.tar.gz
 
-wget -O /tmp/dist.tar.gz ${GH_PROXY}$DIST_DOWNLOAD_URL
+wget -O /tmp/dist.tar.gz ${GH_PROXY}$DIST_DOWNLOAD_URL || exit 1
 mkdir -p /www/server/panel/dist
 tar -xzf /tmp/dist.tar.gz -C /www/server/panel/dist/
 rm -f /tmp/dist.tar.gz
 
-wget -O /usr/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL
+wget -O /usr/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL || exit 1
 chmod +x /usr/bin/alp
 
 ENV_FILE="/www/server/panel/.env"
@@ -149,7 +150,7 @@ chmod +x /etc/init.d/alpanel
 
 rc-update add alpanel default 2>/dev/null || true
 
-alp 11
+alp 11 2>/dev/null || true
 
 echo "================================"
 echo " Alpanel 安装完成"
