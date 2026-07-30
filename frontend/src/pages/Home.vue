@@ -212,7 +212,7 @@
           <div class="app-list">
             <div v-for="app in apps" :key="app.name" class="app-row">
               <span class="app-name">{{ app.name }}</span>
-              <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd(app, c)">
+              <el-dropdown v-if="app.installed" size="small" trigger="hover" @command="(c: string) => handleSrvCmd(app, c)">
                 <el-button size="small" :type="app.running ? 'default' : 'danger'">
                   {{ app.name }} {{ app.running ? '▶' : '⏸' }}
                 </el-button>
@@ -225,6 +225,7 @@
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
+              <el-button v-else size="small" type="info" @click="installApp(app)">未安装</el-button>
             </div>
           </div>
         </el-card>
@@ -266,7 +267,7 @@ interface SystemStat {
   disk_io: { name: string; read_bytes: number; write_bytes: number }
   overview: { sites: number; databases: number; apps: number }
 }
-interface AppInfo { name: string; running: boolean }
+interface AppInfo { name: string; running: boolean; installed: boolean }
 
 const info = ref<OsInfo>({
   os_id: '', os_name: '', os_version: '', os_pretty: '', os_arch: '',
@@ -274,9 +275,9 @@ const info = ref<OsInfo>({
 })
 const osLogo = ref('')
 const apps = ref<AppInfo[]>([
-  { name: 'Nginx', running: false },
-  { name: 'MySQL', running: false },
-  { name: 'Redis', running: false },
+  { name: 'Nginx', running: false, installed: false },
+  { name: 'MySQL', running: false, installed: false },
+  { name: 'Redis', running: false, installed: false },
 ])
 const overview = ref({ sites: 0, databases: 0, apps: 0 })
 const memo = ref(localStorage.getItem('alpanel_memo') || '')
@@ -431,6 +432,15 @@ async function handleSrvCmd(app: AppInfo, cmd: string) {
   } catch {}
 }
 
+async function installApp(app: AppInfo) {
+  const name = app.name.toLowerCase()
+  try {
+    await apiFetch(`/api/${name}/install`, { method: 'POST' })
+    app.installed = true
+    app.running = false
+  } catch {}
+}
+
 // ── Polling ──
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -486,7 +496,11 @@ onMounted(async () => {
     try {
       const data = await apiFetch(`/api/${a.name.toLowerCase()}/status`)
       a.running = data?.running ?? false
-    } catch {}
+      a.installed = data?.installed ?? false
+    } catch {
+      a.installed = false
+      a.running = false
+    }
   }
 })
 
