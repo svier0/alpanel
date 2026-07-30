@@ -20,6 +20,7 @@ echo "  alp 51     安装 Nginx"
   echo "  alp 54     安装 Redis"
   echo "  alp 55     查看已安装插件"
   echo "  alp 56     插件市场（获取远程插件列表）"
+  echo "  alp 57     安装插件 (如 alp 57 nginx)"
   echo "  alp 58     卸载插件 (如 alp 58 nginx)"
     echo "  alp 61     强制修改 MySQL root 密码 (无需旧密码)"
     echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
@@ -888,6 +889,28 @@ uninstall_plugin() {
     echo "插件 $name 已卸载"
 }
 
+install_plugin() {
+    name="${1:-}"
+    case "$name" in
+        ""|*[!a-zA-Z0-9._-]*) echo "错误: 非法插件名" >&2; exit 1 ;;
+    esac
+    plugin_dir="/www/server/panel/plugin/$name"
+    mkdir -p "$plugin_dir"
+    base_url="https://raw.githubusercontent.com/svier0/alpanel-plugins/master/plugins/$name"
+    files="info.json ${name}.sh icon.png index.html"
+    dl_err=0
+    for f in $files; do
+        wget -q --timeout=10 "$base_url/$f" -O "$plugin_dir/$f" 2>/dev/null || { dl_err=1; break; }
+    done
+    if [ "$dl_err" -ne 0 ]; then
+        rm -rf "$plugin_dir"
+        echo "错误: 下载插件 $name 失败" >&2
+        exit 1
+    fi
+    chmod +x "$plugin_dir/${name}.sh" 2>/dev/null || true
+    . "$plugin_dir/${name}.sh" && install
+}
+
 case "${1:-}" in
     "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -913,6 +936,7 @@ case "${1:-}" in
     54)  install_redis ;;
     55)  list_plugins ;;
     56)  list_market ;;
+    57)  install_plugin "${2:-}" ;;
     58)  uninstall_plugin "${2:-}" ;;
     61)  force_mysql_pw ;;
     99)  uninstall ;;

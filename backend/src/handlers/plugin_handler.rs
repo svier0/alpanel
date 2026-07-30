@@ -101,16 +101,25 @@ pub async fn action(
     }
 
     let sh_path = plugin_dir.join(format!("{}.sh", name));
-    if !sh_path.exists() {
-        return Err(crate::errors::AppError::NotFound("插件脚本不存在".into()));
-    }
 
-    let output = tokio::task::spawn_blocking(move || {
-        std::process::Command::new("sh")
-            .args(["-c", &format!(". '{}' && {}", sh_path.display(), method)])
-            .output()
-    }).await.map_err(|_| crate::errors::AppError::Internal("执行失败".into()))?
-    .map_err(|_| crate::errors::AppError::Internal("无法执行脚本".into()))?;
+    let output = if method == "install" {
+        tokio::task::spawn_blocking(move || {
+            std::process::Command::new("alp")
+                .args(["57", &name])
+                .output()
+        }).await.map_err(|_| crate::errors::AppError::Internal("执行失败".into()))?
+        .map_err(|e| crate::errors::AppError::Internal(format!("alp 执行失败: {}", e)))?
+    } else {
+        if !sh_path.exists() {
+            return Err(crate::errors::AppError::NotFound("插件脚本不存在".into()));
+        }
+        tokio::task::spawn_blocking(move || {
+            std::process::Command::new("sh")
+                .args(["-c", &format!(". '{}' && {}", sh_path.display(), method)])
+                .output()
+        }).await.map_err(|_| crate::errors::AppError::Internal("执行失败".into()))?
+        .map_err(|_| crate::errors::AppError::Internal("无法执行脚本".into()))?
+    };
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
