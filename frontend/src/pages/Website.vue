@@ -349,15 +349,29 @@ const installError = ref('')
 const nginxRunning = ref(false)
 const nginxVersion = ref('')
 
+async function pluginAction(method: string) {
+  const res: any = await apiFetch(`/api/plugins/action/nginx/${method}`, { method: 'POST' })
+  return res
+}
+
 async function checkNginx() {
   ngReady.value = false
   try {
-    const data = await apiFetch('/api/nginx/status')
-    nginxInstalled.value = data.installed
-    nginxRunning.value = data.running
-    nginxVersion.value = data.version || ''
-    if (!data.installed) {
+    const res = await pluginAction('status')
+    const out = (res.stdout || '').trim()
+    if (out === 'running') {
+      nginxInstalled.value = true
+      nginxRunning.value = true
+    } else if (out === 'stopped') {
+      nginxInstalled.value = true
+      nginxRunning.value = false
+    } else {
+      nginxInstalled.value = false
       blockedByNginx.value = true
+    }
+    if (nginxInstalled.value) {
+      const v = await pluginAction('get_version')
+      nginxVersion.value = (v.stdout || '').trim()
     }
   } catch {
     nginxInstalled.value = false
@@ -369,16 +383,20 @@ async function checkNginx() {
 
 async function fetchNginxStatus() {
   try {
-    const data = await apiFetch('/api/nginx/status')
-    nginxRunning.value = data.running
+    const res = await pluginAction('status')
+    nginxRunning.value = (res.stdout || '').trim() === 'running'
   } catch {}
 }
 
 async function handleNginxCmd(cmd: string) {
   try {
-    await apiFetch(`/api/nginx/${cmd}`, { method: 'POST' })
-    const msgs: Record<string, string> = { start: 'Nginx 已启动', stop: 'Nginx 已停止', restart: 'Nginx 已重启', reload: 'Nginx 已重载' }
-    ElMessage.success(msgs[cmd] || '操作成功')
+    const res = await pluginAction(cmd)
+    if (res.code === 0) {
+      const msgs: Record<string, string> = { start: 'Nginx 已启动', stop: 'Nginx 已停止', restart: 'Nginx 已重启', reload: 'Nginx 已重载' }
+      ElMessage.success(msgs[cmd] || '操作成功')
+    } else {
+      ElMessage.error(res.stderr || '操作失败')
+    }
     setTimeout(fetchNginxStatus, 1000)
   } catch {
     ElMessage.error('请求失败，请检查服务端连接')
@@ -393,13 +411,17 @@ async function doInstall() {
     installProgress.value = Math.min(installProgress.value + 5, 90)
   }, 600)
   try {
-    await apiFetch('/api/nginx/install', { method: 'POST' })
+    const res = await pluginAction('install')
     clearInterval(iv)
-    installProgress.value = 100
-    setTimeout(() => {
-      blockedByNginx.value = false
-      nginxInstalled.value = true
-    }, 600)
+    if (res.code === 0) {
+      installProgress.value = 100
+      setTimeout(() => {
+        blockedByNginx.value = false
+        nginxInstalled.value = true
+      }, 600)
+    } else {
+      installError.value = res.stderr || '安装失败'
+    }
   } catch {
     clearInterval(iv)
     installError.value = '请求失败，请检查服务端连接'
