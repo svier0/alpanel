@@ -20,6 +20,7 @@ echo "  alp 51     安装 Nginx"
   echo "  alp 54     安装 Redis"
   echo "  alp 55     查看已安装插件"
   echo "  alp 56     插件市场（获取远程插件列表）"
+  echo "  alp 58     卸载插件 (如 alp 58 nginx)"
     echo "  alp 61     强制修改 MySQL root 密码 (无需旧密码)"
     echo "  alp 99     卸载面板 (删除 /www 及所有服务, 不可恢复)"
     echo "  alp 0      取消"
@@ -869,6 +870,24 @@ list_market() {
     wget -q --timeout=10 -O - "$url" 2>/dev/null || { echo "[]"; exit 1; }
 }
 
+uninstall_plugin() {
+    name="${1:-}"
+    case "$name" in
+        ""|*[!a-zA-Z0-9._-]*) echo "错误: 非法插件名" >&2; exit 1 ;;
+    esac
+    plugin_dir="/www/server/panel/plugin/$name"
+    sh_file="$plugin_dir/$name.sh"
+    if [ ! -d "$plugin_dir" ]; then
+        echo "错误: 插件 $name 未安装" >&2
+        exit 1
+    fi
+    if [ -f "$sh_file" ]; then
+        . "$sh_file" && uninstall 2>/dev/null || true
+    fi
+    rm -rf "$plugin_dir"
+    echo "插件 $name 已卸载"
+}
+
 case "${1:-}" in
     "")  [ -n "${RC_SVCNAME:-}" ] || help ;;
     0)   echo "已取消"; exit 0 ;;
@@ -894,6 +913,7 @@ case "${1:-}" in
     54)  install_redis ;;
     55)  list_plugins ;;
     56)  list_market ;;
+    58)  uninstall_plugin "${2:-}" ;;
     61)  force_mysql_pw ;;
     99)  uninstall ;;
     *)
