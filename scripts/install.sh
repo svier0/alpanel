@@ -87,6 +87,7 @@ mkdir -p ${setup_path}/server/panel/vhost/template/nginx
 mkdir -p ${setup_path}/server/panel/data
 mkdir -p ${setup_path}/server/panel/data/db
 mkdir -p ${setup_path}/server/panel/data/files_ps
+mkdir -p ${setup_path}/server/panel/plugin
 
 addgroup -S www 2>/dev/null || true
 adduser -D -H -S -G www -s /sbin/nologin www 2>/dev/null || true

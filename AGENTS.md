@@ -178,6 +178,7 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
     ├── nginx/php(74/82)/mysql/data/redis/bun/cron/
     └── panel/
         ├── alpanel        # 二进制
+        ├── plugin/       # 插件目录
         ├── .env           # PANEL_PORT, USER, PASSWORD, TITLE, THEME
         └── data/db/
             └── alpanel.db # SQLite
