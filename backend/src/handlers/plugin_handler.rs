@@ -62,3 +62,27 @@ pub async fn list_plugins(headers: HeaderMap) -> AppResult<Json<Vec<PluginInfo>>
 
     Ok(Json(plugins))
 }
+
+pub async fn remote_plugins() -> AppResult<Json<Vec<PluginInfo>>> {
+    let tmp = std::env::temp_dir().join("alpanel_plugins.json");
+    let url = "https://raw.githubusercontent.com/svier0/alpanel-plugins/master/index.json";
+
+    let status = std::process::Command::new("wget")
+        .args(["-q", "-O", tmp.to_str().unwrap_or("/tmp/alpanel_plugins.json"), url])
+        .status()
+        .map_err(|_| crate::errors::AppError::Internal("无法执行 wget".into()))?;
+
+    if !status.success() {
+        return Err(crate::errors::AppError::Internal("无法获取远程插件列表".into()));
+    }
+
+    let content = std::fs::read_to_string(&tmp)
+        .map_err(|_| crate::errors::AppError::Internal("读取插件列表失败".into()))?;
+
+    std::fs::remove_file(&tmp).ok();
+
+    let plugins: Vec<PluginInfo> = serde_json::from_str(&content)
+        .map_err(|_| crate::errors::AppError::Internal("解析插件列表失败".into()))?;
+
+    Ok(Json(plugins))
+}
