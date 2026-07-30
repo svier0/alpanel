@@ -123,6 +123,7 @@ PANEL_USER=$PANEL_USER
 PANEL_PASSWORD=$PANEL_PASSWORD
 PANEL_TITLE=Alpanel
 PANEL_THEME=auto
+GHPROXY=${GH_PROXY:-false}
 EOF
 
 if ! command -v openrc > /dev/null 2>&1; then

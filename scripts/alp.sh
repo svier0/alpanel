@@ -4,6 +4,11 @@ set -eu
 ENV_FILE="/www/server/panel/.env"
 DB_FILE="/www/server/panel/data/db/alpanel.db"
 
+ghproxy_val=$(grep '^GHPROXY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2-)
+GH_PROXY=""
+[ -n "$ghproxy_val" ] && [ "$ghproxy_val" != "false" ] && GH_PROXY="$ghproxy_val"
+GH_RAW="${GH_PROXY}https://raw.githubusercontent.com/svier0/alpanel-plugins/master"
+
 help() {
     echo "Alpanel 面板管理工具"
     echo ""
@@ -225,8 +230,7 @@ list_plugins() {
 }
 
 list_market() {
-    url="https://raw.githubusercontent.com/svier0/alpanel-plugins/master/index.json"
-    wget -q --timeout=10 -O - "$url" 2>/dev/null || { echo "[]"; exit 1; }
+    wget -q --timeout=10 -O - "$GH_RAW/index.json" 2>/dev/null || { echo "[]"; exit 1; }
 }
 
 uninstall_plugin() {
@@ -254,7 +258,7 @@ install_plugin() {
     esac
     plugin_dir="/www/server/panel/plugin/$name"
     mkdir -p "$plugin_dir"
-    base_url="https://raw.githubusercontent.com/svier0/alpanel-plugins/master/plugins/$name"
+    base_url="$GH_RAW/plugins/$name"
     files="info.json ${name}.sh icon.png index.html"
     dl_err=0
     for f in $files; do
