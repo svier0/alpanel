@@ -71,6 +71,7 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
 - `apiFetch()` 封装 fetch，自动带 JWT `Authorization: Bearer xxx`
 - `stores/settings.ts` 管理主题/标题，从 `.env` 读取，localStorage 缓存
 - `App.vue` 包 `<el-config-provider :locale="zhCn">` + 监听系统颜色主题
+- `PluginMarket.vue` — 插件市场弹框，iframe 加载插件 HTML 界面，安装/卸载按钮调插件 action 端点
 
 ## Home.vue 要点
 
@@ -79,7 +80,7 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
 - 监控折线图 15 分钟窗口（180点 @5s），流量/磁盘切换，网卡选择
 - 系统信息：hostname/OS/arch/kernel/IP/开机时间/运行时长
 - 备忘录：localStorage textarea 持久化
-- 应用列表：每个应用调 `/api/<svc>/status` 获 installed/running/version，按钮与 Website/Database 页完全一致（版本号+▶/⏸+启动/停止/重启/重载下拉）
+- 应用列表：每个应用调 `/api/plugins/action/<svc>/status` 获 installed/running/version，按钮与 Website/Database 页完全一致（版本号+▶/⏸+启动/停止/重启/重载下拉）
 - 园环 tooltip：负载(1/5/15min)、CPU(型号*频率+per-core%+8项breakdown+Top5进程+killbtn)、内存(total/used/avail/free/cached/shared+Top5)、磁盘(设备/fs_type/总量/已用/可用/占用率+inode信息)
 
 ## Website.vue 要点
@@ -173,7 +174,7 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
 ├── wwwlogs/
 ├── wwwroot/        → 站点目录
 └── server/
-    ├── nginx/php(74/82)/mysql/data/redis/bun/cron/
+    ├── nginx/php(74/82/83/84/85)/mysql/data/redis/bun/cron/
     └── panel/
         ├── alpanel        # 二进制
         ├── plugin/       # 插件目录
@@ -196,7 +197,7 @@ MariaDB 是 MySQL 分支，程序内**一律称 MySQL**，`mariadb` 只作为上
 - 软链能直跑：对二进制用临时 `apk fetch --recursive patchelf` 在 mktemp 目录提取 patchelf，再 `--set-rpath` 嵌入 `/www/server/<svc>/lib`，用完 `rm -rf` 临时目录
 - 后端控制服务一律经插件 action 端点：`POST /api/plugins/action/<svc>/{status,install,start,stop,restart,reload}`，`source` 插件脚本后调对应函数
 - 后端控制服务一律经 `/etc/init.d/<svc>`（OpenRC），不经裸 `start-stop-daemon`
-- 路由：`/api/plugins/action/<svc>/{status,install,start,stop,restart,reload}`（<svc>=nginx|mysql|redis），前端 `apiFetch` 非 2xx 抛错 → 调用方 `catch` 设未安装
+- 路由：`/api/plugins/action/<svc>/{status,install,start,stop,restart,reload}`（<svc>=nginx|mysql|redis|php74|php82|php83|php84|php85），前端 `apiFetch` 非 2xx 抛错 → 调用方 `catch` 设未安装
 
 ## 数据库（alpanel.db）
 
