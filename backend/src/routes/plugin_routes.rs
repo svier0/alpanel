@@ -1,16 +1,8 @@
-use axum::{Json, Router};
 use axum::routing::get;
-use serde::Serialize;
+use axum::Router;
 
-#[derive(Serialize)]
-struct PluginInfo {
-    version: &'static str,
-}
+use crate::handlers::plugin_handler;
 
 pub fn routes() -> Router<()> {
-    Router::new().route("/api/plugins", get(list_plugins))
-}
-
-async fn list_plugins() -> Json<Vec<PluginInfo>> {
-    Json(vec![])
+    Router::new().route("/api/plugins", get(plugin_handler::list_plugins))
 }
