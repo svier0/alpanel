@@ -98,7 +98,7 @@ pub fn reload() -> AppResult<String> {
 
 pub fn install() -> AppResult<String> {
     let output = std::process::Command::new("alp")
-        .arg("51")
+        .args(["57", "nginx"])
         .output()
         .map_err(|e| AppError::Internal(format!("无法执行 alp 命令: {}", e)))?;
     if output.status.success() {
