@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use axum::{extract::Path as AxumPath, http::HeaderMap, Json};
@@ -18,6 +19,8 @@ pub struct PluginInfo {
     pub author: String,
     #[serde(default)]
     pub home: String,
+    #[serde(default)]
+    pub func: String,
 }
 
 pub async fn list_plugins(headers: HeaderMap) -> AppResult<Json<Vec<PluginInfo>>> {
@@ -92,6 +95,8 @@ pub async fn remote_plugins() -> AppResult<Json<Vec<PluginInfo>>> {
     Ok(Json(plugins))
 }
 
+const FIXED_METHODS: [&str; 7] = ["install", "uninstall", "start", "stop", "restart", "reload", "status"];
+
 fn valid_name(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
 }
@@ -113,7 +118,21 @@ pub async fn action(
         return Err(crate::errors::AppError::BadRequest("非法方法名".into()));
     }
 
-    let sh_path = Path::new("/www/server/panel/plugin").join(&name).join(format!("{}.sh", name));
+    // whitelist: fixed methods + plugin-defined func
+    let plugin_dir = Path::new("/www/server/panel/plugin").join(&name);
+    let info_path = plugin_dir.join("info.json");
+    let extra = std::fs::read_to_string(&info_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<PluginInfo>(&s).ok())
+        .map(|p| p.func)
+        .unwrap_or_default();
+    let allowed: HashSet<&str> = FIXED_METHODS.iter().copied().collect();
+    let extra_methods: HashSet<&str> = extra.split('|').filter(|s| !s.is_empty()).collect();
+    if !allowed.contains(method.as_str()) && !extra_methods.contains(method.as_str()) {
+        return Err(crate::errors::AppError::BadRequest(format!("不允许的方法: {}", method)));
+    }
+
+    let sh_path = plugin_dir.join(format!("{}.sh", name));
     if !sh_path.exists() {
         return Err(crate::errors::AppError::NotFound("插件脚本不存在".into()));
     }
