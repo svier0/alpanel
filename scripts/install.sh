@@ -41,7 +41,7 @@ fi
 apk update
 apk add sqlite jq vnstat
 rc-update add vnstat default
-service vnstat start 2>/dev/null || true
+rc-service vnstat start 2>/dev/null || true
 
 if [ "$(whoami)" != "root" ]; then
     echo "检查到当前非 root 权限进行面板安装"
