@@ -45,20 +45,17 @@
         </el-table-column>
       </el-table>
     </el-card>
-
-    <el-dialog v-model="dialog.visible" :title="dialog.title" width="800px" top="5vh" append-to-body destroy-on-close>
-      <iframe v-if="dialog.src" :src="dialog.src" class="plugin-iframe" />
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { RefreshRight, FolderOpened } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { apiFetch } from '@/utils/api'
 import { settings, fetchSettings } from '@/stores/settings'
+import { loadAndShow } from '@/utils/plugin'
 
 interface PluginItem {
   title: string
@@ -76,7 +73,6 @@ const router = useRouter()
 const activeTab = ref('installed')
 const localPlugins = ref<PluginItem[]>([])
 const remotePlugins = ref<PluginItem[]>([])
-const dialog = reactive({ visible: false, title: '', src: '' })
 const executing = ref('')
 
 const GH_RAW = computed(() => {
@@ -122,9 +118,7 @@ async function loadAll() {
 }
 
 function openPlugin(row: PluginItem) {
-  dialog.title = row.title
-  dialog.src = `/iframe/${row.name}/index.html`
-  dialog.visible = true
+  loadAndShow(row.name)
 }
 
 async function doAction(row: PluginItem, method: string) {
@@ -163,5 +157,4 @@ onMounted(loadAll)
 .link-icon:hover { opacity: 0.7; }
 .status-installed { color: var(--el-color-success); }
 .status-missing { color: var(--el-color-info); }
-.plugin-iframe { width: 100%; height: 70vh; border: none; }
 </style>

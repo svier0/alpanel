@@ -259,7 +259,7 @@ install_plugin() {
     plugin_dir="/www/server/panel/plugin/$name"
     mkdir -p "$plugin_dir"
     base_url="$GH_RAW/plugins/$name"
-    files="info.json ${name}.sh icon.png index.html"
+    files="info.json ${name}.sh icon.png index.js"
     dl_err=0
     for f in $files; do
         wget -q --timeout=10 "$base_url/$f" -O "$plugin_dir/$f" 2>/dev/null || { dl_err=1; break; }

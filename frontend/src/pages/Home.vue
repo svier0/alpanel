@@ -213,7 +213,7 @@
             <div v-for="app in apps" :key="app.name" class="app-row">
               <span class="app-name">{{ app.name }}</span>
               <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd(app, c)">
-                <el-button size="small" :type="app.running ? 'default' : 'danger'">
+                <el-button size="small" :type="app.running ? 'default' : 'danger'" @click="loadAndShow(app.name.toLowerCase())">
                   {{ app.name }}{{ app.version ? ' [' + app.version + ']' : '' }} {{ app.running ? '▶' : '⏸' }}
                 </el-button>
                 <template #dropdown>
@@ -237,6 +237,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { RefreshRight, Monitor } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
+import { loadAndShow } from '@/utils/plugin'
 
 interface OsInfo {
   os_id: string; os_name: string; os_version: string; os_pretty: string
