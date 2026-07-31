@@ -408,19 +408,19 @@ function saveTabs() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ tabs: data, activeTab: activeTab.value, tabIdSeq }))
 }
 
-function restoreTabs() {
+function restoreTabs(): Promise<boolean> {
   const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return false
+  if (!raw) return Promise.resolve(false)
   try {
     const saved = JSON.parse(raw)
-    if (!saved.tabs?.length) return false
+    if (!saved.tabs?.length) return Promise.resolve(false)
     tabIdSeq = saved.tabIdSeq || 0
     const rest: Tab[] = saved.tabs.map((st: StoredTab) => {
       return { id: st.id, title: st.title, type: 'browser' as const, path: st.path, files: [], loading: false, selectedFile: null, selectedRows: [], sortProp: 'name', sortOrder: 'ascending' }
     })
     // fetch data first, then assign to tabs.value so Vue tracks from the start
     const browserTabs = rest.filter((t): t is BrowserTab => t.type === 'browser')
-    Promise.all(browserTabs.map(t =>
+    return Promise.all(browserTabs.map(t =>
       apiFetch(`/api/files/list?path=${encodeURIComponent(t.path)}`).then(data => {
         if (data?.path) t.path = data.path
         t.title = t.path === '/' ? '根目录' : t.path.split('/').filter(Boolean).pop() || '根目录'
@@ -430,9 +430,9 @@ function restoreTabs() {
       tabs.value = rest
       activeTab.value = saved.activeTab || rest[0]?.id || ''
       pathInput.value = (rest.find(t => t.id === activeTab.value) as BrowserTab)?.path || '/'
+      return true
     })
-    return true
-  } catch { return false }
+  } catch { return Promise.resolve(false) }
 }
 
 function closeCtxMenu() {
@@ -441,16 +441,16 @@ function closeCtxMenu() {
 
 watch([tabs, activeTab], () => { saveTabs() }, { deep: true })
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', closeCtxMenu)
-  const restored = restoreTabs()
+  const pathQ = route.query.path as string | undefined
+  const restored = await restoreTabs()
   if (!restored) addBrowserTab()
   // handle query param after restore
-  const pathQ = route.query.path as string | undefined
   if (pathQ) {
     addBrowserTabAt(pathQ)
     // clean query to avoid re-process on re-mount
-    window.history.replaceState(null, '', '/#/file')
+    window.history.replaceState(null, '', '/file')
   }
 })
 
