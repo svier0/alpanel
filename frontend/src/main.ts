@@ -5,6 +5,8 @@ import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
 import './style.css'
+import { Plugin } from './utils/plugin'
+;(window as any).Plugin = Plugin
 
 const app = createApp(App)
 
