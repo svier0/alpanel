@@ -1,10 +1,13 @@
-import { h, createApp, ref } from 'vue'
+import { h, createApp, ref, reactive, computed } from 'vue'
 import ElementPlus from 'element-plus'
-import { apiFetch } from './api'
+import { apiFetch, authHeaders } from './api'
 
 export interface PluginContext {
   fetch(action: string, opts?: RequestInit): Promise<any>
   plugin_name: string
+  ref: typeof ref
+  reactive: typeof reactive
+  computed: typeof computed
 }
 
 export interface PluginConfig {
@@ -25,6 +28,9 @@ export function Plugin(config: PluginConfig) {
       return apiFetch(url, { method: 'POST', ...opts })
     },
     plugin_name,
+    ref,
+    reactive,
+    computed,
   }
 
   const styleCSS = style ? style() : ''
@@ -73,4 +79,12 @@ export function Plugin(config: PluginConfig) {
       app.mount(container)
     },
   }
+}
+
+export async function loadAndShow(name: string) {
+  const url = `/iframe/${name}/index.js?_=${Date.now()}`
+  const res = await fetch(url, { headers: authHeaders() })
+  if (!res.ok) throw new Error(`加载插件失败: ${name}`)
+  const code = await res.text()
+  new Function('Plugin', code)(Plugin)
 }
