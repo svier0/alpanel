@@ -12,6 +12,19 @@ fn current_port() -> u16 {
         .unwrap_or(5555)
 }
 
+fn current_ghproxy() -> String {
+    let path = std::env::var("PANEL_ENV").unwrap_or_else(|_| ".env".to_string());
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| {
+            s.lines().find_map(|l| {
+                let l = l.trim();
+                l.strip_prefix("GHPROXY=").map(|v| v.trim().to_string())
+            })
+        })
+        .unwrap_or_default()
+}
+
 pub fn get_settings() -> AppResult<SettingsResponse> {
     let cfg = config::config().read().unwrap();
     let user = user_repository::get_user_by_username(&cfg.panel_user)
@@ -22,6 +35,7 @@ pub fn get_settings() -> AppResult<SettingsResponse> {
         user,
         title: cfg.panel_title.clone(),
         theme: cfg.panel_theme.clone(),
+        ghproxy: current_ghproxy(),
     })
 }
 
@@ -72,6 +86,7 @@ pub fn update_settings(body: SettingsUpdate) -> (SettingsResponse, bool) {
         user: cfg.panel_user.clone(),
         title: cfg.panel_title.clone(),
         theme: cfg.panel_theme.clone(),
+        ghproxy: current_ghproxy(),
     };
 
     (resp, port_changed)

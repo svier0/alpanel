@@ -6,6 +6,8 @@ pub struct SettingsResponse {
     pub user: String,
     pub title: String,
     pub theme: String,
+    #[serde(default)]
+    pub ghproxy: String,
 }
 
 #[derive(Deserialize)]
