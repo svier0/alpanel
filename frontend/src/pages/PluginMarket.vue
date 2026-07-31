@@ -92,9 +92,9 @@ const allPlugins = computed(() => {
     if (existing) {
       existing.installed = true
       existing.upgradable = existing.versions !== l.versions
-      existing.logo = `/static/img/plugins/icon/${l.name}.png`
+      existing.logo = `/iframe/${l.name}/icon.png`
     } else {
-      map.set(l.name, { ...l, installed: true, upgradable: false, logo: `/static/img/plugins/icon/${l.name}.png` })
+      map.set(l.name, { ...l, installed: true, upgradable: false, logo: `/iframe/${l.name}/icon.png` })
     }
   }
   return [...map.values()]
@@ -110,7 +110,7 @@ async function loadAll() {
   await fetchSettings()
   try {
     localPlugins.value = (await apiFetch('/api/plugins')).map((p: any) => ({
-      ...p, installed: true, upgradable: false, logo: `/static/img/plugins/icon/${p.name}.png`
+      ...p, installed: true, upgradable: false, logo: `/iframe/${p.name}/icon.png`
     }))
   } catch { localPlugins.value = [] }
 
