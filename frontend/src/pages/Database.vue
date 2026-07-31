@@ -39,7 +39,7 @@
                 <el-icon><Key /></el-icon>root密码
               </el-button>
               <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd('mysql', c)">
-                <el-button size="small" :type="mysqlRunning ? 'default' : 'danger'" @click="loadAndShow('mysql')">
+                <el-button size="small" :type="mysqlRunning ? 'default' : 'danger'" @click="openPlugin('mysql')">
                   MySQL{{ mysqlVersion ? ' [' + mysqlVersion + ']' : '' }} {{ mysqlRunning ? '\u25b6' : '\u23f8' }}
                 </el-button>
                 <template #dropdown>
@@ -138,7 +138,7 @@
           <div class="toolbar-row">
             <div class="toolbar-left">
               <el-dropdown size="small" trigger="hover" @command="(c: string) => handleSrvCmd('redis', c)">
-                <el-button size="small" :type="redisRunning ? 'default' : 'danger'" @click="loadAndShow('redis')">
+                <el-button size="small" :type="redisRunning ? 'default' : 'danger'" @click="openPlugin('redis')">
                   Redis{{ redisVersion ? ' [' + redisVersion + ']' : '' }} {{ redisRunning ? '\u25b6' : '\u23f8' }}
                 </el-button>
                 <template #dropdown>
@@ -205,7 +205,7 @@ import { ref, computed, watch, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Search, RefreshRight, Key, Refresh, View, Hide, CopyDocument } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
-import { loadAndShow } from '@/utils/plugin'
+import { openPlugin } from '@/utils/plugin'
 
 const tabs = [
   { key: 'mysql', label: 'MySQL' },

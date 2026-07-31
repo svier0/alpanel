@@ -17,7 +17,7 @@
           <template #default="{ row }">
             <div class="plugin-name-cell">
               <img v-if="row.logo" :src="row.logo" class="plugin-logo" />
-              <span class="link-name" @click="openPlugin(row)">{{ row.title }}</span>
+              <span class="link-name" @click="openPlugin(row.name)">{{ row.title }}</span>
             </div>
           </template>
         </el-table-column>
@@ -55,7 +55,7 @@ import { RefreshRight, FolderOpened } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { apiFetch } from '@/utils/api'
 import { settings, fetchSettings } from '@/stores/settings'
-import { loadAndShow } from '@/utils/plugin'
+import { openPlugin } from '@/utils/plugin'
 
 interface PluginItem {
   title: string
@@ -115,10 +115,6 @@ async function loadAll() {
       ...p, installed: false, upgradable: false, logo: `${GH_RAW.value}/plugins/${p.name}/icon.png`
     }))
   } catch { remotePlugins.value = [] }
-}
-
-function openPlugin(row: PluginItem) {
-  loadAndShow(row.name)
 }
 
 async function doAction(row: PluginItem, method: string) {

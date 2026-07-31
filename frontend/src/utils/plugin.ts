@@ -81,7 +81,7 @@ export function Plugin(config: PluginConfig) {
   }
 }
 
-export async function loadAndShow(name: string) {
+export async function openPlugin(name: string) {
   const url = `/iframe/${name}/index.js?_=${Date.now()}`
   const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) throw new Error(`加载插件失败: ${name}`)
