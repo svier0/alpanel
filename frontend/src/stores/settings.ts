@@ -4,11 +4,13 @@ import { apiFetch } from '@/utils/api'
 export interface Settings {
   title: string
   theme: 'light' | 'dark' | 'auto'
+  ghproxy: string
 }
 
 export const settings = reactive<Settings>({
   title: 'Alpanel',
   theme: 'auto',
+  ghproxy: '',
 })
 
 function applyTheme(theme: string) {
@@ -30,6 +32,7 @@ export async function fetchSettings() {
     const data = await apiFetch('/api/settings')
     settings.title = data.title
     settings.theme = data.theme
+    settings.ghproxy = data.ghproxy || ''
     applyTheme(data.theme)
     if (data.theme === 'auto') listenTheme()
   } catch {}

@@ -36,10 +36,10 @@
         </el-table-column>
         <el-table-column label="操作" width="200" align="center">
           <template #default="{ row }">
-            <el-button v-if="!row.installed" size="small" type="primary" @click="doAction(row, 'install')">安装</el-button>
+            <el-button v-if="!row.installed" size="small" type="primary" :loading="executing === row.name" :disabled="!!executing" @click="doAction(row, 'install')">安装</el-button>
             <template v-else>
-              <el-button v-if="row.upgradable" size="small" type="warning" @click="doAction(row, 'update')">更新</el-button>
-              <el-button size="small" type="danger" @click="doAction(row, 'uninstall')">卸载</el-button>
+              <el-button v-if="row.upgradable" size="small" type="warning" :loading="executing === row.name" :disabled="!!executing" @click="doAction(row, 'update')">更新</el-button>
+              <el-button size="small" type="danger" :loading="executing === row.name" :disabled="!!executing" @click="doAction(row, 'uninstall')">卸载</el-button>
             </template>
           </template>
         </el-table-column>
@@ -58,6 +58,7 @@ import { useRouter } from 'vue-router'
 import { RefreshRight, FolderOpened } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { apiFetch } from '@/utils/api'
+import { settings, fetchSettings } from '@/stores/settings'
 
 interface PluginItem {
   title: string
@@ -76,8 +77,12 @@ const activeTab = ref('installed')
 const localPlugins = ref<PluginItem[]>([])
 const remotePlugins = ref<PluginItem[]>([])
 const dialog = reactive({ visible: false, title: '', src: '' })
+const executing = ref('')
 
-const GH_RAW = 'https://raw.githubusercontent.com/svier0/alpanel-plugins/master'
+const GH_RAW = computed(() => {
+  const base = 'https://raw.githubusercontent.com/svier0/alpanel-plugins/master'
+  return settings.ghproxy ? settings.ghproxy.replace(/\/$/, '') + '/' + base : base
+})
 
 const allPlugins = computed(() => {
   const map = new Map<string, PluginItem>()
@@ -102,6 +107,7 @@ const filtered = computed(() => {
 })
 
 async function loadAll() {
+  await fetchSettings()
   try {
     localPlugins.value = (await apiFetch('/api/plugins')).map((p: any) => ({
       ...p, installed: true, upgradable: false, logo: `/static/img/plugins/icon/${p.name}.png`
@@ -110,7 +116,7 @@ async function loadAll() {
 
   try {
     remotePlugins.value = (await apiFetch('/api/plugins/remote')).map((p: any) => ({
-      ...p, installed: false, upgradable: false, logo: `${GH_RAW}/plugins/${p.name}/icon.png`
+      ...p, installed: false, upgradable: false, logo: `${GH_RAW.value}/plugins/${p.name}/icon.png`
     }))
   } catch { remotePlugins.value = [] }
 }
@@ -122,6 +128,8 @@ function openPlugin(row: PluginItem) {
 }
 
 async function doAction(row: PluginItem, method: string) {
+  if (executing.value) return
+  executing.value = row.name
   try {
     const res: any = await apiFetch(`/api/plugins/action/${row.name}/${method}`, { method: 'POST' })
     if (res.code === 0) {
@@ -132,6 +140,8 @@ async function doAction(row: PluginItem, method: string) {
     }
   } catch {
     ElMessage.error('操作失败')
+  } finally {
+    executing.value = ''
   }
 }
 
