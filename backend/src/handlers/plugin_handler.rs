@@ -76,6 +76,7 @@ fn valid_method(s: &str) -> bool {
 pub async fn action(
     headers: HeaderMap,
     AxumPath((name, method)): AxumPath<(String, String)>,
+    body: axum::body::Bytes,
 ) -> AppResult<Json<serde_json::Value>> {
     check_auth(&headers)?;
 
@@ -100,6 +101,12 @@ pub async fn action(
         return Err(crate::errors::AppError::BadRequest(format!("不允许的方法: {}", method)));
     }
 
+    let args = if body.is_empty() {
+        String::new()
+    } else {
+        String::from_utf8_lossy(&body).to_string()
+    };
+
     let sh_path = plugin_dir.join(format!("{}.sh", name));
 
     let output = match method.as_str() {
@@ -119,10 +126,16 @@ pub async fn action(
             if !sh_path.exists() {
                 return Err(crate::errors::AppError::NotFound("插件脚本不存在".into()));
             }
+            let sh_path = sh_path.clone();
+            let method = method.clone();
+            let args = args.clone();
             tokio::task::spawn_blocking(move || {
-                std::process::Command::new("sh")
-                    .args(["-c", &format!(". '{}' && {}", sh_path.display(), method)])
-                    .output()
+                let mut cmd = std::process::Command::new("sh");
+                cmd.args(["-c", &format!(". '{}' && {}", sh_path.display(), method)]);
+                if !args.is_empty() {
+                    cmd.env("PLUGIN_ARGS", &args);
+                }
+                cmd.output()
             }).await.map_err(|_| crate::errors::AppError::Internal("执行失败".into()))?
             .map_err(|_| crate::errors::AppError::Internal("无法执行脚本".into()))?
         }
