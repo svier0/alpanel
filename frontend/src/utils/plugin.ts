@@ -1,5 +1,6 @@
 import { h, createApp, ref, reactive, computed } from 'vue'
 import ElementPlus from 'element-plus'
+import { ElDialog } from 'element-plus'
 import { apiFetch, authHeaders } from './api'
 
 export interface PluginContext {
@@ -12,13 +13,27 @@ export interface PluginContext {
 
 export interface PluginConfig {
   plugin_name: string
+  width?: string | number
+  height?: string | number
   setup?(ctx: PluginContext): Record<string, any>
   style?(): string
   render?(h: any, state: any): any
 }
 
 export function Plugin(config: PluginConfig) {
-  const { plugin_name, setup, style, render } = config
+  const { plugin_name, width, height, setup, style, render } = config
+
+  const dialogWidth = typeof width === 'number'
+    ? `${width}px`
+    : width && typeof width === 'string'
+      ? width
+      : '620px'
+
+  const dialogHeight = typeof height === 'number'
+    ? `${height}px`
+    : height && typeof height === 'string'
+      ? height
+      : '620px'
 
   const ctx: PluginContext = {
     fetch(action: string, opts: RequestInit = {}) {
@@ -55,18 +70,19 @@ export function Plugin(config: PluginConfig) {
         setup() {
           return () => {
             const children: any[] = []
+            children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:auto}`))
             if (styleCSS) {
               children.push(h('style', {}, styleCSS))
             }
             if (render) {
               children.push(render(h, state))
             }
-            return h('el-dialog', {
+            return h(ElDialog, {
               modelValue: visible.value,
               'onUpdate:modelValue': (v: boolean) => { if (!v) close() },
               title: plugin_name,
-              width: '800px',
-              top: '5vh',
+              width: dialogWidth,
+              alignCenter: true,
               appendToBody: false,
               destroyOnClose: true,
             }, { default: () => children })
@@ -86,5 +102,9 @@ export async function openPlugin(name: string) {
   const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) throw new Error(`加载插件失败: ${name}`)
   const code = await res.text()
-  new Function('Plugin', code)(Plugin)
+  try {
+    new Function('Plugin', code)(Plugin)
+  } catch (e) {
+    console.error('[openPlugin] execution error:', e)
+  }
 }
