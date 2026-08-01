@@ -4,7 +4,7 @@ import { ElDialog } from 'element-plus'
 import { apiFetch, authHeaders } from './api'
 
 export interface PluginContext {
-  fetch(action: string, opts?: RequestInit): Promise<any>
+  api(action: string, opts?: RequestInit): Promise<any>
   plugin_name: string
   ref: typeof ref
   reactive: typeof reactive
@@ -48,7 +48,7 @@ export function Plugin(config: PluginConfig) {
       : '620px'
 
   const ctx: PluginContext = {
-    fetch(action: string, opts: RequestInit = {}) {
+    api(action: string, opts: RequestInit = {}) {
       const url = action.startsWith('/')
         ? action
         : `/api/plugins/action/${plugin_name}/${action}`
