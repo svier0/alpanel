@@ -23,6 +23,16 @@ export interface PluginConfig {
 export function Plugin(config: PluginConfig) {
   const { plugin_name, width, height, setup, style, render } = config
 
+  const scopeClass = 'plugin-dlg'
+
+  function scopeCSS(css: string, prefix: string): string {
+    return css.replace(/([^{]*)\{/g, (_, sel: string) => {
+      const selector = sel.trim()
+      if (!selector || selector.startsWith('@')) return `${sel}{`
+      return selector.split(',').map(s => `${prefix} ${s.trim()}`).join(',') + '{'
+    })
+  }
+
   const dialogWidth = typeof width === 'number'
     ? `${width}px`
     : width && typeof width === 'string'
@@ -48,7 +58,7 @@ export function Plugin(config: PluginConfig) {
     computed,
   }
 
-  const styleCSS = style ? style() : ''
+  const styleCSS = style ? scopeCSS(style(), `.${scopeClass}`) : ''
   const state = setup ? setup(ctx) : {}
 
   return {
@@ -56,7 +66,6 @@ export function Plugin(config: PluginConfig) {
       const container = document.createElement('div')
       document.body.appendChild(container)
 
-      const scope = `plugin-dlg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
       const visible = ref(true)
 
       function close() {
@@ -71,7 +80,7 @@ export function Plugin(config: PluginConfig) {
         setup() {
           return () => {
             const children: any[] = []
-            children.push(h('style', {}, `.el-dialog.${scope}{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog.${scope} .el-dialog__body{flex:1;overflow:auto}`))
+            children.push(h('style', {}, `.${scopeClass} .el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.${scopeClass} .el-dialog__body{flex:1;overflow:auto}`))
             if (styleCSS) {
               children.push(h('style', {}, styleCSS))
             }
@@ -81,7 +90,7 @@ export function Plugin(config: PluginConfig) {
             return h(ElDialog, {
               modelValue: visible.value,
               'onUpdate:modelValue': (v: boolean) => { if (!v) close() },
-              class: scope,
+              class: scopeClass,
               title: plugin_name,
               width: dialogWidth,
               alignCenter: true,
