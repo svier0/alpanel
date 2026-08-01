@@ -1,7 +1,15 @@
-import { h, createApp, ref, reactive, computed } from 'vue'
+import { h, createApp, ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import ElementPlus from 'element-plus'
 import { ElDialog } from 'element-plus'
 import { apiFetch, authHeaders } from './api'
+import { EditorView, keymap } from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { oneDark } from '@codemirror/theme-one-dark'
+import { nginx } from '@codemirror/legacy-modes/mode/nginx'
+import { shell } from '@codemirror/legacy-modes/mode/shell'
+import { json } from '@codemirror/lang-json'
+import { StreamLanguage } from '@codemirror/language'
 
 export interface PluginContext {
   api(action: string, opts?: RequestInit): Promise<any>
@@ -9,6 +17,21 @@ export interface PluginContext {
   ref: typeof ref
   reactive: typeof reactive
   computed: typeof computed
+  onMounted: (fn: () => void) => void
+  onUnmounted: (fn: () => void) => void
+  createEditor: (el: HTMLElement, options: EditorOptions) => EditorHandle
+}
+
+export interface EditorOptions {
+  value: string
+  language?: string
+  readonly?: boolean
+  onChange?: (value: string) => void
+}
+
+export interface EditorHandle {
+  destroy: () => void
+  setValue: (value: string) => void
 }
 
 export interface PluginConfig {
@@ -47,6 +70,9 @@ export function Plugin(config: PluginConfig) {
       ? height
       : '620px'
 
+  const mountFns: (() => void)[] = []
+  const unmountFns: (() => void)[] = []
+
   const ctx: PluginContext = {
     api(action: string, opts: RequestInit = {}) {
       const url = action.startsWith('/')
@@ -58,6 +84,47 @@ export function Plugin(config: PluginConfig) {
     ref,
     reactive,
     computed,
+    onMounted(fn: () => void) { mountFns.push(fn) },
+    onUnmounted(fn: () => void) { unmountFns.push(fn) },
+    createEditor(el: HTMLElement, options: EditorOptions): EditorHandle {
+      const extensions: any[] = [
+        history(),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        oneDark,
+        EditorView.lineWrapping,
+      ]
+      if (options.readonly) {
+        extensions.push(EditorState.readOnly.of(true))
+        extensions.push(EditorView.editable.of(false))
+      }
+      const lang = options.language || ''
+      if (lang === 'nginx') {
+        extensions.push(StreamLanguage.define(nginx))
+      } else if (lang === 'shell') {
+        extensions.push(StreamLanguage.define(shell))
+      } else if (lang === 'json') {
+        extensions.push(json())
+      }
+      if (options.onChange) {
+        extensions.push(EditorView.updateListener.of((update: any) => {
+          if (update.docChanged) {
+            options.onChange!(update.state.doc.toString())
+          }
+        }))
+      }
+      const view = new EditorView({
+        state: EditorState.create({ doc: options.value, extensions }),
+        parent: el,
+      })
+      return {
+        destroy() { view.destroy() },
+        setValue(value: string) {
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: value }
+          })
+        },
+      }
+    },
   }
 
   const styleCSS = style ? scopeCSS(style(), `.${scopeClass}`) : ''
@@ -80,6 +147,8 @@ export function Plugin(config: PluginConfig) {
 
       const App = {
         setup() {
+          onMounted(() => { mountFns.forEach(fn => fn()) })
+          onUnmounted(() => { unmountFns.forEach(fn => fn()) })
           return () => {
             const children: any[] = []
             children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:auto}`))
