@@ -1,4 +1,4 @@
-import { h, createApp, ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { h, createApp, ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import ElementPlus from 'element-plus'
 import { ElDialog } from 'element-plus'
 import { apiFetch, authHeaders } from './api'
@@ -11,6 +11,41 @@ import { shell } from '@codemirror/legacy-modes/mode/shell'
 import { json } from '@codemirror/lang-json'
 import { StreamLanguage } from '@codemirror/language'
 
+function langExtension(lang: string) {
+  if (lang === 'nginx') return StreamLanguage.define(nginx)
+  if (lang === 'shell') return StreamLanguage.define(shell)
+  if (lang === 'json') return json()
+  return []
+}
+
+const PluginEditor = {
+  props: { modelValue: String, language: String, readonly: Boolean },
+  emits: ['update:modelValue'],
+  setup(props: any, { emit }: any) {
+    const el = ref<HTMLElement>()
+    let view: EditorView | null = null
+
+    function create(viewEl: HTMLElement) {
+      const exts: any[] = [history(), keymap.of([...defaultKeymap, ...historyKeymap]), oneDark, EditorView.lineWrapping]
+      if (props.readonly) { exts.push(EditorState.readOnly.of(true), EditorView.editable.of(false)) }
+      const langExt = langExtension(props.language || '')
+      if (langExt) exts.push(...(Array.isArray(langExt) ? langExt : [langExt]))
+      exts.push(EditorView.updateListener.of((u: any) => { if (u.docChanged) emit('update:modelValue', u.state.doc.toString()) }))
+      view = new EditorView({ state: EditorState.create({ doc: props.modelValue || '', extensions: exts }), parent: viewEl })
+    }
+
+    onMounted(() => { if (el.value) create(el.value) })
+    onUnmounted(() => { view?.destroy(); view = null })
+    watch(() => props.modelValue, (v: string) => {
+      if (view && v !== view.state.doc.toString()) {
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: v } })
+      }
+    })
+
+    return () => h('div', { ref: el, class: 'plugin-editor' })
+  },
+}
+
 export interface PluginContext {
   api(action: string, opts?: RequestInit): Promise<any>
   plugin_name: string
@@ -19,19 +54,7 @@ export interface PluginContext {
   computed: typeof computed
   onMounted: (fn: () => void) => void
   onUnmounted: (fn: () => void) => void
-  createEditor: (el: HTMLElement, options: EditorOptions) => EditorHandle
-}
-
-export interface EditorOptions {
-  value: string
-  language?: string
-  readonly?: boolean
-  onChange?: (value: string) => void
-}
-
-export interface EditorHandle {
-  destroy: () => void
-  setValue: (value: string) => void
+  Editor: typeof PluginEditor
 }
 
 export interface PluginConfig {
@@ -86,45 +109,7 @@ export function Plugin(config: PluginConfig) {
     computed,
     onMounted(fn: () => void) { mountFns.push(fn) },
     onUnmounted(fn: () => void) { unmountFns.push(fn) },
-    createEditor(el: HTMLElement, options: EditorOptions): EditorHandle {
-      const extensions: any[] = [
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        oneDark,
-        EditorView.lineWrapping,
-      ]
-      if (options.readonly) {
-        extensions.push(EditorState.readOnly.of(true))
-        extensions.push(EditorView.editable.of(false))
-      }
-      const lang = options.language || ''
-      if (lang === 'nginx') {
-        extensions.push(StreamLanguage.define(nginx))
-      } else if (lang === 'shell') {
-        extensions.push(StreamLanguage.define(shell))
-      } else if (lang === 'json') {
-        extensions.push(json())
-      }
-      if (options.onChange) {
-        extensions.push(EditorView.updateListener.of((update: any) => {
-          if (update.docChanged) {
-            options.onChange!(update.state.doc.toString())
-          }
-        }))
-      }
-      const view = new EditorView({
-        state: EditorState.create({ doc: options.value, extensions }),
-        parent: el,
-      })
-      return {
-        destroy() { view.destroy() },
-        setValue(value: string) {
-          view.dispatch({
-            changes: { from: 0, to: view.state.doc.length, insert: value }
-          })
-        },
-      }
-    },
+    Editor: PluginEditor,
   }
 
   const styleCSS = style ? scopeCSS(style(), `.${scopeClass}`) : ''
