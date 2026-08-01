@@ -1,5 +1,5 @@
 import { h, createApp, ref, reactive, computed } from 'vue'
-import ElementPlus from 'element-plus'
+import ElementPlus, { ElMessage } from 'element-plus'
 import { apiFetch, authHeaders } from './api'
 
 export interface PluginContext {
@@ -86,5 +86,9 @@ export async function openPlugin(name: string) {
   const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) throw new Error(`加载插件失败: ${name}`)
   const code = await res.text()
+  if (!code.trim()) {
+    ElMessage.warning(`插件 ${name} 未安装或文件为空`)
+    return
+  }
   new Function('Plugin', code)(Plugin)
 }
