@@ -56,6 +56,7 @@ export function Plugin(config: PluginConfig) {
       const container = document.createElement('div')
       document.body.appendChild(container)
 
+      const scope = `plugin-dlg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
       const visible = ref(true)
 
       function close() {
@@ -70,7 +71,7 @@ export function Plugin(config: PluginConfig) {
         setup() {
           return () => {
             const children: any[] = []
-            children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:auto}`))
+            children.push(h('style', {}, `.el-dialog.${scope}{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog.${scope} .el-dialog__body{flex:1;overflow:auto}`))
             if (styleCSS) {
               children.push(h('style', {}, styleCSS))
             }
@@ -80,6 +81,7 @@ export function Plugin(config: PluginConfig) {
             return h(ElDialog, {
               modelValue: visible.value,
               'onUpdate:modelValue': (v: boolean) => { if (!v) close() },
+              class: scope,
               title: plugin_name,
               width: dialogWidth,
               alignCenter: true,
