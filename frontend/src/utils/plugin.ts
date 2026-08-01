@@ -26,11 +26,13 @@ export function Plugin(config: PluginConfig) {
   const scopeClass = 'plugin-dlg'
 
   function scopeCSS(css: string, prefix: string): string {
-    return css.replace(/([^{]*)\{/g, (_, sel: string) => {
-      const selector = sel.trim()
-      if (!selector || selector.startsWith('@')) return `${sel}{`
-      return selector.split(',').map(s => `${prefix} ${s.trim()}`).join(',') + '{'
-    })
+    return css.split('}').map(block => {
+      const idx = block.lastIndexOf('{')
+      if (idx === -1) return block
+      const selector = block.slice(0, idx).trim()
+      if (!selector || selector.startsWith('@')) return block
+      return selector.split(',').map(s => `${prefix} ${s.trim()}`).join(', ') + '{' + block.slice(idx + 1)
+    }).join('}')
   }
 
   const dialogWidth = typeof width === 'number'
