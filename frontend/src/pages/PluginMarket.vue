@@ -17,7 +17,8 @@
           <template #default="{ row }">
             <div class="plugin-name-cell">
               <img v-if="row.logo" :src="row.logo" class="plugin-logo" />
-              <span class="link-name" @click="openPlugin(row.name)">{{ row.title }}</span>
+              <span v-if="row.installed" class="link-name" @click="openPlugin(row.name)">{{ row.title }}</span>
+              <span v-else>{{ row.title }}</span>
             </div>
           </template>
         </el-table-column>
