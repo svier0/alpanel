@@ -8,6 +8,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { nginx } from '@codemirror/legacy-modes/mode/nginx'
 import { shell } from '@codemirror/legacy-modes/mode/shell'
+import { properties } from '@codemirror/legacy-modes/mode/properties'
 import { json } from '@codemirror/lang-json'
 import { StreamLanguage } from '@codemirror/language'
 
@@ -15,6 +16,7 @@ function langExtension(lang: string) {
   if (lang === 'nginx') return StreamLanguage.define(nginx)
   if (lang === 'shell') return StreamLanguage.define(shell)
   if (lang === 'json') return json()
+  if (lang === 'ini') return StreamLanguage.define(properties)
   return []
 }
 
