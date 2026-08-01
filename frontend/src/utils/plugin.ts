@@ -80,7 +80,7 @@ export function Plugin(config: PluginConfig) {
         setup() {
           return () => {
             const children: any[] = []
-            children.push(h('style', {}, `.${scopeClass} .el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.${scopeClass} .el-dialog__body{flex:1;overflow:auto}`))
+            children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:auto}`))
             if (styleCSS) {
               children.push(h('style', {}, styleCSS))
             }
