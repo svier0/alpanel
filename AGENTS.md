@@ -40,7 +40,7 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
   ├── routes/plugin_routes     — /api/plugins/*（action/list/remote）
   ├── routes/site_routes       — /api/sites/*（含 /api/sites/types）
   ├── routes/system_routes     — /api/system/{users,info,stat,kill/{pid}}
-  └── frontend.rs              — rust_embed 嵌入前端 dist，SPA 兜底
+  └── frontend.rs              — 从文件系统 dist/ 目录读取静态文件，SPA 兜底
 ```
 
 - `handlers/` 处理 HTTP 入参出参，调 `services/` 或 `repositories/`
@@ -68,10 +68,52 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
   └── /logout   → Logout.vue       清除 token 跳转登录
 ```
 
-- `apiFetch()` 封装 fetch，自动带 JWT `Authorization: Bearer xxx`
+- `apiFetch()` 封装 fetch，自动带 JWT `Authorization: Bearer xxx`，非 2xx 抛异常，JSON 外返回 `text()`
 - `stores/settings.ts` 管理主题/标题，从 `.env` 读取，localStorage 缓存
 - `App.vue` 包 `<el-config-provider :locale="zhCn">` + 监听系统颜色主题
-- `PluginMarket.vue` — 插件市场弹框，iframe 加载插件 HTML 界面，安装/卸载按钮调插件 action 端点
+- `PluginMarket.vue` — 插件市场，`openPlugin(name)` 动态加载 index.js，Vue 弹窗渲染（非 iframe）；仅已安装插件可点击打开
+
+## 插件系统（Plugin API）
+
+`frontend/src/utils/plugin.ts` 提供插件沙箱：
+
+```ts
+// 插件 JS DSL（由 new Function('Plugin', code) 执行）
+Plugin({
+  plugin_name: 'nginx',
+  width: 800,          // 可选，数字=px，字符串原样；默认 620px
+  height: 700,         // 默认 620px
+  setup(ctx) { ... },  // Vue Composition API 风格，返回 state
+  render(h, state) { ... },  // 返回 VNode
+  style() { return 'css string' },  // 自动以 .plugin-dlg 前缀 scope
+}).show()
+```
+
+### ctx 上下文
+
+| 属性 | 说明 |
+|------|------|
+| `ctx.api(action, opts?)` | 调后端；`'status'` → `POST /api/plugins/action/{name}/status`；`'/api/xxx'` → 完整路径 |
+| `ctx.ref` / `ctx.reactive` / `ctx.computed` | Vue 3 响应式 API |
+| `ctx.onMounted(fn)` / `ctx.onUnmounted(fn)` | 生命周期钩子 |
+| `ctx.Editor` | CodeMirror 6 编辑器组件，`h(ctx.Editor, { modelValue, language, readonly, 'onUpdate:modelValue' })` |
+| `ctx.plugin_name` | 插件名 |
+
+### 插件 CSS 自动 scope
+
+插件 `style()` 返回的 CSS 自动加 `.plugin-dlg` 前缀（如 `.app{...}` → `.plugin-dlg .app{...}`），弹窗根元素带 `class="plugin-dlg"`，避免样式泄露到页面其他元素。
+
+### 后端 action 白名单
+
+固定方法 `install|uninstall|start|stop|restart|reload|status` + `info.json` 的 `func` 字段（`|` 分隔，如 `"func":"get_version|get_nginx_value"`）。
+
+### nginx 插件设计参考
+
+- 服务控制：`ctx.api('status')` / `ctx.api('start')` / `ctx.api('stop')` ...
+- 配置文件：`ctx.api('/api/files/read?path=...', {method:'GET'})` 读 / `POST /api/files/write` 写
+- 性能调整：sh 侧 `get_nginx_value` / `set_nginx_value`（读 config 解析 JSON / 写 JSON 到 `/tmp/nginx_perf.json` 后 sed 更新并重载）
+- 负载状态：sh 侧 `get_nginx_status`（读 `/proc/{pid}/status` + curl stub_status）
+- 日志：读 `/www/wwwlogs/nginx_error.log`
 
 ## Home.vue 要点
 
@@ -222,7 +264,7 @@ domain   (id, pid→sites.id, name, port, addtime)
 | 生产发布包 | `scripts/build-release.ps1` → `releases/alpanel-<ver>-<target>.tar.gz` |
 
 - 默认 target 为 Linux musl，`.cargo/config.toml` 控制双架构
-- 前端改完必须重编后端（rust_embed 静态嵌入）
+- 前端 dist 从文件系统读取（`{binary_dir}/dist/`），非 rust_embed 嵌入
 
 ## install.sh 依赖
 
