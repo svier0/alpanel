@@ -2,7 +2,7 @@ import { h, createApp, ref, reactive, computed, onMounted, onUnmounted, watch } 
 import ElementPlus from 'element-plus'
 import { ElDialog } from 'element-plus'
 import { apiFetch, authHeaders } from './api'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -26,7 +26,7 @@ const PluginEditor = {
     let view: EditorView | null = null
 
     function create(viewEl: HTMLElement) {
-      const exts: any[] = [history(), keymap.of([...defaultKeymap, ...historyKeymap]), oneDark, EditorView.lineWrapping]
+      const exts: any[] = [lineNumbers(), history(), keymap.of([...defaultKeymap, ...historyKeymap]), oneDark, EditorView.lineWrapping]
       if (props.readonly) { exts.push(EditorState.readOnly.of(true), EditorView.editable.of(false)) }
       const langExt = langExtension(props.language || '')
       if (langExt) exts.push(...(Array.isArray(langExt) ? langExt : [langExt]))
