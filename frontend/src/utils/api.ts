@@ -35,5 +35,5 @@ export async function apiFetch(url: string, init?: RequestInit): Promise<any> {
     throw new Error(text.slice(0, 100) || `Request failed (${res.status})`)
   }
   if (ct.includes('application/json')) return res.json()
-  return null
+  return res.text()
 }
