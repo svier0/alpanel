@@ -70,7 +70,7 @@ export function Plugin(config: PluginConfig) {
         setup() {
           return () => {
             const children: any[] = []
-            children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:auto}`))
+            children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:auto;padding:0}`))
             if (styleCSS) {
               children.push(h('style', {}, styleCSS))
             }
