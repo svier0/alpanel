@@ -15,6 +15,17 @@ fn ensure_site_dir(path: &str) -> AppResult<()> {
         std::fs::create_dir_all(&p)
             .map_err(|e| AppError::BadRequest(format!("创建站点根目录失败: {}", e)))?;
     }
+    let out = std::process::Command::new("chown")
+        .args(["www:www", &p.to_string_lossy()])
+        .output()
+        .map_err(|e| AppError::BadRequest(format!("设置站点目录属主失败: {}", e)))?;
+    if !out.status.success() {
+        let msg = String::from_utf8_lossy(&out.stderr);
+        return Err(AppError::BadRequest(format!(
+            "设置站点目录属主失败: {}",
+            msg.trim()
+        )));
+    }
     Ok(())
 }
 
