@@ -1,9 +1,22 @@
 use axum::{Json, http::HeaderMap};
 
-use crate::dto::site_dto::{project_type_list, CreateSiteRequest, SiteResponse, UpdateSiteRequest};
-use crate::errors::AppResult;
+use crate::dto::site_dto::{CreateSiteRequest, SiteResponse, UpdateSiteRequest};
+use crate::errors::{AppError, AppResult};
 use crate::middleware::auth::check_auth;
 use crate::repositories::site_repository;
+use crate::services::file_service::sanitize_path_pub;
+
+fn ensure_site_dir(path: &str) -> AppResult<()> {
+    if path.trim().is_empty() {
+        return Ok(());
+    }
+    let p = sanitize_path_pub(path)?;
+    if !p.exists() {
+        std::fs::create_dir_all(&p)
+            .map_err(|e| AppError::BadRequest(format!("创建站点根目录失败: {}", e)))?;
+    }
+    Ok(())
+}
 
 pub async fn list_sites(
     headers: HeaderMap,
@@ -28,6 +41,9 @@ pub async fn create_site(
     Json(body): Json<CreateSiteRequest>,
 ) -> AppResult<Json<SiteResponse>> {
     check_auth(&headers)?;
+    if body.project_type.as_deref() == Some("Other") {
+        ensure_site_dir(&body.path)?;
+    }
     let id = site_repository::create_site(&body)?;
     let site = site_repository::get_site(id).ok_or_else(|| {
         crate::errors::AppError::Internal("创建后无法读取站点".into())
