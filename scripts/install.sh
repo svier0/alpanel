@@ -55,7 +55,7 @@ if [ "$ID" != "alpine" ]; then
 fi
 
 apk update
-apk add sqlite jq vnstat
+apk add sqlite jq vnstat openrc
 rc-update add vnstatd default
 rc-service vnstatd start 2>/dev/null || true
 
