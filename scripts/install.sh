@@ -42,7 +42,7 @@ fi
 if [ "$(whoami)" != "root" ]; then
     echo "检查到当前非 root 权限进行面板安装"
     echo "请使用以下命令重新执行："
-    echo "sudo wget -O install.sh ${GH_PROXY}$DOWNLOAD_URL && sudo bash install.sh"
+    echo "sudo wget -O install.sh ${GH_PROXY}$DOWNLOAD_URL && sudo sh install.sh"
     exit 1
 fi
 

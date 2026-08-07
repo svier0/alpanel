@@ -6,14 +6,14 @@ Developed using Rust.
 
 ## Install
 
-```bash
-wget -O install.sh https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && bash install.sh
+```sh
+wget -O install.sh https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && sh install.sh
 ```
 
 For users in China:
 
-```bash
-wget -O install.sh https://gh-proxy.com/https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && bash install.sh
+```sh
+wget -O install.sh https://gh-proxy.com/https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && sh install.sh
 ```
 
 ## Structure
