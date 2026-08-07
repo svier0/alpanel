@@ -126,10 +126,6 @@ PANEL_THEME=auto
 GHPROXY=${GH_PROXY:-false}
 EOF
 
-if ! command -v openrc > /dev/null 2>&1; then
-    apk add openrc
-fi
-
 cat > /etc/init.d/alpanel << 'EOF'
 #!/sbin/openrc-run
 
