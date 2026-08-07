@@ -41,7 +41,7 @@ pub async fn create_site(
     Json(body): Json<CreateSiteRequest>,
 ) -> AppResult<Json<SiteResponse>> {
     check_auth(&headers)?;
-    if body.project_type.as_deref() == Some("Other") {
+    if body.project_type.as_deref().unwrap_or("PHP") == "PHP" {
         ensure_site_dir(&body.path)?;
     }
     let id = site_repository::create_site(&body)?;
