@@ -1,0 +1,82 @@
+use crate::dto::site_dto::CreateDomainInline;
+use crate::errors::{AppError, AppResult};
+
+const VHOST_TEMPLATE_DIR: &str = "/www/server/panel/vhost/template/nginx";
+const VHOST_NGINX_DIR: &str = "/www/server/panel/vhost/nginx";
+const VHOST_REWRITE_DIR: &str = "/www/server/panel/vhost/rewrite";
+const STOP_PATH: &str = "/www/server/stop";
+
+fn build_listen_ports(domains: &[CreateDomainInline]) -> String {
+    let mut ports: Vec<i64> = Vec::new();
+    for d in domains {
+        let port = d.port.unwrap_or(80);
+        if !ports.contains(&port) {
+            ports.push(port);
+        }
+    }
+    if ports.is_empty() {
+        ports.push(80);
+    }
+    ports
+        .into_iter()
+        .map(|p| format!("listen {};", p))
+        .collect::<Vec<_>>()
+        .join("\n    ")
+}
+
+fn build_domains(domains: &[CreateDomainInline]) -> String {
+    domains
+        .iter()
+        .map(|d| d.name.trim())
+        .filter(|n| !n.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+pub fn generate_site_vhost(
+    site_name: &str,
+    site_path: &str,
+    status: Option<&str>,
+    domains: &[CreateDomainInline],
+) -> AppResult<()> {
+    let template_path = format!("{}/site.conf", VHOST_TEMPLATE_DIR);
+    let template = std::fs::read_to_string(&template_path)
+        .map_err(|e| AppError::Internal(format!("读取站点模板失败: {}", e)))?;
+
+    let listen_ports = build_listen_ports(domains);
+    let domains_line = build_domains(domains);
+    let path = if status == Some("0") {
+        STOP_PATH.to_string()
+    } else {
+        site_path.trim().to_string()
+    };
+
+    let content = template
+        .replace("{$listen_ports}", &listen_ports)
+        .replace("{$domains}", &domains_line)
+        .replace("{$site_path}", &path)
+        .replace("{$site_name}", site_name);
+
+    let nginx_dir = std::path::Path::new(VHOST_NGINX_DIR);
+    std::fs::create_dir_all(nginx_dir).map_err(|e| {
+        AppError::Internal(format!("创建站点配置目录失败: {}", e))
+    })?;
+    std::fs::write(
+        nginx_dir.join(format!("{}.conf", site_name)),
+        content,
+    )
+    .map_err(|e| AppError::Internal(format!("写入站点配置失败: {}", e)))?;
+
+    let rewrite_dir = std::path::Path::new(VHOST_REWRITE_DIR);
+    std::fs::create_dir_all(rewrite_dir).map_err(|e| {
+        AppError::Internal(format!("创建伪静态目录失败: {}", e))
+    })?;
+    let rewrite_path = rewrite_dir.join(format!("{}.conf", site_name));
+    if !rewrite_path.exists() {
+        std::fs::write(&rewrite_path, "").map_err(|e| {
+            AppError::Internal(format!("创建伪静态文件失败: {}", e))
+        })?;
+    }
+
+    Ok(())
+}
