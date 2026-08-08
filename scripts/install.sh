@@ -54,8 +54,23 @@ if [ "$ID" != "alpine" ]; then
     exit 1
 fi
 
+download_file() {
+    url="$1" dest="$2"
+    for proxy in "https://gh-proxy.com/" "https://ghfast.top/" ""; do
+        echo "下载: ${proxy}${url}"
+        if wget -O "$dest" "${proxy}${url}" >/dev/null 2>&1; then
+            echo "下载成功"
+            return 0
+        fi
+        echo "下载失败，尝试下一个镜像..."
+    done
+    echo "错误: 下载失败: $url"
+    echo "      请检查网络或服务器配置，可手动下载到 $dest"
+    return 1
+}
+
 apk update
-apk add sqlite jq vnstat openrc
+apk add sqlite jq vnstat openrc curl
 rc-update add vnstatd default
 rc-service vnstatd start 2>/dev/null || true
 
@@ -94,13 +109,40 @@ adduser -D -H -S -G www -s /sbin/nologin www 2>/dev/null || true
 chown -R www:www ${setup_path}/wwwroot ${setup_path}/wwwlogs 2>/dev/null || true
 
 PANEL_DOWNLOAD_URL="https://github.com/svier0/alpanel/releases/download/${VERSION}/alpanel-${VERSION}-${PKG_ARCH}.tar.gz"
-wget -O /tmp/alpanel.tar.gz ${GH_PROXY}$PANEL_DOWNLOAD_URL || exit 1
-tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/
+download_file "$PANEL_DOWNLOAD_URL" /tmp/alpanel.tar.gz || exit 1
+if [ ! -s /tmp/alpanel.tar.gz ]; then
+    echo "错误: 安装包下载失败或为空"
+    exit 1
+fi
+if ! gzip -t /tmp/alpanel.tar.gz >/dev/null 2>&1; then
+    echo "错误: 安装包校验失败，文件不完整或已损坏"
+    exit 1
+fi
+if ! tar -xzf /tmp/alpanel.tar.gz -C /www/server/panel/; then
+    echo "错误: 安装包解压失败"
+    exit 1
+fi
+if [ ! -f /www/server/panel/alpanel ]; then
+    echo "错误: 解压后未找到面板程序 /www/server/panel/alpanel"
+    exit 1
+fi
 chmod +x /www/server/panel/alpanel
+if [ ! -x /www/server/panel/alpanel ]; then
+    echo "错误: 面板程序 /www/server/panel/alpanel 不可执行"
+    exit 1
+fi
 rm -f /tmp/alpanel.tar.gz
 
-wget -O /usr/bin/alp ${GH_PROXY}$ALP_DOWNLOAD_URL || exit 1
+download_file "$ALP_DOWNLOAD_URL" /usr/bin/alp || exit 1
+if [ ! -s /usr/bin/alp ]; then
+    echo "错误: alp 脚本下载失败或为空"
+    exit 1
+fi
 chmod +x /usr/bin/alp
+if [ ! -x /usr/bin/alp ]; then
+    echo "错误: alp 脚本不可执行"
+    exit 1
+fi
 
 ENV_FILE="/www/server/panel/.env"
 if [ -n "$PANEL_PORT_ARG" ]; then
@@ -142,7 +184,24 @@ chmod +x /etc/init.d/alpanel
 
 rc-update add alpanel default 2>/dev/null || true
 
-alp 11 2>/dev/null || true
+echo "正在启动面板服务..."
+if ! alp 11; then
+    echo "错误: 面板启动命令执行失败"
+    exit 1
+fi
+i=0
+while [ $i -lt 20 ]; do
+    if curl -sf -o /dev/null "http://127.0.0.1:$PANEL_PORT/" >/dev/null 2>&1; then
+        echo "面板启动成功"
+        break
+    fi
+    i=$((i + 1))
+    sleep 1
+done
+if [ $i -ge 20 ]; then
+    echo "错误: 面板启动失败，请手动查看日志"
+    exit 1
+fi
 
 echo "================================"
 echo " Alpanel 安装完成"
