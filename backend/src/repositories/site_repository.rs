@@ -71,9 +71,12 @@ pub fn create_site(req: &CreateSiteRequest) -> AppResult<i64> {
     )
     .map_err(|e| AppError::Internal(e.to_string()))?;
     let site_id = conn.last_insert_rowid();
-    if let Some(fd) = first_domain {
-        let port = req.domains.first().and_then(|d| d.port);
-        let _ = create_domain(site_id, &fd, port);
+    for d in &req.domains {
+        let name = d.name.trim().to_string();
+        if name.is_empty() {
+            continue;
+        }
+        let _ = create_domain(site_id, &name, d.port);
     }
     Ok(site_id)
 }

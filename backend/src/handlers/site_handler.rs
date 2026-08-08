@@ -59,6 +59,14 @@ pub async fn create_site(
     let site = site_repository::get_site(id).ok_or_else(|| {
         crate::errors::AppError::Internal("创建后无法读取站点".into())
     })?;
+    if site.project_type.as_deref().unwrap_or("PHP") == "PHP" {
+        crate::services::site_service::generate_site_vhost(
+            &site.name,
+            &site.path,
+            site.status.as_deref(),
+            &body.domains,
+        )?;
+    }
     Ok(Json(site_repository::to_response(&site)))
 }
 
