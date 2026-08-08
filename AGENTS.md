@@ -217,12 +217,20 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
 ├── wwwroot/        → 站点目录
 └── server/
     ├── nginx/php(74/82/83/84/85)/mysql/data/redis/bun/cron/
-    └── panel/
-        ├── alpanel        # 二进制
-        ├── plugin/       # 插件目录
-        ├── .env           # PANEL_PORT, USER, PASSWORD, TITLE, THEME
-        └── data/db/
-            └── alpanel.db # SQLite
+    └── panel/                  # 由 release 包(panel 整目录)解压而来
+        ├── alpanel             # 二进制
+        ├── dist/               # 前端静态文件(打包时从 frontend/dist 复制)
+        ├── plugin/             # 插件目录(运行时装)
+        ├── vhost/
+        │   ├── nginx/          # 站点 nginx 配置(运行时生成)
+        │   ├── rewrite/        # 伪静态(运行时生成)
+        │   ├── ssl/            # SSL 证书(运行时生成)
+        │   └── template/
+        │       └── nginx/      # nginx 站点模板(随包发布, html_http/other_http/proxy.conf)
+        ├── data/
+        │   ├── db/             # SQLite alpanel.db
+        │   └── files_ps/       # 文件备注
+        └── .env                # PANEL_PORT, USER, PASSWORD, TITLE, THEME
 ```
 
 ## 命名约定（MySQL / MariaDB）
@@ -265,6 +273,9 @@ domain   (id, pid→sites.id, name, port, addtime)
 
 - 默认 target 为 Linux musl，`.cargo/config.toml` 控制双架构
 - 前端 dist 从文件系统读取（`{binary_dir}/dist/`），非 rust_embed 嵌入
+- **发布包结构**：`releases/alpanel-<ver>-<target>.tar.gz` = **panel 整个目录**（仓库根 `panel/` 母版：二进制 alpanel + 完整前端 dist + vhost/template 模板 + data/db|files_ps、plugin、vhost/nginx|rewrite|ssl 空目录）。build-release.ps1/sh 流程：编译前端 → dist 复制进 panel/dist → 逐 target 编译后端 → alpanel 复制进 panel → 整目录打包
+- `panel/` 目录 git 规则：`dist/`、`alpanel`、运行时生成内容（data/db/*、data/files_ps/*、plugin/*、vhost/nginx/*、vhost/rewrite/*、vhost/ssl/*）被 .gitignore 忽略，空目录用 .gitkeep 保留；**vhost/template/ 模板入库**
+- **升级覆盖策略**：install.sh 单包下载后 `tar -xzf -C /www/server/panel/`，文件覆盖、已有目录内容保留（不删 `.env`/alpanel.db/已装插件/已生成配置）、缺失目录自动新建
 
 ## install.sh 依赖
 
