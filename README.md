@@ -13,7 +13,7 @@ wget -O install.sh https://raw.githubusercontent.com/svier0/alpanel/master/scrip
 For users in China:
 
 ```sh
-wget -O install.sh https://gh-proxy.com/https://raw.githubusercontent.com/svier0/alpanel/master/scripts/install.sh && sh install.sh
+wget -O install.sh https://fastly.jsdelivr.net/gh/svier0/alpanel/scripts/install.sh && sh install.sh
 ```
 
 ## Structure
