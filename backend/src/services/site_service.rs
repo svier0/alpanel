@@ -33,11 +33,20 @@ fn build_domains(domains: &[CreateDomainInline]) -> String {
         .join(" ")
 }
 
+fn php_version_tag(phpversion: Option<&str>) -> String {
+    let v = phpversion.unwrap_or("").trim();
+    if v.is_empty() {
+        return "php-00".to_string();
+    }
+    format!("php-{}", v.replace('.', ""))
+}
+
 pub fn generate_site_vhost(
     site_name: &str,
     site_path: &str,
     status: Option<&str>,
     domains: &[CreateDomainInline],
+    phpversion: Option<&str>,
 ) -> AppResult<()> {
     let template_path = format!("{}/site.conf", VHOST_TEMPLATE_DIR);
     let template = std::fs::read_to_string(&template_path)
@@ -55,7 +64,8 @@ pub fn generate_site_vhost(
         .replace("{$listen_ports}", &listen_ports)
         .replace("{$domains}", &domains_line)
         .replace("{$site_path}", &path)
-        .replace("{$site_name}", site_name);
+        .replace("{$site_name}", site_name)
+        .replace("{$php_version}", &php_version_tag(phpversion));
 
     let nginx_dir = std::path::Path::new(VHOST_NGINX_DIR);
     std::fs::create_dir_all(nginx_dir).map_err(|e| {
