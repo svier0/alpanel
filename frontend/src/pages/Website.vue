@@ -78,7 +78,7 @@
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
                 <span
-                  class="link-cell"
+                  class="status-cell"
                   :class="row.status === '运行中' ? 'status-running' : 'status-stopped'"
                   @click="toggleStatus(row)"
                 >{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
@@ -132,7 +132,7 @@
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
                 <span
-                  class="link-cell"
+                  class="status-cell"
                   :class="row.status === '运行中' ? 'status-running' : 'status-stopped'"
                   @click="toggleStatus(row)"
                 >{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
@@ -186,7 +186,7 @@
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
                 <span
-                  class="link-cell"
+                  class="status-cell"
                   :class="row.status === '运行中' ? 'status-running' : 'status-stopped'"
                   @click="toggleStatus(row)"
                 >{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
@@ -913,6 +913,12 @@ async function createDir() {
 .ps-input :deep(.el-input__inner) {
   font-size: 12px;
   padding: 0;
+}
+.status-cell {
+  cursor: pointer;
+}
+.status-cell:hover {
+  text-decoration: underline;
 }
 .status-running {
   color: var(--el-color-success);
