@@ -88,6 +88,10 @@ pub async fn delete_site(
     axum::extract::Path(id): axum::extract::Path<i64>,
 ) -> AppResult<Json<serde_json::Value>> {
     check_auth(&headers)?;
+    let site = site_repository::get_site(id).ok_or_else(|| {
+        crate::errors::AppError::Internal("无法读取站点".into())
+    })?;
     site_repository::delete_site(id)?;
+    crate::services::site_service::remove_site_vhost(&site)?;
     Ok(Json(serde_json::json!({"ok": true})))
 }

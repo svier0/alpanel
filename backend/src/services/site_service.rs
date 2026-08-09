@@ -80,3 +80,26 @@ pub fn generate_site_vhost(
 
     Ok(())
 }
+
+fn vhost_conf_path(project_type: &str, site_name: &str) -> String {
+    match project_type {
+        "Proxy" => format!("{}/proxy_{}.conf", VHOST_NGINX_DIR, site_name),
+        "Other" => format!("{}/other_{}.conf", VHOST_NGINX_DIR, site_name),
+        _ => format!("{}/{}.conf", VHOST_NGINX_DIR, site_name),
+    }
+}
+
+pub fn remove_site_vhost(site: &crate::models::site::Site) -> AppResult<()> {
+    let project_type = site.project_type.as_deref().unwrap_or("PHP");
+    let conf_path = vhost_conf_path(project_type, &site.name);
+    let rewrite_path = format!("{}/{}.conf", VHOST_REWRITE_DIR, site.name);
+
+    for p in [&conf_path, &rewrite_path] {
+        let path = std::path::Path::new(p);
+        if path.exists() {
+            std::fs::remove_file(path)
+                .map_err(|e| AppError::Internal(format!("删除站点配置文件失败: {}", e)))?;
+        }
+    }
+    Ok(())
+}
