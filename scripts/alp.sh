@@ -59,7 +59,7 @@ read_password() {
     stty -echo 2>/dev/null
     read -r input
     stty echo 2>/dev/null
-    echo ""
+    printf "\n" >&2
     echo "$input"
 }
 
