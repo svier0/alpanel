@@ -103,3 +103,31 @@ pub fn remove_site_vhost(site: &crate::models::site::Site) -> AppResult<()> {
     }
     Ok(())
 }
+
+pub fn set_site_status(site: &crate::models::site::Site) -> AppResult<()> {
+    let project_type = site.project_type.as_deref().unwrap_or("PHP");
+    let conf_path = vhost_conf_path(project_type, &site.name);
+    let content = std::fs::read_to_string(&conf_path)
+        .map_err(|e| AppError::Internal(format!("读取站点配置文件失败: {}", e)))?;
+    let target = if site.status.as_deref() == Some("0") {
+        STOP_PATH.to_string()
+    } else {
+        site.path.trim().to_string()
+    };
+    let new_content = content
+        .lines()
+        .map(|l| {
+            let trimmed = l.trim_start();
+            if trimmed.starts_with("root ") && trimmed.ends_with(';') {
+                let indent = &l[..l.len() - trimmed.len()];
+                format!("{}root {};", indent, target)
+            } else {
+                l.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&conf_path, new_content)
+        .map_err(|e| AppError::Internal(format!("写入站点配置文件失败: {}", e)))?;
+    Ok(())
+}
