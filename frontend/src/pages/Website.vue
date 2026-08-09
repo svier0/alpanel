@@ -77,7 +77,11 @@
             </el-table-column>
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
-                <span :class="row.status === '运行中' ? 'status-running' : 'status-stopped'">{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
+                <span
+                  class="link-cell"
+                  :class="row.status === '运行中' ? 'status-running' : 'status-stopped'"
+                  @click="toggleStatus(row)"
+                >{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
               </template>
             </el-table-column>
             <el-table-column label="根目录" min-width="200" show-overflow-tooltip>
@@ -127,7 +131,11 @@
             </el-table-column>
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
-                <span :class="row.status === '运行中' ? 'status-running' : 'status-stopped'">{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
+                <span
+                  class="link-cell"
+                  :class="row.status === '运行中' ? 'status-running' : 'status-stopped'"
+                  @click="toggleStatus(row)"
+                >{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
               </template>
             </el-table-column>
             <el-table-column label="运行端口" width="100">
@@ -177,7 +185,11 @@
             </el-table-column>
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
-                <span :class="row.status === '运行中' ? 'status-running' : 'status-stopped'">{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
+                <span
+                  class="link-cell"
+                  :class="row.status === '运行中' ? 'status-running' : 'status-stopped'"
+                  @click="toggleStatus(row)"
+                >{{ row.status === '运行中' ? '运行中▶' : '已停止⏸' }}</span>
               </template>
             </el-table-column>
             <el-table-column label="代理地址" width="200" show-overflow-tooltip>
@@ -604,6 +616,30 @@ async function savePs(row: any, _tab: string) {
     })
   } catch {
     ElMessage.error('保存备注失败')
+  }
+}
+
+async function toggleStatus(row: any) {
+  const next = row.status === '运行中' ? '0' : '1'
+  const label = row.status === '运行中' ? '停止' : '启动'
+  try {
+    await ElMessageBox.confirm(`确定${label}站点「${row.name}」吗？`, '状态切换', {
+      type: 'warning',
+      confirmButtonText: label,
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await apiFetch(`/api/sites/${row.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: next }),
+    })
+    row.status = next === '1' ? '运行中' : '已停止'
+    ElMessage.success(label === '启动' ? '站点已启动' : '站点已停止')
+  } catch {
+    ElMessage.error('状态切换失败')
   }
 }
 

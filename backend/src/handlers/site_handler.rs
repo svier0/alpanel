@@ -80,6 +80,21 @@ pub async fn update_site(
     let site = site_repository::get_site(id).ok_or_else(|| {
         crate::errors::AppError::Internal("无法读取站点".into())
     })?;
+    if site.project_type.as_deref().unwrap_or("PHP") == "PHP" {
+        let domains: Vec<crate::dto::site_dto::CreateDomainInline> = crate::repositories::domain_repository::list_domains(id)
+            .into_iter()
+            .map(|d| crate::dto::site_dto::CreateDomainInline {
+                name: d.name,
+                port: d.port,
+            })
+            .collect();
+        crate::services::site_service::generate_site_vhost(
+            &site.name,
+            &site.path,
+            site.status.as_deref(),
+            &domains,
+        )?;
+    }
     Ok(Json(site_repository::to_response(&site)))
 }
 
