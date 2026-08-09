@@ -15,8 +15,9 @@ Linux 服务器管理面板（类宝塔），Rust + Axum 后端 + Vue 3 前端�
 - 用户有疑问先回复再改代码
 - 禁止把用户电脑当wsl(例如，需要操作wsl中的/www目录，却访问d:\www)
 - 本项目禁止使用npm，应使用pnpm
-- **改文件即时提交**（每改完一个文件立刻 commit）
+- **改文件即时提交**：高频小步提交，改一处/验证一处/提交一处，一个功能可拆成多次原子提交（不攒批，保证可回溯节点细粒度）
 - git push 必须关证书校验：`git -c http.sslVerify=false push origin master`（Windows schannel 吊销检查失败）；无 GPG key，提交为 unsigned
+- 重新部署二进制到 WSL 后必须 `chmod +x`（Windows→WSL 复制会丢执行权限，否则 alp 提示"已启动"但进程起不来）
 - 禁止 `apk add`。patchelf 仅可临时用：mktemp 目录 + `apk fetch --recursive patchelf`，用 `LD_LIBRARY_PATH=$tmp/usr/lib:$tmp/lib` 调用，用完 `rm -rf`
 
 ## 知识图维护
@@ -114,6 +115,23 @@ Plugin({
 - 性能调整：sh 侧 `get_nginx_value` / `set_nginx_value`（读 config 解析 JSON / 写 JSON 到 `/tmp/nginx_perf.json` 后 sed 更新并重载）
 - 负载状态：sh 侧 `get_nginx_status`（读 `/proc/{pid}/status` + curl stub_status）
 - 日志：读 `/www/wwwlogs/nginx_error.log`
+
+### nginx 插件 conf 目录（配置即文件）
+
+插件仓库 `plugins/nginx/conf/` 放配置模板（明文单文件，非压缩包），`install()` 逐个 wget 从仓库拉取：
+
+- URL 拼法（读 .env 的 GHPROXY 加前缀，同 alp.sh）：`NGINX_RAW="${GH_PROXY}https://raw.githubusercontent.com/svier0/alpanel-plugins/master/plugins/nginx"`，再 `wget "$NGINX_RAW/conf/xxx.conf" -O ...`
+- 禁止改 alp.sh 插件下载机制（固定拉 info.json/name.sh/icon.png/index.js）；conf 目录是插件自身行为，由插件脚本自己拉取
+- `conf/nginx.conf`：主配置，`http{ include mime.types; include proxy.conf; ... }`
+- `conf/proxy.conf`：proxy_temp_path / proxy_cache_path / proxy_* 超时缓存等，被 nginx.conf include
+- `conf/php-{ver}.conf`：PHP 解析 location 块（ver=00/74/75/80/81/82/83/84/85，fastcgi_pass unix:/tmp/php-cgi-{ver}.sock），`php-00.conf` 为空占位（纯静态站点用）
+
+### 站点 vhost 模板占位符
+
+`panel/vhost/template/nginx/site.conf` 模板占位符（后端 `generate_site_vhost` 替换）：
+
+- `{$listen_ports}` / `{$domains}` / `{$site_path}` / `{$site_name}` / `{$php_version}`
+- PHP include 行：`include {$php_version}.conf;`，后端 `php_version_tag()` 把站点 phpversion（`7.4`→`php-74`）转成 conf 文件名，空→`php-00`
 
 ## Home.vue 要点
 
@@ -226,7 +244,7 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
         │   ├── rewrite/        # 伪静态(运行时生成)
         │   ├── ssl/            # SSL 证书(运行时生成)
         │   └── template/
-        │       └── nginx/      # nginx 站点模板(随包发布, html_http/other_http/proxy.conf)
+        │       └── nginx/      # nginx 站点模板(随包发布, site.conf/other_http.conf/proxy.conf)
         ├── data/
         │   ├── db/             # SQLite alpanel.db
         │   └── files_ps/       # 文件备注
