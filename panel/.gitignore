@@ -6,9 +6,16 @@ dist/
 data/db/*
 data/files_ps/*
 plugin/*
-vhost/nginx/*
 vhost/rewrite/*
 vhost/ssl/*
+
+# 站点默认配置文件(随包分发)入库，站点运行时配置不入库
+vhost/nginx/*.conf
+!vhost/nginx/0.default.conf
+!vhost/nginx/0.websocket.conf
+!vhost/nginx/0.fastcgi_cache.conf
+!vhost/nginx/0.site_total_log_format.conf
+!vhost/nginx/phpfpm_status.conf
 
 # 保留目录占位
 !**/.gitkeep
