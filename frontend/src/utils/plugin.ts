@@ -54,22 +54,32 @@ export interface PluginContext {
   ref: typeof ref
   reactive: typeof reactive
   computed: typeof computed
+  toast(msg: string, type?: string): void
   onMounted: (fn: () => void) => void
   onUnmounted: (fn: () => void) => void
   Editor: typeof PluginEditor
 }
 
+export interface PluginPage {
+  onLoad?(ctx: PluginContext, state: any): void | Promise<any>
+  render?(h: any, state: any): any
+}
+
 export interface PluginConfig {
   plugin_name: string
+  layout?: 'none' | 'tabpages' | string
   width?: string | number
   height?: string | number
+  tabs?: Record<string, string>
+  pages?: Record<string, PluginPage>
   setup?(ctx: PluginContext): Record<string, any>
   style?(): string
   render?(h: any, state: any): any
 }
 
 export function Plugin(config: PluginConfig) {
-  const { plugin_name, width, height, setup, style, render } = config
+  const { plugin_name, width, height, setup, style } = config
+  const layout = (config.layout || 'none') === 'none' ? 'none' : (config.layout || 'none')
 
   const scopeClass = 'plugin-dlg'
 
@@ -82,6 +92,46 @@ export function Plugin(config: PluginConfig) {
       return selector.split(',').map(s => `${prefix} ${s.trim()}`).join(', ') + '{' + block.slice(idx + 1)
     }).join('}')
   }
+
+  const TABPAGES_CSS = [
+    '@keyframes spin{to{transform:rotate(360deg)}}',
+    '.app{display:flex;height:100%}',
+    '.side{width:100px;background:#202020}',
+    '.item{padding:10px 16px;color:#666;cursor:pointer;border-left:2px solid transparent;font-size:13px}',
+    '.item:hover{color:#aaa}',
+    '.item.active{color:#fff;background:#141414;border-left-color:#444}',
+    '.content{flex:1;padding:20px;background:#141414;color:#ccc;overflow:auto}',
+    '.spin-wrap{display:flex;align-items:center;justify-content:center;height:100%;min-height:200px}',
+    '.spin{width:28px;height:28px;border:2px solid #333;border-top-color:#666;border-radius:50%;animation:spin .6s linear infinite}',
+    '.row{display:flex;gap:10px;margin-top:10px}',
+    '.btn{padding:5px 14px;border:1px solid #555;background:#141414;color:#ccc;border-radius:3px;cursor:pointer;font-size:13px}',
+    '.btn:hover{color:#fff;border-color:#888}',
+    '.btn.loading{opacity:.6;pointer-events:none}',
+    '.on{color:#4ade80;font-weight:bold}',
+    '.off{color:red;font-weight:bold}',
+    '.tip{color:#666;font-size:13px}',
+    '.form{display:grid;grid-template-columns:auto 58px 1fr;align-items:center;gap:4px 10px;margin-bottom:12px}',
+    '.form label{font-family:monospace;color:#aaa;font-size:13px;white-space:nowrap}',
+    '.form .slt{justify-self:start}',
+    '.form input{padding:5px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;width:auto;outline:none;box-sizing:border-box}',
+    '.form input:focus{border-color:#409eff}',
+    '.form-grid{display:grid;grid-template-columns:max-content 80px 1fr;gap:4px 10px;align-items:center;margin-bottom:4px}',
+    '.form-grid label{font-family:monospace;color:#aaa;font-size:13px;white-space:nowrap}',
+    '.form-grid input{padding:5px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;outline:none}',
+    '.form-grid input:focus{border-color:#409eff}',
+    '.slt{padding:5px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;outline:none;cursor:pointer;width:80px}',
+    '.slt:focus{border-color:#409eff}',
+    '.table{width:100%;border-collapse:collapse;margin-top:4px}',
+    '.table th{background:#202020;color:#ccc;font-weight:500;white-space:nowrap}',
+    '.table th,.table td{padding:8px 14px;border-bottom:1px solid #2a2a2a;font-size:14px}',
+    '.table td{color:#aaa}',
+    '.plugin-editor{font-size:13px;min-height:200px}',
+    '.plugin-editor .cm-editor{outline:none}',
+    '.plugin-editor .cm-scroller{font-family:monospace;line-height:1.5}',
+    '.toast{position:fixed;top:12px;right:20px;padding:8px 18px;border-radius:4px;font-size:13px;z-index:9999;color:#fff;background:#333}',
+    '.toast.ok{background:#16a34a}',
+    '.toast.err{background:#dc2626}',
+  ].join(' ')
 
   const dialogWidth = typeof width === 'number'
     ? `${width}px`
@@ -98,6 +148,10 @@ export function Plugin(config: PluginConfig) {
   const mountFns: (() => void)[] = []
   const unmountFns: (() => void)[] = []
 
+  const toastMsg = ref('')
+  const toastType = ref('')
+  let toastTimer: ReturnType<typeof setTimeout> | null = null
+
   const ctx: PluginContext = {
     api(action: string, opts: RequestInit = {}) {
       const url = action.startsWith('/')
@@ -109,13 +163,71 @@ export function Plugin(config: PluginConfig) {
     ref,
     reactive,
     computed,
+    toast(msg: string, type?: string) {
+      toastMsg.value = msg
+      toastType.value = type || 'ok'
+      if (toastTimer) clearTimeout(toastTimer)
+      toastTimer = setTimeout(() => { toastMsg.value = '' }, 3000)
+    },
     onMounted(fn: () => void) { mountFns.push(fn) },
     onUnmounted(fn: () => void) { unmountFns.push(fn) },
     Editor: PluginEditor,
   }
 
-  const styleCSS = style ? scopeCSS(style(), `.${scopeClass}`) : ''
   const state = setup ? setup(ctx) : {}
+
+  // layout == 'tabpages'：由 tabs/pages 生成侧面 tab + 内容区外壳，代替原 render
+  if (layout === 'tabpages') {
+    const tabKeys = config.tabs ? Object.keys(config.tabs) : []
+    const activeTab = ref(tabKeys[0] || '')
+    const loading = ref(false)
+
+    async function runOnLoad(key: string) {
+      const page = config.pages?.[key]
+      if (!page?.onLoad) { loading.value = false; return }
+      loading.value = true
+      try {
+        const ret = page.onLoad(ctx, state)
+        if (ret && typeof (ret as any).then === 'function') await ret
+      } catch (e) {
+        console.error(`[plugin:${plugin_name}] page ${key} onLoad error:`, e)
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const switchTo = (key: string) => {
+      if (key === activeTab.value) return
+      activeTab.value = key
+      runOnLoad(key)
+    }
+
+    mountFns.push(() => { runOnLoad(tabKeys[0] || '') })
+
+    // 覆盖配置里的 render
+    ;(config as any).render = (h: any, st: any) => {
+      return h('div', { class: 'app' }, [
+        h('nav', { class: 'side' },
+          tabKeys.map(k => h('div', {
+            class: 'item' + (activeTab.value === k ? ' active' : ''),
+            onClick: () => switchTo(k),
+          }, config.tabs![k]))),
+        h('main', { class: 'content' }, [
+          toastMsg.value ? h('div', { class: 'toast ' + (toastType.value || 'ok') }, toastMsg.value) : null,
+          loading.value
+            ? h('div', { class: 'spin-wrap' }, h('div', { class: 'spin' }))
+            : h('div', { key: activeTab.value },
+                (config.pages?.[activeTab.value]?.render ?? (() => null))(h, st)),
+        ]),
+      ])
+    }
+  }
+
+  const render = config.render
+
+  // tabpages 内置样式拼到插件 style 前面，一并 scope
+  const builtinCSS = layout === 'tabpages' ? TABPAGES_CSS + ' ' : ''
+  const styleCSS = scopeCSS(builtinCSS + (style ? style() : ''), `.${scopeClass}`)
 
   return {
     show() {

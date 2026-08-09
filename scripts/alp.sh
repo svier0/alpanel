@@ -49,13 +49,13 @@ update_env() {
 }
 
 prompt() {
-    printf "%s: " "$1"
+    printf "%s: " "$1" >&2
     read -r input
     echo "$input"
 }
 
 read_password() {
-    printf "%s" "$1"
+    printf "%s" "$1" >&2
     stty -echo 2>/dev/null
     read -r input
     stty echo 2>/dev/null
@@ -118,11 +118,6 @@ set_username() {
 set_password() {
     pw=$(read_password "请输入新登录密码:")
     [ -n "$pw" ] || { echo "密码不能为空" >&2; exit 1; }
-    confirm=$(read_password "请再次输入新登录密码:")
-    if [ "$pw" != "$confirm" ]; then
-        echo "两次输入的密码不一致" >&2
-        exit 1
-    fi
     ensure_sqlite
     uid=$(user_id)
     [ -n "$uid" ] || { echo "错误: 未找到用户记录" >&2; exit 1; }
