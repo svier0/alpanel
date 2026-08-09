@@ -65,6 +65,7 @@ pub async fn create_site(
             &site.path,
             site.status.as_deref(),
             &body.domains,
+            body.phpversion.as_deref(),
         )?;
     }
     Ok(Json(site_repository::to_response(&site)))
