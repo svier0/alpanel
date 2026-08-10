@@ -246,7 +246,11 @@ pub fn list_dir(path_str: &str) -> AppResult<FileListResponse> {
                     if std::path::Path::new(&p).is_absolute() {
                         p
                     } else {
-                        format!("{}/{}", item_path.rsplit('/').skip(1).collect::<Vec<_>>().join("/"), p)
+                        if let Some(idx) = item_path.rfind('/') {
+                            format!("{}/{}", &item_path[..idx], p)
+                        } else {
+                            p
+                        }
                     }
                 })
                 .unwrap_or_default()
