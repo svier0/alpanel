@@ -589,6 +589,7 @@ async function handleDelete(row: any) {
     await apiFetch(`/api/sites/${row.id}`, { method: 'DELETE' })
     ElMessage.success('已删除')
     refreshTable()
+    reloadNginxIfRunning()
   } catch {
     ElMessage.error('删除失败')
   }
@@ -638,9 +639,17 @@ async function toggleStatus(row: any) {
     })
     row.status = next === '1' ? '运行中' : '已停止'
     ElMessage.success(label === '启动' ? '站点已启动' : '站点已停止')
+    reloadNginxIfRunning()
   } catch {
     ElMessage.error('状态切换失败')
   }
+}
+
+async function reloadNginxIfRunning() {
+  if (!nginxRunning.value) return
+  try {
+    await pluginAction('reload')
+  } catch {}
 }
 
 function goFile(path: string) {
@@ -725,6 +734,7 @@ async function handleAddOther() {
     ElMessage.success('项目创建成功')
     addOtherDialog.visible = false
     refreshTable()
+    reloadNginxIfRunning()
   } catch (e: any) {
     ElMessage.error((e && e.message) || '创建项目失败')
   }
@@ -766,6 +776,7 @@ async function handleAddSite() {
     ElMessage.success('站点创建成功')
     addSiteDialog.visible = false
     refreshTable()
+    reloadNginxIfRunning()
   } catch (e: any) {
     ElMessage.error((e && e.message) || '创建站点失败')
   }
