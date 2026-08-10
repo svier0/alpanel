@@ -3,11 +3,11 @@ import zhCN from './zh-CN'
 import enUS from './en-US'
 
 export default createI18n({
-  legacy: false,
-  locale: localStorage.getItem('locale') || 'zh-CN',
-  fallbackLocale: 'zh-CN',
-  messages: {
-    'zh-CN': zhCN,
-    'en-US': enUS,
-  }
+    legacy: false,
+    locale: localStorage.getItem('locale') || 'zh-CN',
+    fallbackLocale: 'zh-CN',
+    messages: {
+        'zh-CN': zhCN,
+        'en-US': enUS,
+    }
 })

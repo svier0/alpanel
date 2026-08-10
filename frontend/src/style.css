@@ -1,44 +1,44 @@
 html, body, #app {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
 }
 
 router-view {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 :root {
-  --alpanel-aside-bg: #304156;
-  --alpanel-aside-border: rgba(255, 255, 255, 0.08);
-  --alpanel-header-bg: #ffffff;
-  --alpanel-header-border: rgba(0, 0, 0, 0.06);
-  --alpanel-header-text: #303133;
-  --alpanel-header-version: #909399;
-  --alpanel-header-btn-border: #dcdfe6;
-  --alpanel-header-btn-text: #606266;
-  --alpanel-header-btn-hover: #f5f7fa;
-  --el-menu-bg-color: #304156;
-  --el-menu-text-color: #bfcbd9;
-  --el-menu-active-color: #409eff;
+    --alpanel-aside-bg: #304156;
+    --alpanel-aside-border: rgba(255, 255, 255, 0.08);
+    --alpanel-header-bg: #ffffff;
+    --alpanel-header-border: rgba(0, 0, 0, 0.06);
+    --alpanel-header-text: #303133;
+    --alpanel-header-version: #909399;
+    --alpanel-header-btn-border: #dcdfe6;
+    --alpanel-header-btn-text: #606266;
+    --alpanel-header-btn-hover: #f5f7fa;
+    --el-menu-bg-color: #304156;
+    --el-menu-text-color: #bfcbd9;
+    --el-menu-active-color: #409eff;
 }
 
 html.dark {
-  color-scheme: dark;
-  --alpanel-aside-bg: #141414;
-  --alpanel-aside-border: rgba(255, 255, 255, 0.06);
-  --alpanel-header-bg: #1d1e1f;
-  --alpanel-header-border: rgba(255, 255, 255, 0.06);
-  --alpanel-header-text: #e5eaf3;
-  --alpanel-header-version: #a3a6ad;
-  --alpanel-header-btn-border: #4c4d4f;
-  --alpanel-header-btn-text: #cfd3dc;
-  --alpanel-header-btn-hover: #2d2d2f;
-  --el-menu-bg-color: #141414;
-  --el-menu-text-color: #cfd3dc;
-  --el-menu-active-color: #409eff;
+    color-scheme: dark;
+    --alpanel-aside-bg: #141414;
+    --alpanel-aside-border: rgba(255, 255, 255, 0.06);
+    --alpanel-header-bg: #1d1e1f;
+    --alpanel-header-border: rgba(255, 255, 255, 0.06);
+    --alpanel-header-text: #e5eaf3;
+    --alpanel-header-version: #a3a6ad;
+    --alpanel-header-btn-border: #4c4d4f;
+    --alpanel-header-btn-text: #cfd3dc;
+    --alpanel-header-btn-hover: #2d2d2f;
+    --el-menu-bg-color: #141414;
+    --el-menu-text-color: #cfd3dc;
+    --el-menu-active-color: #409eff;
 }

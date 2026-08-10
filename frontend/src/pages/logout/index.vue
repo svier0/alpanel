@@ -1,5 +1,5 @@
 <template>
-  <div></div>
+    <div></div>
 </template>
 
 <script setup lang="ts">
@@ -9,7 +9,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 onMounted(() => {
-  localStorage.removeItem('token')
-  router.replace('/login')
+    localStorage.removeItem('token')
+    router.replace('/login')
 })
 </script>
