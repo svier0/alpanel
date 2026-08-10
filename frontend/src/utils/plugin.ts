@@ -75,10 +75,11 @@ export interface PluginConfig {
   setup?(ctx: PluginContext): Record<string, any>
   style?(): string
   render?(h: any, state: any): any
+  onClose?: () => void
 }
 
 export function Plugin(config: PluginConfig) {
-  const { plugin_name, width, height, setup, style } = config
+  const { plugin_name, width, height, setup, style, onClose } = config
   const layout = (config.layout || 'none') === 'none' ? 'none' : (config.layout || 'none')
 
   const scopeClass = 'plugin-dlg'
@@ -241,6 +242,7 @@ export function Plugin(config: PluginConfig) {
         setTimeout(() => {
           app.unmount()
           container.remove()
+          if (onClose) onClose()
         }, 300)
       }
 
