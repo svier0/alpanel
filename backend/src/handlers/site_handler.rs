@@ -47,6 +47,16 @@ pub async fn get_project_types(
     Ok(Json(crate::dto::site_dto::project_type_list()))
 }
 
+pub async fn get_site(
+    headers: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> AppResult<Json<SiteResponse>> {
+    check_auth(&headers)?;
+    let site = site_repository::get_site(id)
+        .ok_or_else(|| crate::errors::AppError::NotFound("站点不存在".into()))?;
+    Ok(Json(site_repository::to_response(&site)))
+}
+
 pub async fn create_site(
     headers: HeaderMap,
     Json(body): Json<CreateSiteRequest>,
