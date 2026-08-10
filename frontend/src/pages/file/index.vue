@@ -318,7 +318,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading, ArrowDown } from '@element-plus/icons-vue'
 import { apiFetch, authHeaders, checkRes401 } from '@/utils/api'
-import FileEditorDialog from './FileEditorDialog.vue'
+import FileEditorDialog from '@/components/FileEditorDialog.vue'
 
 interface FileItem {
   name: string

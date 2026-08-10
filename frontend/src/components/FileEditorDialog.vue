@@ -152,8 +152,8 @@ import { ElMessage } from 'element-plus'
 import { Refresh, Close, Minus, FullScreen, CopyDocument, Document, Top, DocumentAdd, FolderAdd } from '@element-plus/icons-vue'
 import { apiFetch, authHeaders } from '@/utils/api'
 import { checkRes401 } from '@/utils/api'
-import FileTree, { type TreeNode } from './FileTree.vue'
-import CodeMirrorHost, { type CursorPos } from './CodeMirrorHost.vue'
+import FileTree, { type TreeNode } from '@/components/FileTree.vue'
+import CodeMirrorHost, { type CursorPos } from '@/components/CodeMirrorHost.vue'
 
 const props = defineProps<{ modelValue: boolean; rootPath?: string; initialFile?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [boolean] }>()
