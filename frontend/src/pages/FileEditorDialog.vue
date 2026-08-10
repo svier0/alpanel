@@ -289,22 +289,25 @@ function detectLanguage(path: string): string {
   return map[ext] || 'text'
 }
 
+function buildTreeChildren(items: any[]): TreeNode[] {
+  const children: TreeNode[] = items
+    .filter((i) => i.is_dir)
+    .sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+    .map((i) => ({ name: i.name, path: i.path, is_dir: true, loaded: false, children: [], expanded: openPaths.has(i.path) }))
+  const files: TreeNode[] = items
+    .filter((i) => !i.is_dir)
+    .sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+    .map((i) => ({ name: i.name, path: i.path, is_dir: false, loaded: true, children: [], expanded: false }))
+  return [...children, ...files]
+}
+
 async function loadTree(path: string) {
   if (treeLoading.value) return
   treeLoading.value = true
   try {
     const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(path)}`)
     treePath.value = data.path || path
-    const items: any[] = data.items || []
-    const children: TreeNode[] = items
-      .filter((i) => i.is_dir)
-      .sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-      .map((i) => ({ name: i.name, path: i.path, is_dir: true, loaded: false, children: [], expanded: openPaths.has(i.path) }))
-    const files: TreeNode[] = items
-      .filter((i) => !i.is_dir)
-      .sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-      .map((i) => ({ name: i.name, path: i.path, is_dir: false, loaded: true, children: [], expanded: false }))
-    treeNodes.value = [...children, ...files]
+    treeNodes.value = buildTreeChildren(data.items || [])
   } catch (e: any) {
     ElMessage.error(e?.message || '目录加载失败')
   } finally {
@@ -314,6 +317,22 @@ async function loadTree(path: string) {
 
 async function refreshTree() {
   await loadTree(treePath.value)
+  for (const node of treeNodes.value) {
+    if (node.is_dir && node.expanded) await reloadNodeRecursive(node)
+  }
+}
+
+async function reloadNodeRecursive(node: TreeNode) {
+  try {
+    const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(node.path)}`)
+    node.children = buildTreeChildren(data.items || [])
+    node.loaded = true
+    for (const child of node.children) {
+      if (child.is_dir && child.expanded) await reloadNodeRecursive(child)
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '目录加载失败')
+  }
 }
 
 async function goUp() {
@@ -322,6 +341,9 @@ async function goUp() {
   const idx = p.lastIndexOf('/')
   const parent = idx <= 0 ? '/' : p.substring(0, idx) || '/'
   await loadTree(parent)
+  for (const node of treeNodes.value) {
+    if (node.is_dir && node.expanded) await reloadNodeRecursive(node)
+  }
 }
 
 async function onToggleNode(node: TreeNode) {
@@ -335,13 +357,7 @@ async function onToggleNode(node: TreeNode) {
     if (!node.loaded || !node.children?.length) {
       try {
         const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(node.path)}`)
-        const items: any[] = data.items || []
-        node.children = [
-          ...items.filter((i) => i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-            .map((i) => ({ name: i.name, path: i.path, is_dir: true, loaded: false, children: [], expanded: openPaths.has(i.path) })),
-          ...items.filter((i) => !i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-            .map((i) => ({ name: i.name, path: i.path, is_dir: false, loaded: true, children: [], expanded: false })),
-        ]
+        node.children = buildTreeChildren(data.items || [])
         node.loaded = true
       } catch (e: any) {
         ElMessage.error(e?.message || '目录加载失败')
@@ -487,13 +503,7 @@ async function loadSubdir(node: TreeNode) {
   if (!node.loaded || !node.children?.length) {
     try {
       const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(node.path)}`)
-      const items: any[] = data.items || []
-      node.children = [
-        ...items.filter((i) => i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-          .map((i) => ({ name: i.name, path: i.path, is_dir: true, loaded: false, children: [], expanded: openPaths.has(i.path) })),
-        ...items.filter((i) => !i.is_dir).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-          .map((i) => ({ name: i.name, path: i.path, is_dir: false, loaded: true, children: [], expanded: false })),
-      ]
+      node.children = buildTreeChildren(data.items || [])
       node.loaded = true
     } catch (e: any) {
       ElMessage.error(e?.message || '目录加载失败')
