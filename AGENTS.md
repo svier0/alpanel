@@ -16,7 +16,7 @@ Linux 服务器管理面板（类宝塔），Rust + Axum 后端 + Vue 3 前端�
 - 禁止把用户电脑当wsl(例如，需要操作wsl中的/www目录，却访问d:\www)
 - 本项目禁止使用npm，应使用pnpm
 - **改文件即时提交**：高频小步提交，改一处/验证一处/提交一处，一个功能可拆成多次原子提交（不攒批，保证可回溯节点细粒度）
-- git push 必须关证书校验：`git -c http.sslVerify=false push origin master`（Windows schannel 吊销检查失败）；无 GPG key，提交为 unsigned
+- git push 必须关证书校验：`git -c http.sslVerify=false push`（Windows schannel 吊销检查失败）；**禁止指定远程分支名**（本地分支已跟踪远程同名分支，直接 push 即可；曾因 `push origin main:master` 在远程凭空建出 master 分支造成混乱，已改回 master 单一分支）；无 GPG key，提交为 unsigned
 - 重新部署二进制到 WSL 后必须 `chmod +x`（Windows→WSL 复制会丢执行权限，否则 alp 提示"已启动"但进程起不来）
 - 禁止 `apk add`。patchelf 仅可临时用：mktemp 目录 + `apk fetch --recursive patchelf`，用 `LD_LIBRARY_PATH=$tmp/usr/lib:$tmp/lib` 调用，用完 `rm -rf`
 
