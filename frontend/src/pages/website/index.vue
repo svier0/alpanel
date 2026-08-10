@@ -73,7 +73,7 @@
             :cell-style="{ padding: '4px 0' }"
           >
             <el-table-column label="站点名称" width="200" show-overflow-tooltip>
-              <template #default="{ row }"><span class="link-cell" @click="">{{ row.name }}</span></template>
+              <template #default="{ row }"><span class="link-cell" @click="openSiteConfig(row)">{{ row.name }}</span></template>
             </el-table-column>
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
@@ -127,7 +127,7 @@
             :cell-style="{ padding: '4px 0' }"
           >
             <el-table-column label="站点名称" width="200" show-overflow-tooltip>
-              <template #default="{ row }"><span class="link-cell" @click="">{{ row.name }}</span></template>
+              <template #default="{ row }"><span class="link-cell" @click="openSiteConfig(row)">{{ row.name }}</span></template>
             </el-table-column>
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
@@ -181,7 +181,7 @@
             :cell-style="{ padding: '4px 0' }"
           >
             <el-table-column label="域名" width="200" show-overflow-tooltip>
-              <template #default="{ row }"><span class="link-cell" @click="">{{ row.domain }}</span></template>
+              <template #default="{ row }"><span class="link-cell" @click="openSiteConfig(row)">{{ row.domain }}</span></template>
             </el-table-column>
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
@@ -336,6 +336,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, RefreshRight } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
 import { openPlugin } from '@/utils/plugin'
+import { openSiteConfig } from './siteConfig'
 
 const router = useRouter()
 
