@@ -114,13 +114,13 @@
       <span>在线编辑器</span>
     </div>
 
-    <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body :z-index="zIndex + 100" @closed="createDialog.name=''">
+    <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body :z-index="zIndex + 100" @closed="createDialog.name=''" @opened="focusCreateInput">
       <el-form @submit.prevent="handleCreate">
         <el-form-item label="位置">
           <span class="ed-create-path">{{ createDialog.targetDir || treePath }}</span>
         </el-form-item>
         <el-form-item :label="createDialog.isDir ? '目录名' : '文件名'">
-          <el-input v-model="createDialog.name" placeholder="请输入名称" @keyup.enter="handleCreate" />
+          <el-input ref="createInputRef" v-model="createDialog.name" placeholder="请输入名称" @keyup.enter="handleCreate" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -147,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, ComponentPublicInstance } from 'vue'
+import { ref, reactive, computed, watch, nextTick, ComponentPublicInstance } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Close, Minus, FullScreen, CopyDocument, Document, Top, DocumentAdd, FolderAdd } from '@element-plus/icons-vue'
 import { apiFetch, authHeaders } from '@/utils/api'
@@ -647,6 +647,12 @@ const createDialog = reactive({
   isDir: false,
   targetDir: '',
 })
+
+const createInputRef = ref<{ focus: () => void } | null>(null)
+
+function focusCreateInput() {
+  nextTick(() => createInputRef.value?.focus())
+}
 
 function openCreate(isDir: boolean) {
   createDialog.name = ''
