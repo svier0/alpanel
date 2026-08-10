@@ -35,7 +35,7 @@
               <el-icon><Plus /></el-icon>添加站点
             </el-button>
             <el-dropdown size="small" trigger="hover" @command="handleNginxCmd">
-              <el-button size="small" :type="nginxRunning ? 'default' : 'danger'">
+              <el-button size="small" :type="nginxRunning ? 'default' : 'danger'" @click="openPlugin('nginx')">
                 Nginx{{ nginxVersion ? ' [' + nginxVersion + ']' : '' }} {{ nginxRunning ? '\u25b6' : '\u23f8' }}
               </el-button>
               <template #dropdown>
@@ -335,6 +335,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, RefreshRight } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
+import { openPlugin } from '@/utils/plugin'
 
 const router = useRouter()
 
