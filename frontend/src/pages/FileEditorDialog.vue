@@ -114,7 +114,7 @@
       <span>在线编辑器</span>
     </div>
 
-    <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body :z-index="zIndex + 100" @closed="createDialog.name=''" @opened="focusCreateInput">
+    <el-dialog v-model="createDialog.visible" class="ed-create-dialog" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body :z-index="zIndex + 100" @closed="createDialog.name=''" @opened="focusCreateInput">
       <el-form @submit.prevent="handleCreate">
         <el-form-item label="位置">
           <span class="ed-create-path">{{ createDialog.targetDir || treePath }}</span>
@@ -528,6 +528,7 @@ function ctxNewDir() {
   createDialog.isDir = true
   createDialog.targetDir = base
   createDialog.visible = true
+  setTimeout(focusCreateInput, 50)
 }
 
 function ctxNewFile() {
@@ -539,6 +540,7 @@ function ctxNewFile() {
   createDialog.isDir = false
   createDialog.targetDir = base
   createDialog.visible = true
+  setTimeout(focusCreateInput, 50)
 }
 
 function ctxRename() {
@@ -651,7 +653,14 @@ const createDialog = reactive({
 const createInputRef = ref<{ focus: () => void } | null>(null)
 
 function focusCreateInput() {
-  nextTick(() => createInputRef.value?.focus())
+  nextTick(() => {
+    const el = document.querySelector<HTMLInputElement>('.ed-create-dialog .el-input__inner')
+    if (el) {
+      el.focus()
+      return
+    }
+    createInputRef.value?.focus()
+  })
 }
 
 function openCreate(isDir: boolean) {
@@ -659,6 +668,7 @@ function openCreate(isDir: boolean) {
   createDialog.isDir = isDir
   createDialog.targetDir = treePath.value
   createDialog.visible = true
+  setTimeout(focusCreateInput, 50)
 }
 
 async function handleCreate() {

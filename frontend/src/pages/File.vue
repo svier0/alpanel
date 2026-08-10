@@ -203,7 +203,7 @@
       </div>
     </Teleport>
 
-    <el-dialog v-model="createDialog.visible" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body>
+    <el-dialog v-model="createDialog.visible" class="file-create-dialog" :title="createDialog.isDir ? '新建目录' : '新建文件'" width="400px" append-to-body @opened="focusCreateInput">
       <el-form @submit.prevent="handleCreate">
         <el-form-item :label="createDialog.isDir ? '目录名' : '文件名'">
           <el-input v-model="createDialog.name" placeholder="请输入名称" @keyup.enter="handleCreate" />
@@ -283,7 +283,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="dirPicker.visible" title="选择目录" width="500px" append-to-body>
+    <el-dialog v-model="dirPicker.visible" title="选择目录" width="500px" append-to-body @opened="focusDirPickerInput">
       <div style="margin-bottom:8px;color:var(--el-text-color-secondary);font-size:12px">{{ dirPicker.currentPath }}</div>
       <div style="display:flex;gap:4px;margin-bottom:8px">
         <el-input v-model="dirPicker.newDir" placeholder="新建子目录名称" size="small" @keyup.enter="createDir" />
@@ -967,6 +967,20 @@ function openCreate(tab: BrowserTab, isDir: boolean) {
   createDialog.isDir = isDir
   createDialog.targetTab = tab
   createDialog.visible = true
+}
+
+function focusCreateInput() {
+  setTimeout(() => {
+    const el = document.querySelector<HTMLInputElement>('.file-create-dialog .el-input__inner')
+    if (el) el.focus()
+  }, 50)
+}
+
+function focusDirPickerInput() {
+  setTimeout(() => {
+    const el = document.querySelector<HTMLInputElement>('.el-dialog input[placeholder="新建子目录名称"]')
+    if (el) el.focus()
+  }, 50)
 }
 
 async function handleCreate() {
