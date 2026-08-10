@@ -100,7 +100,7 @@ export function Plugin(config: PluginConfig) {
     '.item{padding:10px 16px;color:#666;cursor:pointer;border-left:2px solid transparent;font-size:13px}',
     '.item:hover{color:#aaa}',
     '.item.active{color:#fff;background:#141414;border-left-color:#444}',
-    '.content{flex:1;padding:20px;background:#141414;color:#ccc;overflow:auto}',
+    '.content{flex:1;padding:0 20px;background:#141414;color:#ccc;overflow:auto}',
     '.spin-wrap{display:flex;align-items:center;justify-content:center;height:100%;min-height:200px}',
     '.spin{width:28px;height:28px;border:2px solid #333;border-top-color:#666;border-radius:50%;animation:spin .6s linear infinite}',
     '.row{display:flex;gap:10px;margin-top:10px}',
