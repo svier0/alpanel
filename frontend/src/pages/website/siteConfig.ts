@@ -224,11 +224,25 @@ export function openSiteConfig(site: { id: number; name: string }) {
             }
 
             function saveSiteDir() {
-                toast('已保存')
+                ctx.api(`/api/sites/${site.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ path: siteRoot.value }),
+                }).then(() => {
+                    toast('已保存')
+                }).catch((e: any) => {
+                    toast(e?.message || '保存失败', 'err')
+                })
             }
 
             function saveRunDir() {
-                toast('已保存')
+                ctx.api(`/api/sites/${site.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ php_run_path: runDir.value }),
+                }).then(() => {
+                    toast('已保存')
+                }).catch((e: any) => {
+                    toast(e?.message || '保存失败', 'err')
+                })
             }
 
             function saveRewrite() {
