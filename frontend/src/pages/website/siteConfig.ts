@@ -27,7 +27,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                         h('div', [
                             h('textarea', {
                                 class: 'domain-input',
-                                placeholder: '请输入域名，每行一个\n如：example.com',
+                                placeholder: '如需填写多个域名，请换行填写，每行一个域名，默认为80端口\nIP地址格式：192.168.1.199\n泛解析添加方法 *.domain.com\n如另加端口格式为 www.domain.com:88\nipv6格式：[2001:db8:85a3::8a2e:370:7334]:88',
                                 value: state.domainText.value,
                                 onInput: (e: any) => { state.domainText.value = e.target.value },
                             }),
@@ -277,10 +277,12 @@ interface DomainItem {
 }
 
 function parseDomain(line: string): DomainItem {
-    const m = line.match(/^(.+?)(?::(\d+))?$/)
-    const name = m ? m[1].trim() : line
-    const port = m && m[2] ? parseInt(m[2], 10) : 80
-    return { id: -Date.now(), name, port }
+    const s = line.trim()
+    const idx = s.lastIndexOf(':')
+    if (idx > 0 && /^\d+$/.test(s.slice(idx + 1))) {
+        return { id: -Date.now(), name: s.slice(0, idx), port: parseInt(s.slice(idx + 1), 10) }
+    }
+    return { id: -Date.now(), name: s, port: 80 }
 }
 
 function buildUrl(name: string): string {
