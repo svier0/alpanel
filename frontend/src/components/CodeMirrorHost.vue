@@ -31,6 +31,7 @@ import { mySQL } from '@codemirror/legacy-modes/mode/sql'
 import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
 import { nginx } from '@codemirror/legacy-modes/mode/nginx'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { indentationMarkers } from '@replit/codemirror-indentation-markers'
 
 export interface CursorPos {
     line: number
@@ -89,6 +90,7 @@ function buildState() {
             highlightActiveLine(),
             highlightSelectionMatches(),
             autocompletion(),
+            indentationMarkers(),
             keymap.of([
                 ...closeBracketsKeymap,
                 ...defaultKeymap,

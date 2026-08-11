@@ -25,6 +25,7 @@
     "@codemirror/view": "^6.43.6",
     "@element-plus/icons-vue": "^2.3.1",
     "@lezer/highlight": "^1.2.3",
+    "@replit/codemirror-indentation-markers": "^6.5.3",
     "element-plus": "^2.9.7",
     "vue": "^3.5.39",
     "vue-i18n": "10",
