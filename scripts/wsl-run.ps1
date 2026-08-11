@@ -26,4 +26,11 @@ $distWslPath = "/mnt/$distDrive" + ($distDir.Substring(2) -replace '\\', '/')
 wsl mkdir -p "$destDir/dist"
 wsl -- bash -c "cp -r '$distWslPath'/. '$destDir/dist/'"
 
+# 复制 vhost 模板（运行时读取，随包发布）
+$tplDir = "$PSScriptRoot\..\panel\vhost\template"
+$tplDrive = $tplDir[0].ToString().ToLower()
+$tplWslPath = "/mnt/$tplDrive" + ($tplDir.Substring(2) -replace '\\', '/')
+wsl mkdir -p "$destDir/vhost/template"
+wsl -- bash -c "cp -r '$tplWslPath'/. '$destDir/vhost/template/'"
+
 wsl -- bash -c "cd $destDir && exec ./$name"
