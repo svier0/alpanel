@@ -126,7 +126,7 @@ export function Plugin(config: PluginConfig) {
         '.slt{padding:5px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;outline:none;cursor:pointer;width:80px}',
         '.slt:focus{border-color:#409eff}',
         '.table{width:100%;border-collapse:collapse;margin-top:4px}',
-        '.table th{background:#202020;color:#ccc;font-weight:500;white-space:nowrap}',
+        '.table th{background:#202020;color:#ccc;font-weight:500;white-space:nowrap;text-align:left}',
         '.table th,.table td{padding:8px 14px;border-bottom:1px solid #2a2a2a;font-size:14px}',
         '.table td{color:#aaa}',
         '.plugin-editor{font-size:13px;min-height:200px}',

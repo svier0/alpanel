@@ -40,7 +40,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                                 : state.domains.value.map((d: DomainItem) => h('tr', [
                                     h('td', h('a', { class: 'dlink', href: buildUrl(d.name), target: '_blank' }, d.name)),
                                     h('td', String(d.port)),
-                                    h('td', h('button', { class: 'btn danger', onClick: () => state.removeDomain(d.id) }, '删除')),
+                                    h('td', h('a', { class: 'dlink danger-link', onClick: () => state.removeDomain(d.id) }, '删除')),
                                 ]))),
                         ]),
                     ])
@@ -84,10 +84,10 @@ export function openSiteConfig(site: { id: number; name: string }) {
             return `
                 .domain-input{width:100%;height:110px;padding:8px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box}
                 .domain-input:focus{border-color:#409eff}
-                .btn.danger{color:#f56c6c;border-color:#7a3b3b}
-                .btn.danger:hover{color:#fff;border-color:#f56c6c}
                 .dlink{color:#409eff;cursor:pointer;text-decoration:none}
                 .dlink:hover{text-decoration:underline}
+                .danger-link{color:#f56c6c}
+                .danger-link:hover{text-decoration:underline}
                 .empty{text-align:center;color:#666;padding:20px 0}
             `
         },
