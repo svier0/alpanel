@@ -163,8 +163,62 @@ pub fn remove_site_vhost(site: &crate::models::site::Site) -> AppResult<()> {
     Ok(())
 }
 
-pub fn set_site_status(site: &crate::models::site::Site) -> AppResult<()> {
+fn set_php_version_in_conf(content: &str, new_tag: &str) -> String {
+    content
+        .lines()
+        .map(|l| {
+            let trimmed = l.trim();
+            if trimmed.starts_with("include php-") && trimmed.ends_with(".conf;") {
+                let indent = &l[..l.len() - trimmed.len()];
+                format!("{}include {}.conf;", indent, new_tag)
+            } else {
+                l.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub fn set_site_phpversion(site: &crate::models::site::Site, new_version: &str) -> AppResult<()> {
     let project_type = site.project_type.as_deref().unwrap_or("PHP");
+    let conf_path = vhost_conf_path(project_type, &site.name);
+    let content = std::fs::read_to_string(&conf_path)
+        .map_err(|e| AppError::Internal(format!("读取站点配置文件失败: {}", e)))?;
+    let tag = php_version_tag(Some(new_version));
+    let new_content = set_php_version_in_conf(&content, &tag);
+    if new_content != content {
+        std::fs::write(&conf_path, new_content)
+            .map_err(|e| AppError::Internal(format!("写入站点配置文件失败: {}", e)))?;
+        reload_nginx()?;
+    }
+    Ok(())
+}
+
+fn reload_nginx() -> AppResult<()> {
+    let pid_path = "/www/server/nginx/run/nginx.pid";
+    if !std::path::Path::new(pid_path).exists() {
+        return Ok(());
+    }
+    let pid = std::fs::read_to_string(pid_path)
+        .ok()
+        .and_then(|s| s.trim().parse::<i32>().ok());
+    if let Some(pid) = pid {
+        let out = std::process::Command::new("kill")
+            .args(["-HUP", &pid.to_string()])
+            .output()
+            .map_err(|e| AppError::Internal(format!("reload nginx 失败: {}", e)))?;
+        if !out.status.success() {
+            let msg = String::from_utf8_lossy(&out.stderr);
+            return Err(AppError::Internal(format!(
+                "reload nginx 失败: {}",
+                msg.trim()
+            )));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_site_status(site: &crate::models::site::Site) -> AppResult<()> {    let project_type = site.project_type.as_deref().unwrap_or("PHP");
     let conf_path = vhost_conf_path(project_type, &site.name);
     let content = std::fs::read_to_string(&conf_path)
         .map_err(|e| AppError::Internal(format!("读取站点配置文件失败: {}", e)))?;

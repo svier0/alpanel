@@ -122,6 +122,10 @@ pub async fn update_site(
     if body.status.is_some() && site.project_type.as_deref().unwrap_or("PHP") == "PHP" {
         crate::services::site_service::set_site_status(&site)?;
     }
+    if body.phpversion.is_some() && site.project_type.as_deref().unwrap_or("PHP") == "PHP" {
+        let pv = body.phpversion.as_deref().unwrap_or("");
+        crate::services::site_service::set_site_phpversion(&site, pv)?;
+    }
     Ok(Json(site_repository::to_response(&site)))
 }
 
