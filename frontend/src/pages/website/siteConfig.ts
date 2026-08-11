@@ -22,14 +22,16 @@ export function openSiteConfig(site: { id: number; name: string }) {
             domain: {
                 render(h, state) {
                     return h('div', [
-                        h('div', { class: 'domain-add' }, [
+                        h('div', [
                             h('textarea', {
                                 class: 'domain-input',
                                 placeholder: '请输入域名，每行一个\n如：example.com',
                                 value: state.domainText.value,
                                 onInput: (e: any) => { state.domainText.value = e.target.value },
                             }),
-                            h('button', { class: 'btn add', onClick: () => state.addDomains() }, '添加'),
+                            h('div', { class: 'row' }, [
+                                h('button', { class: 'btn', onClick: () => state.addDomains() }, '添加'),
+                            ]),
                         ]),
                         h('table', { class: 'table' }, [
                             h('thead', [h('tr', [h('th', '域名'), h('th', '端口'), h('th', '操作')])]),
@@ -80,10 +82,8 @@ export function openSiteConfig(site: { id: number; name: string }) {
         },
         style() {
             return `
-                .domain-add{display:flex;gap:10px;align-items:stretch;margin-bottom:12px}
-                .domain-input{flex:1;height:110px;padding:8px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box}
+                .domain-input{width:100%;height:110px;padding:8px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box}
                 .domain-input:focus{border-color:#409eff}
-                .btn.add{flex:0 0 70px}
                 .btn.danger{color:#f56c6c;border-color:#7a3b3b}
                 .btn.danger:hover{color:#fff;border-color:#f56c6c}
                 .dlink{color:#409eff;cursor:pointer;text-decoration:none}
