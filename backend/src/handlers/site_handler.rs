@@ -98,9 +98,10 @@ pub async fn create_site(
         crate::errors::AppError::Internal("创建后无法读取站点".into())
     })?;
     if site.project_type.as_deref().unwrap_or("PHP") == "PHP" {
-        crate::services::site_service::generate_site_vhost(
+        crate::services::site_service::generate_site_vhost_with_run_path(
             &site.name,
             &site.path,
+            body.php_run_path.as_deref().unwrap_or(""),
             site.status.as_deref(),
             &body.domains,
             body.phpversion.as_deref(),
@@ -125,6 +126,24 @@ pub async fn update_site(
     if body.phpversion.is_some() && site.project_type.as_deref().unwrap_or("PHP") == "PHP" {
         let pv = body.phpversion.as_deref().unwrap_or("");
         crate::services::site_service::set_site_phpversion(&site, pv)?;
+    }
+    if (body.path.is_some() || body.php_run_path.is_some())
+        && site.project_type.as_deref().unwrap_or("PHP") == "PHP"
+    {
+        let domains = crate::repositories::site_repository::to_response(&site).domains;
+        let domain_inline: Vec<crate::dto::site_dto::CreateDomainInline> = domains
+            .into_iter()
+            .map(|d| crate::dto::site_dto::CreateDomainInline { name: d.name, port: Some(d.port) })
+            .collect();
+        crate::services::site_service::generate_site_vhost_with_run_path(
+            &site.name,
+            &site.path,
+            site.php_run_path.as_deref().unwrap_or(""),
+            site.status.as_deref(),
+            &domain_inline,
+            site.phpversion.as_deref(),
+        )?;
+        crate::services::site_service::reload_nginx()?;
     }
     Ok(Json(site_repository::to_response(&site)))
 }

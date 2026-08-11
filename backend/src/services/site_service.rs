@@ -48,6 +48,17 @@ pub fn generate_site_vhost(
     domains: &[CreateDomainInline],
     phpversion: Option<&str>,
 ) -> AppResult<()> {
+    generate_site_vhost_with_run_path(site_name, site_path, "", status, domains, phpversion)
+}
+
+pub fn generate_site_vhost_with_run_path(
+    site_name: &str,
+    site_path: &str,
+    site_run_path: &str,
+    status: Option<&str>,
+    domains: &[CreateDomainInline],
+    phpversion: Option<&str>,
+) -> AppResult<()> {
     let template_path = format!("{}/site.conf", VHOST_TEMPLATE_DIR);
     let template = std::fs::read_to_string(&template_path)
         .map_err(|e| AppError::Internal(format!("读取站点模板失败: {}", e)))?;
@@ -59,11 +70,17 @@ pub fn generate_site_vhost(
     } else {
         site_path.trim().to_string()
     };
+    let run_path = format!(
+        "{}{}",
+        site_run_path.trim(),
+        if site_run_path.trim().ends_with('/') { "" } else { "" }
+    );
 
     let content = template
         .replace("{$listen_ports}", &listen_ports)
         .replace("{$domains}", &domains_line)
         .replace("{$site_path}", &path)
+        .replace("{$site_run_path}", &run_path)
         .replace("{$site_name}", site_name)
         .replace("{$php_version}", &php_version_tag(phpversion));
 
@@ -194,7 +211,7 @@ pub fn set_site_phpversion(site: &crate::models::site::Site, new_version: &str) 
     Ok(())
 }
 
-fn reload_nginx() -> AppResult<()> {
+pub fn reload_nginx() -> AppResult<()> {
     let pid_path = "/www/server/nginx/run/nginx.pid";
     if !std::path::Path::new(pid_path).exists() {
         return Ok(());
@@ -225,7 +242,11 @@ pub fn set_site_status(site: &crate::models::site::Site) -> AppResult<()> {    l
     let target = if site.status.as_deref() == Some("0") {
         STOP_PATH.to_string()
     } else {
-        site.path.trim().to_string()
+        format!(
+            "{}{}",
+            site.path.trim(),
+            site.php_run_path.as_deref().unwrap_or("").trim()
+        )
     };
     let new_content = content
         .lines()
@@ -242,5 +263,6 @@ pub fn set_site_status(site: &crate::models::site::Site) -> AppResult<()> {    l
         .join("\n");
     std::fs::write(&conf_path, new_content)
         .map_err(|e| AppError::Internal(format!("写入站点配置文件失败: {}", e)))?;
+    reload_nginx()?;
     Ok(())
 }
