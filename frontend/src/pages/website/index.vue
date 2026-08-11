@@ -312,6 +312,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, RefreshRight } from '@element-plus/icons-vue'
 import { apiFetch } from '@/utils/api'
+import { parseDomains } from '@/utils/domain'
 import { openPlugin } from '@/utils/plugin'
 import { openSiteConfig } from './siteConfig'
 import DirPicker from '@/components/DirPicker.vue'
@@ -575,21 +576,7 @@ async function handleDelete(row: any) {
     }
 }
 
-function parseDomains(input: string): { name: string; port: number | null }[] {
-    return input
-        .split('\n')
-        .map(s => s.trim())
-        .filter(s => s.length > 0)
-        .map(s => {
-            const idx = s.lastIndexOf(':')
-            if (idx > 0 && /^\d+$/.test(s.slice(idx + 1))) {
-                return { name: s.slice(0, idx), port: parseInt(s.slice(idx + 1), 10) }
-            }
-            return { name: s, port: null }
-        })
-}
-
-async function savePs(row: any, _tab: string) {
+function savePs(row: any, _tab: string) {
     try {
         await apiFetch(`/api/sites/${row.id}`, {
             method: 'PUT',

@@ -1,4 +1,5 @@
 ﻿import { Plugin } from '@/utils/plugin'
+import { parseDomains } from '@/utils/domain'
 import DirSelect from '@/components/DirSelect.vue'
 
 export function openSiteConfig(site: { id: number; name: string }) {
@@ -205,8 +206,9 @@ export function openSiteConfig(site: { id: number; name: string }) {
             function addDomains() {
                 const lines = domainText.value.split('\n').map(s => s.trim()).filter(Boolean)
                 if (lines.length === 0) return
-                for (const line of lines) {
-                    domains.value.push(parseDomain(line))
+                const list = parseDomains(domainText.value)
+                for (let i = 0; i < list.length; i++) {
+                    domains.value.push({ id: -(Date.now() + i), name: list[i].name, port: list[i].port ?? 80 })
                 }
                 domainText.value = ''
             }
@@ -274,15 +276,6 @@ interface DomainItem {
     id: number
     name: string
     port: number
-}
-
-function parseDomain(line: string): DomainItem {
-    const s = line.trim()
-    const idx = s.lastIndexOf(':')
-    if (idx > 0 && /^\d+$/.test(s.slice(idx + 1))) {
-        return { id: -Date.now(), name: s.slice(0, idx), port: parseInt(s.slice(idx + 1), 10) }
-    }
-    return { id: -Date.now(), name: s, port: 80 }
 }
 
 function buildUrl(name: string): string {
