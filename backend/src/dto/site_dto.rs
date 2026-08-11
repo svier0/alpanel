@@ -42,11 +42,12 @@ pub struct DomainInline {
     pub port: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct SiteResponse {
     pub id: i64,
     pub name: String,
     pub path: String,
+    pub run_dir: String,
     pub status: String,
     pub project_type: String,
     pub phpversion: String,
@@ -57,6 +58,17 @@ pub struct SiteResponse {
     pub run_user: String,
     pub is_onpower: i64,
     pub domains: Vec<DomainInline>,
+}
+
+#[derive(Serialize)]
+pub struct SiteFilesResponse {
+    pub rewrite: String,
+    pub config: String,
+}
+
+#[derive(Serialize)]
+pub struct SiteLogResponse {
+    pub content: String,
 }
 
 #[derive(Serialize)]

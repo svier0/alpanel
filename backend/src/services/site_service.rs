@@ -99,6 +99,55 @@ fn vhost_conf_path(project_type: &str, site_name: &str) -> String {
     }
 }
 
+fn read_tail(path: &std::path::Path, max_bytes: u64) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return String::new(),
+    };
+    let meta = match f.metadata() {
+        Ok(m) => m,
+        Err(_) => return String::new(),
+    };
+    if meta.len() <= max_bytes {
+        let mut s = String::new();
+        let _ = f.read_to_string(&mut s);
+        return s;
+    }
+    let _ = f.seek(SeekFrom::End(-(max_bytes as i64)));
+    let mut buf = vec![0u8; max_bytes as usize];
+    let n = f.read(&mut buf).unwrap_or(0);
+    let mut s = String::from_utf8_lossy(&buf[..n]).into_owned();
+    if let Some(pos) = s.find('\n') {
+        s = s[pos + 1..].to_string();
+    }
+    s
+}
+
+pub fn read_site_rewrite(site_name: &str) -> String {
+    read_tail(
+        &std::path::Path::new(VHOST_REWRITE_DIR).join(format!("{}.conf", site_name)),
+        512 * 1024,
+    )
+}
+
+pub fn read_site_config(site: &crate::models::site::Site) -> String {
+    let project_type = site.project_type.as_deref().unwrap_or("PHP");
+    read_tail(
+        &std::path::Path::new(&vhost_conf_path(project_type, &site.name)),
+        512 * 1024,
+    )
+}
+
+pub fn read_site_log(site_name: &str, log_type: &str) -> String {
+    let file_name = if log_type == "error" {
+        format!("{}.error.log", site_name)
+    } else {
+        format!("{}.log", site_name)
+    };
+    read_tail(&std::path::Path::new("/www/wwwlogs").join(file_name), 512 * 1024)
+}
+
 pub fn remove_site_vhost(site: &crate::models::site::Site) -> AppResult<()> {
     let project_type = site.project_type.as_deref().unwrap_or("PHP");
     let conf_path = vhost_conf_path(project_type, &site.name);

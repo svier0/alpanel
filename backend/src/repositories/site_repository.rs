@@ -196,6 +196,7 @@ pub fn to_response(s: &Site) -> SiteResponse {
         id,
         name: s.name.clone(),
         path: s.path.clone(),
+        run_dir: "/".to_string(),
         status: s.status.clone().unwrap_or_default(),
         project_type: s.project_type.clone().unwrap_or_default(),
         phpversion: s.phpversion.clone().unwrap_or_default(),

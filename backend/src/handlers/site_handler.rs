@@ -57,6 +57,34 @@ pub async fn get_site(
     Ok(Json(site_repository::to_response(&site)))
 }
 
+pub async fn get_site_files(
+    headers: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> AppResult<Json<crate::dto::site_dto::SiteFilesResponse>> {
+    check_auth(&headers)?;
+    let site = site_repository::get_site(id)
+        .ok_or_else(|| crate::errors::AppError::NotFound("站点不存在".into()))?;
+    Ok(Json(crate::dto::site_dto::SiteFilesResponse {
+        rewrite: crate::services::site_service::read_site_rewrite(&site.name),
+        config: crate::services::site_service::read_site_config(&site),
+    }))
+}
+
+pub async fn get_site_log(
+    headers: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<crate::dto::site_dto::SiteLogResponse>> {
+    check_auth(&headers)?;
+    let site = site_repository::get_site(id)
+        .ok_or_else(|| crate::errors::AppError::NotFound("站点不存在".into()))?;
+    let log_type = params.get("type").map(|s| s.as_str()).unwrap_or("access");
+    let log_type = if log_type == "error" { "error" } else { "access" };
+    Ok(Json(crate::dto::site_dto::SiteLogResponse {
+        content: crate::services::site_service::read_site_log(&site.name, log_type),
+    }))
+}
+
 pub async fn create_site(
     headers: HeaderMap,
     Json(body): Json<CreateSiteRequest>,
