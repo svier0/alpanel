@@ -44,16 +44,6 @@ fn php_version_tag(phpversion: Option<&str>) -> String {
 pub fn generate_site_vhost(
     site_name: &str,
     site_path: &str,
-    status: Option<&str>,
-    domains: &[CreateDomainInline],
-    phpversion: Option<&str>,
-) -> AppResult<()> {
-    generate_site_vhost_with_run_path(site_name, site_path, "", status, domains, phpversion)
-}
-
-pub fn generate_site_vhost_with_run_path(
-    site_name: &str,
-    site_path: &str,
     site_run_path: &str,
     status: Option<&str>,
     domains: &[CreateDomainInline],
@@ -68,19 +58,17 @@ pub fn generate_site_vhost_with_run_path(
     let path = if status == Some("0") {
         STOP_PATH.to_string()
     } else {
-        site_path.trim().to_string()
+        format!(
+            "{}{}",
+            site_path.trim(),
+            site_run_path.trim()
+        )
     };
-    let run_path = format!(
-        "{}{}",
-        site_run_path.trim(),
-        if site_run_path.trim().ends_with('/') { "" } else { "" }
-    );
 
     let content = template
         .replace("{$listen_ports}", &listen_ports)
         .replace("{$domains}", &domains_line)
         .replace("{$site_path}", &path)
-        .replace("{$site_run_path}", &run_path)
         .replace("{$site_name}", site_name)
         .replace("{$php_version}", &php_version_tag(phpversion));
 

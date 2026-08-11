@@ -98,7 +98,7 @@ pub async fn create_site(
         crate::errors::AppError::Internal("创建后无法读取站点".into())
     })?;
     if site.project_type.as_deref().unwrap_or("PHP") == "PHP" {
-        crate::services::site_service::generate_site_vhost_with_run_path(
+        crate::services::site_service::generate_site_vhost(
             &site.name,
             &site.path,
             body.php_run_path.as_deref().unwrap_or(""),
@@ -135,7 +135,7 @@ pub async fn update_site(
             .into_iter()
             .map(|d| crate::dto::site_dto::CreateDomainInline { name: d.name, port: Some(d.port) })
             .collect();
-        crate::services::site_service::generate_site_vhost_with_run_path(
+        crate::services::site_service::generate_site_vhost(
             &site.name,
             &site.path,
             site.php_run_path.as_deref().unwrap_or(""),
