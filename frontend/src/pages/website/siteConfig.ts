@@ -119,6 +119,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                             h('option', { value: '0' }, '纯静态'),
                             ...options,
                         ]),
+                        h('button', { class: 'btn', onClick: () => state.saveFcgi() }, '切换'),
                     ])
                 },
             },
@@ -238,12 +239,24 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 toast('已保存')
             }
 
+            function saveFcgi() {
+                const pv = fcgiVersion.value === '0' ? '' : fcgiVersion.value.replace('php', '').split('').join('.')
+                ctx.api(`/api/sites/${site.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ phpversion: pv }),
+                }).then(() => {
+                    toast('切换成功')
+                }).catch((e: any) => {
+                    toast(e?.message || '切换失败', 'err')
+                })
+            }
+
             return {
                 Editor,
                 domainText, domains, addDomains, removeDomain,
                 siteRoot, runDir, onRunPicked, saveSiteDir, saveRunDir,
                 rewriteContent, configContent, saveRewrite, saveConfig,
-                logActive, logContent, switchLog, fcgiVersion, phpVersions,
+                logActive, logContent, switchLog, fcgiVersion, phpVersions, saveFcgi,
                 loadSite, loadFiles, loadLog,
             }
         },
