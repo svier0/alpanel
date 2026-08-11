@@ -11,7 +11,7 @@ import {
 } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import {
-    bracketMatching, indentOnInput, foldGutter,
+    bracketMatching, indentOnInput, foldGutter, indentUnit,
     StreamLanguage,
 } from '@codemirror/language'
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
@@ -90,6 +90,7 @@ function buildState() {
             highlightActiveLine(),
             highlightSelectionMatches(),
             autocompletion(),
+            indentUnit.of('    '),
             indentationMarkers(),
             keymap.of([
                 ...closeBracketsKeymap,

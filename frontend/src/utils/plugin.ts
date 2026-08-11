@@ -10,7 +10,7 @@ import { nginx } from '@codemirror/legacy-modes/mode/nginx'
 import { shell } from '@codemirror/legacy-modes/mode/shell'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
 import { json } from '@codemirror/lang-json'
-import { StreamLanguage } from '@codemirror/language'
+import { StreamLanguage, indentUnit } from '@codemirror/language'
 import { indentationMarkers } from '@replit/codemirror-indentation-markers'
 
 function langExtension(lang: string) {
@@ -29,7 +29,7 @@ const PluginEditor = {
         let view: EditorView | null = null
 
         function create(viewEl: HTMLElement) {
-            const exts: any[] = [lineNumbers(), history(), keymap.of([...defaultKeymap, ...historyKeymap]), oneDark, EditorView.lineWrapping, indentationMarkers()]
+            const exts: any[] = [lineNumbers(), history(), keymap.of([...defaultKeymap, ...historyKeymap]), oneDark, EditorView.lineWrapping, indentUnit.of('    '), indentationMarkers()]
             if (props.readonly) { exts.push(EditorState.readOnly.of(true), EditorView.editable.of(false)) }
             const langExt = langExtension(props.language || '')
             if (langExt) exts.push(...(Array.isArray(langExt) ? langExt : [langExt]))
