@@ -82,6 +82,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                             modelValue: state.rewriteContent.value,
                             'onUpdate:modelValue': (v: string) => { state.rewriteContent.value = v },
                             language: 'nginx',
+                            height: 480,
                         }),
                         h('div', { class: 'row' }, [
                             h('button', { class: 'btn', onClick: () => state.saveRewrite() }, '保存'),
@@ -97,6 +98,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                             modelValue: state.configContent.value,
                             'onUpdate:modelValue': (v: string) => { state.configContent.value = v },
                             language: 'nginx',
+                            height: 480,
                         }),
                         h('div', { class: 'row' }, [
                             h('button', { class: 'btn', onClick: () => state.saveConfig() }, '保存'),
@@ -143,6 +145,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                             'onUpdate:modelValue': (v: string) => { state.logContent.value = v },
                             language: 'log',
                             readonly: true,
+                            height: 520,
                         }),
                     ])
                 },

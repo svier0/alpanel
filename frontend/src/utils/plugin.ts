@@ -22,7 +22,7 @@ function langExtension(lang: string) {
 }
 
 const PluginEditor = {
-    props: { modelValue: String, language: String, readonly: Boolean },
+    props: { modelValue: String, language: String, readonly: Boolean, height: [String, Number] },
     emits: ['update:modelValue'],
     setup(props: any, { emit }: any) {
         const el = ref<HTMLElement>()
@@ -45,7 +45,14 @@ const PluginEditor = {
             }
         })
 
-        return () => h('div', { ref: el, class: 'plugin-editor' })
+        const containerStyle = computed(() => {
+            const h = props.height
+            if (h === undefined || h === null) return {}
+            const val = typeof h === 'number' ? `${h}px` : h
+            return { height: val }
+        })
+
+        return () => h('div', { ref: el, class: 'plugin-editor', style: containerStyle.value })
     },
 }
 
@@ -132,7 +139,7 @@ export function Plugin(config: PluginConfig) {
         '.table td{color:#aaa}',
         '.page{display:flex;flex-direction:column;flex:1;min-height:0}',
         '.page>div{flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto}',
-        '.plugin-editor{flex:1;min-height:120px;position:relative;overflow:hidden}',
+        '.plugin-editor{position:relative;height:320px;overflow:hidden}',
         '.plugin-editor .cm-editor{position:absolute;inset:0;outline:none}',
         '.plugin-editor .cm-scroller{font-family:monospace;line-height:1.5;overflow:auto}',
         '.toast{position:fixed;top:12px;right:20px;padding:8px 18px;border-radius:4px;font-size:13px;z-index:9999;color:#fff;background:#333}',
