@@ -72,8 +72,34 @@ export function openSiteConfig(site: { id: number; name: string }) {
                     ])
                 },
             },
-            rewrite: { render: emptyRender },
-            config: { render: emptyRender },
+            rewrite: {
+                render(h, state) {
+                    return h('div', [
+                        h(state.Editor, {
+                            modelValue: state.rewriteContent.value,
+                            'onUpdate:modelValue': (v: string) => { state.rewriteContent.value = v },
+                            language: 'nginx',
+                        }),
+                        h('div', { class: 'row' }, [
+                            h('button', { class: 'btn', onClick: () => state.saveRewrite() }, '保存'),
+                        ]),
+                    ])
+                },
+            },
+            config: {
+                render(h, state) {
+                    return h('div', [
+                        h(state.Editor, {
+                            modelValue: state.configContent.value,
+                            'onUpdate:modelValue': (v: string) => { state.configContent.value = v },
+                            language: 'nginx',
+                        }),
+                        h('div', { class: 'row' }, [
+                            h('button', { class: 'btn', onClick: () => state.saveConfig() }, '保存'),
+                        ]),
+                    ])
+                },
+            },
             ssl: { render: emptyRender },
             fastcgi: { render: emptyRender },
             proxy: { render: emptyRender },
@@ -105,6 +131,8 @@ export function openSiteConfig(site: { id: number; name: string }) {
 
             const siteRoot = ref(DEFAULT_ROOT)
             const runDir = ref('/')
+            const rewriteContent = ref('# 伪静态规则\n\nlocation / {\n    try_files $uri $uri/ /index.php?$query_string;\n}\n')
+            const configContent = ref('# 站点配置文件\n')
 
             function onRunPicked(path: string) {
                 runDir.value = path.slice(siteRoot.value.length) || '/'
@@ -118,9 +146,18 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 toast('已保存')
             }
 
+            function saveRewrite() {
+                toast('已保存')
+            }
+
+            function saveConfig() {
+                toast('已保存')
+            }
+
             return {
                 domainText, domains, addDomains, removeDomain,
                 siteRoot, runDir, onRunPicked, saveSiteDir, saveRunDir,
+                rewriteContent, configContent, saveRewrite, saveConfig,
             }
         },
         style() {
