@@ -1,7 +1,10 @@
 <template>
     <div class="dir-select">
-        <el-input v-model="display" size="small" readonly placeholder="/" class="dir-select-input" />
-        <el-button size="small" @click="open">浏览</el-button>
+        <el-input v-model="display" size="small" readonly placeholder="/">
+            <template #append>
+                <el-button @click="open">浏览</el-button>
+            </template>
+        </el-input>
         <DirPicker
             v-model="visible"
             :initial-path="resolveOpenPath()"
@@ -53,13 +56,6 @@ function picked(path: string) {
 
 <style scoped>
 .dir-select {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex: 1;
-}
-
-.dir-select-input {
     flex: 1;
 }
 </style>
