@@ -28,6 +28,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                         h('div', [
                             h('textarea', {
                                 class: 'domain-input',
+                                rows: 5,
                                 placeholder: '如需填写多个域名，请换行填写，每行一个域名，默认为80端口\nIP地址格式：192.168.1.199\n泛解析添加方法 *.domain.com\n如另加端口格式为 www.domain.com:88\nipv6格式：[2001:db8:85a3::8a2e:370:7334]:88',
                                 value: state.domainText.value,
                                 onInput: (e: any) => { state.domainText.value = e.target.value },
