@@ -100,12 +100,12 @@ export function Plugin(config: PluginConfig) {
 
     const TABPAGES_CSS = [
         '@keyframes spin{to{transform:rotate(360deg)}}',
-        '.app{display:flex;height:100%}',
-        '.side{width:100px;background:#202020}',
+        '.app{display:flex;flex:1;min-height:0}',
+        '.side{width:100px;background:#202020;overflow:auto}',
         '.item{padding:10px 16px;color:#666;cursor:pointer;border-left:2px solid transparent;font-size:13px}',
         '.item:hover{color:#aaa}',
         '.item.active{color:#fff;background:#141414;border-left-color:#444}',
-        '.content{flex:1;padding:0 20px;background:#141414;color:#ccc;overflow:auto}',
+        '.content{flex:1;padding:0 20px;background:#141414;color:#ccc;overflow:auto;display:flex;flex-direction:column;min-height:0}',
         '.spin-wrap{display:flex;align-items:center;justify-content:center;height:100%;min-height:200px}',
         '.spin{width:28px;height:28px;border:2px solid #333;border-top-color:#666;border-radius:50%;animation:spin .6s linear infinite}',
         '.row{display:flex;gap:10px;margin-top:10px}',
@@ -130,9 +130,10 @@ export function Plugin(config: PluginConfig) {
         '.table th{background:#202020;color:#ccc;font-weight:500;white-space:nowrap;text-align:left}',
         '.table th,.table td{padding:8px 14px;border-bottom:1px solid #2a2a2a;font-size:14px}',
         '.table td{color:#aaa}',
-        '.plugin-editor{font-size:13px;min-height:200px}',
-        '.plugin-editor .cm-editor{outline:none}',
-        '.plugin-editor .cm-scroller{font-family:monospace;line-height:1.5}',
+        '.page{display:flex;flex-direction:column;flex:1;min-height:0}',
+        '.plugin-editor{flex:1;min-height:120px;display:flex;flex-direction:column;overflow:hidden}',
+        '.plugin-editor .cm-editor{flex:1;outline:none;height:auto}',
+        '.plugin-editor .cm-scroller{font-family:monospace;line-height:1.5;overflow:auto;height:100%}',
         '.toast{position:fixed;top:12px;right:20px;padding:8px 18px;border-radius:4px;font-size:13px;z-index:9999;color:#fff;background:#333}',
         '.toast.ok{background:#16a34a}',
         '.toast.err{background:#dc2626}',
@@ -222,7 +223,7 @@ export function Plugin(config: PluginConfig) {
                     toastMsg.value ? h('div', { class: 'toast ' + (toastType.value || 'ok') }, toastMsg.value) : null,
                     loading.value
                         ? h('div', { class: 'spin-wrap' }, h('div', { class: 'spin' }))
-                        : h('div', { key: activeTab.value },
+                        : h('div', { key: activeTab.value, class: 'page' },
                                 (config.pages?.[activeTab.value]?.render ?? (() => null))(h, st)),
                 ]),
             ])
@@ -257,7 +258,7 @@ export function Plugin(config: PluginConfig) {
                     onUnmounted(() => { unmountFns.forEach(fn => fn()) })
                     return () => {
                         const children: any[] = []
-                        children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:auto}`))
+                        children.push(h('style', {}, `.el-dialog{height:${dialogHeight};display:flex;flex-direction:column}.el-dialog__body{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}`))
                         if (styleCSS) {
                             children.push(h('style', {}, styleCSS))
                         }
