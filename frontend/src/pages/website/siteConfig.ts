@@ -262,7 +262,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
         },
         style() {
             return `
-                .domain-input{width:100%;height:110px;padding:8px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box}
+                .domain-input{width:100%;padding:8px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;resize:vertical;outline:none;box-sizing:border-box}
                 .domain-input:focus{border-color:#409eff}
                 .dlink{color:#409eff;cursor:pointer;text-decoration:none}
                 .dlink:hover{text-decoration:underline}
