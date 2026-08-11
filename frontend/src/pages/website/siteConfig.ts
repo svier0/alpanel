@@ -52,22 +52,26 @@ export function openSiteConfig(site: { id: number; name: string }) {
             directory: {
                 render(h, state) {
                     return h('div', [
-                        h('div', { class: 'dir-row' }, [
-                            h('label', '网站目录'),
-                            h(DirSelect, {
-                                modelValue: state.siteRoot.value,
-                                'onUpdate:modelValue': (v: string) => { state.siteRoot.value = v },
-                            }),
-                            h('button', { class: 'btn', onClick: () => state.saveSiteDir() }, '保存'),
+                        h('div', { class: 'dir-field' }, [
+                            h('div', { class: 'dir-field-label' }, '网站目录'),
+                            h('div', { class: 'dir-field-body' }, [
+                                h(DirSelect, {
+                                    modelValue: state.siteRoot.value,
+                                    'onUpdate:modelValue': (v: string) => { state.siteRoot.value = v },
+                                }),
+                                h('button', { class: 'btn', onClick: () => state.saveSiteDir() }, '保存'),
+                            ]),
                         ]),
-                        h('div', { class: 'dir-row' }, [
-                            h('label', '运行目录'),
-                            h(DirSelect, {
-                                modelValue: state.runDir.value,
-                                basePath: state.siteRoot.value,
-                                'onUpdate:modelValue': (v: string) => { state.onRunPicked(v) },
-                            }),
-                            h('button', { class: 'btn', onClick: () => state.saveRunDir() }, '保存'),
+                        h('div', { class: 'dir-field' }, [
+                            h('div', { class: 'dir-field-label' }, '运行目录'),
+                            h('div', { class: 'dir-field-body' }, [
+                                h(DirSelect, {
+                                    modelValue: state.runDir.value,
+                                    basePath: state.siteRoot.value,
+                                    'onUpdate:modelValue': (v: string) => { state.onRunPicked(v) },
+                                }),
+                                h('button', { class: 'btn', onClick: () => state.saveRunDir() }, '保存'),
+                            ]),
                         ]),
                     ])
                 },
@@ -132,8 +136,9 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 .danger-link{color:#f56c6c}
                 .danger-link:hover{text-decoration:underline}
                 .empty{text-align:center;color:#666;padding:20px 0}
-                .dir-row{display:flex;align-items:center;margin-bottom:10px}
-                .dir-row label{width:70px;color:#aaa;font-size:13px;flex:0 0 auto}
+                .dir-field{margin-bottom:12px}
+                .dir-field-label{color:#aaa;font-size:13px;margin-bottom:6px}
+                .dir-field-body{display:flex;align-items:center;gap:8px}
             `
         },
     }).show()
