@@ -769,3 +769,23 @@ pub async fn kill_process(
         .output();
     Ok(Json(serde_json::json!({"ok": true})))
 }
+
+pub async fn php_versions(
+    headers: HeaderMap,
+) -> AppResult<Json<Vec<String>>> {
+    check_auth(&headers)?;
+    let mut versions = Vec::new();
+    if let Ok(entries) = std::fs::read_dir("/www/server/php") {
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let ver = entry.file_name().to_string_lossy().to_string();
+            if ver.chars().all(|c| c.is_ascii_digit()) {
+                versions.push(ver);
+            }
+        }
+    }
+    versions.sort_by(|a, b| b.cmp(a));
+    Ok(Json(versions))
+}

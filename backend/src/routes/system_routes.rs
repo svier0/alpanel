@@ -9,4 +9,5 @@ pub fn routes() -> Router<()> {
         .route("/api/system/info", get(system_handler::system_info))
         .route("/api/system/stat", get(system_handler::system_stat))
         .route("/api/system/kill/{pid}", post(system_handler::kill_process))
+        .route("/api/system/php-versions", get(system_handler::php_versions))
 }
