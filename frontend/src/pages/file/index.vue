@@ -283,30 +283,7 @@
             </template>
         </el-dialog>
 
-        <el-dialog v-model="dirPicker.visible" title="选择目录" width="500px" append-to-body @opened="focusDirPickerInput">
-            <div style="margin-bottom:8px;color:var(--el-text-color-secondary);font-size:12px">{{ dirPicker.currentPath }}</div>
-            <div style="display:flex;gap:4px;margin-bottom:8px">
-                <el-input v-model="dirPicker.newDir" placeholder="新建子目录名称" size="small" @keyup.enter="createDir" />
-                <el-button size="small" type="primary" @click="createDir" :loading="dirPicker.creating">新建</el-button>
-            </div>
-            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--el-border-color-lighter);border-radius:4px">
-                <div
-                    v-for="item in dirPicker.items"
-                    :key="item.path"
-                    style="padding:6px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px"
-                    @click="enterDir(item)"
-                >
-                    <span style="color:#e6a23c">📁</span>
-                    <span>{{ item.name }}</span>
-                </div>
-                <div v-if="dirPicker.items.length === 0" style="padding:12px;color:var(--el-text-color-secondary);font-size:12px;text-align:center">无子目录</div>
-            </div>
-            <template #footer>
-                <el-button @click="dirPickerGoUp">返回上级</el-button>
-                <el-button @click="dirPicker.visible = false">取消</el-button>
-                <el-button type="primary" @click="dirPickerConfirm">选择当前目录</el-button>
-            </template>
-        </el-dialog>
+        <DirPicker v-model="dirPickerVisible" :initial-path="dirPickerInitial" @confirm="dirPickerConfirm" />
 
         <FileEditorDialog v-model="editorDialog.visible" :root-path="editorDialog.rootPath" :initial-file="editorDialog.file" />
     </div>
@@ -319,6 +296,7 @@ import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading, ArrowDown } from '@element-plus/icons-vue'
 import { apiFetch, authHeaders, checkRes401 } from '@/utils/api'
 import FileEditorDialog from '@/components/FileEditorDialog.vue'
+import DirPicker from '@/components/DirPicker.vue'
 
 interface FileItem {
     name: string
@@ -751,15 +729,9 @@ const extractDialog = reactive({
     loading: false,
 })
 
-const dirPicker = reactive({
-    visible: false,
-    currentPath: '/www/',
-    parentPath: '',
-    items: [] as { name: string; path: string; is_dir: boolean }[],
-    newDir: '',
-    creating: false,
-    _callback: '' as string,
-})
+const dirPickerVisible = ref(false)
+const dirPickerInitial = ref('/')
+const dirPickerTarget = ref<'extract' | 'compress'>('compress')
 
 
 
@@ -976,13 +948,6 @@ function focusCreateInput() {
     }, 50)
 }
 
-function focusDirPickerInput() {
-    setTimeout(() => {
-        const el = document.querySelector<HTMLInputElement>('.el-dialog input[placeholder="新建子目录名称"]')
-        if (el) el.focus()
-    }, 50)
-}
-
 async function handleCreate() {
     if (!createDialog.name.trim() || !createDialog.targetTab) return
     const tab = createDialog.targetTab
@@ -1102,10 +1067,9 @@ function openExtractDialog(filePath: string, fileName: string) {
 }
 
 function openExtractDirPicker() {
-    dirPicker.currentPath = extractDialog.dest || '/'
-    fetchDirs(dirPicker.currentPath)
-    dirPicker.visible = true
-    dirPicker._callback = 'extract'
+    dirPickerTarget.value = 'extract'
+    dirPickerInitial.value = extractDialog.dest || '/'
+    dirPickerVisible.value = true
 }
 
 async function handleExtract() {
@@ -1131,57 +1095,21 @@ async function handleExtract() {
     }
 }
 
-async function fetchDirs(path: string) {
-    try {
-        const data = await apiFetch('/api/files/list?path=' + encodeURIComponent(path))
-        dirPicker.items = (data.items || []).filter((i: any) => i.is_dir)
-        dirPicker.currentPath = data.path
-        dirPicker.parentPath = data.parent || ''
-    } catch {}
-}
-
 function openCompressDirPicker() {
     const parts = compressDialog.path.split('/')
     parts.pop()
-    dirPicker.currentPath = parts.join('/') || '/'
-    fetchDirs(dirPicker.currentPath)
-    dirPicker.visible = true
+    dirPickerTarget.value = 'compress'
+    dirPickerInitial.value = parts.join('/') || '/'
+    dirPickerVisible.value = true
 }
 
-function enterDir(item: { name: string; path: string; is_dir: boolean }) {
-    if (item.is_dir) fetchDirs(item.path)
-}
-
-function dirPickerGoUp() {
-    if (dirPicker.parentPath) fetchDirs(dirPicker.parentPath)
-}
-
-function dirPickerConfirm() {
-    const dir = dirPicker.currentPath.endsWith('/') ? dirPicker.currentPath : dirPicker.currentPath + '/'
-    if (dirPicker._callback === 'extract') {
+function dirPickerConfirm(dir: string) {
+    if (dirPickerTarget.value === 'extract') {
         extractDialog.dest = dir
     } else {
         const oldParts = compressDialog.path.split('/')
         const fileName = oldParts.pop() || 'archive.tar.gz'
         compressDialog.path = dir + fileName
-    }
-    dirPicker.visible = false
-}
-
-async function createDir() {
-    const name = dirPicker.newDir.trim()
-    if (!name) return
-    dirPicker.creating = true
-    try {
-        const p = dirPicker.currentPath.endsWith('/') ? dirPicker.currentPath + name : dirPicker.currentPath + '/' + name
-        await apiFetch('/api/files/create', {
-            method: 'POST',
-            body: JSON.stringify({ path: p, type: 'dir' }),
-        })
-        dirPicker.newDir = ''
-        await fetchDirs(dirPicker.currentPath)
-    } finally {
-        dirPicker.creating = false
     }
 }
 
