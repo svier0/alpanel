@@ -103,11 +103,31 @@ export function openSiteConfig(site: { id: number; name: string }) {
             ssl: { render: emptyRender },
             fastcgi: { render: emptyRender },
             proxy: { render: emptyRender },
-            log: { render: emptyRender },
+            log: {
+                render(h, state) {
+                    const tabs = [
+                        { key: 'access', label: '响应日志' },
+                        { key: 'error', label: '错误日志' },
+                    ]
+                    return h('div', [
+                        h('div', { class: 'sub-tabs' },
+                            tabs.map(t => h('span', {
+                                class: 'sub-tab' + (state.logActive.value === t.key ? ' active' : ''),
+                                onClick: () => { state.logActive.value = t.key },
+                            }, t.label))),
+                        h(state.Editor, {
+                            modelValue: state.logContent.value,
+                            'onUpdate:modelValue': (v: string) => { state.logContent.value = v },
+                            language: 'log',
+                            readonly: true,
+                        }),
+                    ])
+                },
+            },
             other: { render: emptyRender },
         },
         setup(ctx) {
-            const { ref, toast } = ctx
+            const { ref, toast, Editor } = ctx
             const domainText = ref('')
             let domainId = 3
             const domains = ref([
@@ -133,6 +153,8 @@ export function openSiteConfig(site: { id: number; name: string }) {
             const runDir = ref('/')
             const rewriteContent = ref('# 伪静态规则\n\nlocation / {\n    try_files $uri $uri/ /index.php?$query_string;\n}\n')
             const configContent = ref('# 站点配置文件\n')
+            const logActive = ref<'access' | 'error'>('access')
+            const logContent = ref('')
 
             function onRunPicked(path: string) {
                 runDir.value = path.slice(siteRoot.value.length) || '/'
@@ -155,9 +177,11 @@ export function openSiteConfig(site: { id: number; name: string }) {
             }
 
             return {
+                Editor,
                 domainText, domains, addDomains, removeDomain,
                 siteRoot, runDir, onRunPicked, saveSiteDir, saveRunDir,
                 rewriteContent, configContent, saveRewrite, saveConfig,
+                logActive, logContent,
             }
         },
         style() {
@@ -172,6 +196,10 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 .dir-field{display:flex;align-items:center;gap:10px;margin-bottom:12px}
                 .dir-field-label{color:#aaa;font-size:13px;white-space:nowrap;flex:0 0 auto}
                 .btn-save{padding:5px 10px;flex:0 0 auto}
+                .sub-tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid #2a2a2a}
+                .sub-tab{padding:6px 16px;font-size:13px;color:#888;cursor:pointer;border-bottom:2px solid transparent}
+                .sub-tab:hover{color:#ccc}
+                .sub-tab.active{color:#fff;border-bottom-color:#409eff}
             `
         },
     }).show()
