@@ -55,7 +55,8 @@ function picked(path: string) {
 .dir-select {
     display: flex;
     align-items: stretch;
-    flex: 1;
+    flex: 0 0 auto;
+    width: 440px;
 }
 
 .dir-select-input {
