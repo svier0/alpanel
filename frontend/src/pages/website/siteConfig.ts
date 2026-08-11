@@ -1,5 +1,5 @@
 import { Plugin } from '@/utils/plugin'
-import DirPicker from '@/components/DirPicker.vue'
+import DirSelect from '@/components/DirSelect.vue'
 
 const DEFAULT_ROOT = '/www/wwwroot/test.w.j7yx.com'
 
@@ -54,44 +54,21 @@ export function openSiteConfig(site: { id: number; name: string }) {
                     return h('div', [
                         h('div', { class: 'dir-row' }, [
                             h('label', '网站目录'),
-                            h('div', { class: 'dir-input-wrap' }, [
-                                h('input', {
-                                    class: 'dir-input',
-                                    value: state.siteRoot.value,
-                                    onInput: (e: any) => { state.siteRoot.value = e.target.value },
-                                }),
-                                h('button', { class: 'btn', onClick: () => state.openRootPicker() }, '浏览'),
-                            ]),
+                            h(DirSelect, {
+                                modelValue: state.siteRoot.value,
+                                'onUpdate:modelValue': (v: string) => { state.siteRoot.value = v },
+                            }),
+                            h('button', { class: 'btn', onClick: () => state.saveSiteDir() }, '保存'),
                         ]),
                         h('div', { class: 'dir-row' }, [
                             h('label', '运行目录'),
-                            h('div', { class: 'dir-input-wrap' }, [
-                                h('input', {
-                                    class: 'dir-input',
-                                    value: state.runDir.value,
-                                    onInput: (e: any) => { state.runDir.value = e.target.value },
-                                }),
-                                h('button', { class: 'btn', onClick: () => state.openRunPicker() }, '浏览'),
-                            ]),
+                            h(DirSelect, {
+                                modelValue: state.runDir.value,
+                                basePath: state.siteRoot.value,
+                                'onUpdate:modelValue': (v: string) => { state.onRunPicked(v) },
+                            }),
+                            h('button', { class: 'btn', onClick: () => state.saveRunDir() }, '保存'),
                         ]),
-                        h('p', { class: 'tip' }, '运行目录只能是网站目录下的子目录，显示相对路径；与网站目录拼接后为 Nginx root'),
-                        h('div', { class: 'row' }, [
-                            h('button', { class: 'btn', onClick: () => state.saveDirs() }, '保存'),
-                        ]),
-                        h(DirPicker, {
-                            modelValue: state.rootPickerVisible.value,
-                            'onUpdate:modelValue': (v: boolean) => { state.rootPickerVisible.value = v },
-                            initialPath: state.siteRoot.value,
-                            onConfirm: (path: string) => state.onRootPicked(path),
-                        }),
-                        h(DirPicker, {
-                            modelValue: state.runPickerVisible.value,
-                            'onUpdate:modelValue': (v: boolean) => { state.runPickerVisible.value = v },
-                            initialPath: state.siteRoot.value,
-                            basePath: state.siteRoot.value,
-                            showUp: true,
-                            onConfirm: (path: string) => state.onRunPicked(path),
-                        }),
                     ])
                 },
             },
@@ -128,35 +105,22 @@ export function openSiteConfig(site: { id: number; name: string }) {
 
             const siteRoot = ref(DEFAULT_ROOT)
             const runDir = ref('/')
-            const rootPickerVisible = ref(false)
-            const runPickerVisible = ref(false)
-
-            function openRootPicker() {
-                rootPickerVisible.value = true
-            }
-
-            function onRootPicked(path: string) {
-                siteRoot.value = path
-            }
-
-            function openRunPicker() {
-                runPickerVisible.value = true
-            }
 
             function onRunPicked(path: string) {
-                const root = normalizePath(siteRoot.value)
-                const rel = path.startsWith(root) ? path.slice(root.length) : path
-                runDir.value = rel || '/'
+                runDir.value = path.slice(siteRoot.value.length) || '/'
             }
 
-            function saveDirs() {
-                toast('目录已保存')
+            function saveSiteDir() {
+                toast('已保存')
+            }
+
+            function saveRunDir() {
+                toast('已保存')
             }
 
             return {
                 domainText, domains, addDomains, removeDomain,
-                siteRoot, runDir, rootPickerVisible, runPickerVisible,
-                openRootPicker, onRootPicked, openRunPicker, onRunPicked, saveDirs,
+                siteRoot, runDir, onRunPicked, saveSiteDir, saveRunDir,
             }
         },
         style() {
@@ -170,9 +134,6 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 .empty{text-align:center;color:#666;padding:20px 0}
                 .dir-row{display:flex;align-items:center;margin-bottom:10px}
                 .dir-row label{width:70px;color:#aaa;font-size:13px;flex:0 0 auto}
-                .dir-input-wrap{flex:1;display:flex;gap:8px;align-items:center}
-                .dir-input{flex:1;padding:5px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;outline:none;box-sizing:border-box}
-                .dir-input:focus{border-color:#409eff}
             `
         },
     }).show()
@@ -193,12 +154,6 @@ function parseDomain(id: number, line: string): DomainItem {
 
 function buildUrl(name: string): string {
     return /^[a-zA-Z]+:\/\//.test(name) ? name : `http://${name}`
-}
-
-function normalizePath(p: string): string {
-    let s = p.trim()
-    if (!s.endsWith('/')) s += '/'
-    return s
 }
 
 function emptyRender() {
