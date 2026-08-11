@@ -39,6 +39,7 @@ const props = defineProps<{
     modelValue: boolean
     initialPath?: string
     showUp?: boolean
+    basePath?: string
 }>()
 
 const emit = defineEmits<{
@@ -59,10 +60,16 @@ const creating = ref(false)
 
 watch(() => props.modelValue, (v) => {
     if (v) {
-        load(props.initialPath || '/')
+        let start = props.initialPath || '/'
+        if (props.basePath && !isWithin(start, props.basePath)) start = props.basePath
+        load(start)
         nextTick(focusInput)
     }
 })
+
+function isWithin(path: string, base: string): boolean {
+    return path === base || path.startsWith(base.endsWith('/') ? base : base + '/')
+}
 
 async function load(path: string) {
     try {
@@ -78,7 +85,10 @@ function enterDir(item: { name: string; path: string; is_dir: boolean }) {
 }
 
 function goUp() {
-    if (parentPath.value) load(parentPath.value)
+    const parent = parentPath.value
+    if (!parent) return
+    if (props.basePath && !isWithin(parent, props.basePath)) return
+    load(parent)
 }
 
 function confirm() {
