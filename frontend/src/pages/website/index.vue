@@ -576,7 +576,7 @@ async function handleDelete(row: any) {
     }
 }
 
-function savePs(row: any, _tab: string) {
+async function savePs(row: any, _tab: string) {
     try {
         await apiFetch(`/api/sites/${row.id}`, {
             method: 'PUT',
