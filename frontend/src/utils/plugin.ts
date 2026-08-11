@@ -51,6 +51,7 @@ const PluginEditor = {
 export interface PluginContext {
     api(action: string, opts?: RequestInit): Promise<any>
     plugin_name: string
+    plugin_title: { value: string }
     ref: typeof ref
     reactive: typeof reactive
     computed: typeof computed
@@ -67,6 +68,7 @@ export interface PluginPage {
 
 export interface PluginConfig {
     plugin_name: string
+    title?: string
     layout?: 'none' | 'tabpages' | string
     width?: string | number
     height?: string | number
@@ -79,8 +81,9 @@ export interface PluginConfig {
 }
 
 export function Plugin(config: PluginConfig) {
-    const { plugin_name, width, height, setup, style, onClose } = config
+    const { plugin_name, title, width, height, setup, style, onClose } = config
     const layout = (config.layout || 'none') === 'none' ? 'none' : (config.layout || 'none')
+    const plugin_title = ref(title || plugin_name)
 
     const scopeClass = 'plugin-dlg'
 
@@ -161,6 +164,7 @@ export function Plugin(config: PluginConfig) {
             return apiFetch(url, { method: 'POST', ...opts })
         },
         plugin_name,
+        plugin_title,
         ref,
         reactive,
         computed,
@@ -263,7 +267,7 @@ export function Plugin(config: PluginConfig) {
                             modelValue: visible.value,
                             'onUpdate:modelValue': (v: boolean) => { if (!v) close() },
                             class: scopeClass,
-                            title: plugin_name,
+                            title: plugin_title.value,
                             width: dialogWidth,
                             alignCenter: true,
                             appendToBody: false,
