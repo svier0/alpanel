@@ -60,18 +60,6 @@ pub fn init_db() {
     )
     .expect("Failed to create tables");
 
-    let cols: Vec<String> = conn
-        .prepare("PRAGMA table_info(sites)")
-        .and_then(|mut stmt| {
-            let rows = stmt.query_map([], |r| r.get::<_, String>(1))?;
-            rows.collect()
-        })
-        .unwrap_or_default();
-    if !cols.iter().any(|c| c == "php_run_path") {
-        conn.execute("ALTER TABLE sites ADD COLUMN php_run_path TEXT", [])
-            .ok();
-    }
-
     conn.execute(
         "INSERT OR IGNORE INTO config (key, value) VALUES ('status', '1')",
         [],
