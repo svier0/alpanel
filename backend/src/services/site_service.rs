@@ -45,6 +45,7 @@ pub fn generate_site_vhost(
     site_name: &str,
     site_path: &str,
     site_run_path: &str,
+    project_type: &str,
     status: Option<&str>,
     domains: &[CreateDomainInline],
     phpversion: Option<&str>,
@@ -57,12 +58,14 @@ pub fn generate_site_vhost(
     let domains_line = build_domains(domains);
     let path = if status == Some("0") {
         STOP_PATH.to_string()
-    } else {
+    } else if project_type == "PHP" {
         format!(
             "{}{}",
             site_path.trim(),
             site_run_path.trim()
         )
+    } else {
+        site_path.trim().to_string()
     };
 
     let content = template
