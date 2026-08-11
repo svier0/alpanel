@@ -1,7 +1,5 @@
-import { Plugin } from '@/utils/plugin'
+﻿import { Plugin } from '@/utils/plugin'
 import DirSelect from '@/components/DirSelect.vue'
-
-const DEFAULT_ROOT = '/www/wwwroot/test.w.j7yx.com'
 
 export function openSiteConfig(site: { id: number; name: string }) {
     Plugin({
@@ -23,6 +21,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
         },
         pages: {
             domain: {
+                onLoad: (_ctx, state) => state.loadSite(),
                 render(h, state) {
                     return h('div', [
                         h('div', [
@@ -50,6 +49,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 },
             },
             directory: {
+                onLoad: (_ctx, state) => state.loadSite(),
                 render(h, state) {
                     return h('div', [
                         h('div', { class: 'dir-field' }, [
@@ -73,6 +73,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 },
             },
             rewrite: {
+                onLoad: (_ctx, state) => state.loadFiles(),
                 render(h, state) {
                     return h('div', [
                         h(state.Editor, {
@@ -87,6 +88,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 },
             },
             config: {
+                onLoad: (_ctx, state) => state.loadFiles(),
                 render(h, state) {
                     return h('div', [
                         h(state.Editor, {
@@ -102,6 +104,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
             },
             ssl: { render: emptyRender },
             fastcgi: {
+                onLoad: (_ctx, state) => state.loadSite(),
                 render(h, state) {
                     return h('div', { class: 'fcgi-row' }, [
                         h('span', { class: 'fcgi-label' }, 'PHP版本'),
@@ -119,6 +122,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
             },
             proxy: { render: emptyRender },
             log: {
+                onLoad: (_ctx, state) => state.loadLog(state.logActive.value),
                 render(h, state) {
                     const tabs = [
                         { key: 'access', label: '响应日志' },
@@ -128,7 +132,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                         h('div', { class: 'sub-tabs' },
                             tabs.map(t => h('span', {
                                 class: 'sub-tab' + (state.logActive.value === t.key ? ' active' : ''),
-                                onClick: () => { state.logActive.value = t.key },
+                                onClick: () => { state.switchLog(t.key) },
                             }, t.label))),
                         h(state.Editor, {
                             modelValue: state.logContent.value,
@@ -144,17 +148,60 @@ export function openSiteConfig(site: { id: number; name: string }) {
         setup(ctx) {
             const { ref, toast, Editor } = ctx
             const domainText = ref('')
-            let domainId = 3
-            const domains = ref([
-                { id: 1, name: 'example.com', port: 80 },
-                { id: 2, name: 'www.example.com', port: 80 },
-            ])
+            const domains = ref<DomainItem[]>([])
+            const siteRoot = ref('')
+            const runDir = ref('/')
+            const rewriteContent = ref('')
+            const configContent = ref('')
+            const logActive = ref<'access' | 'error'>('access')
+            const logContent = ref('')
+            const fcgiVersion = ref('0')
+
+            const api = (url: string, opts: any = {}) => ctx.api(url, { method: 'GET', ...opts })
+
+            async function loadSite() {
+                try {
+                    const s = await api(`/api/sites/${site.id}`)
+                    siteRoot.value = s.path || ''
+                    runDir.value = s.run_dir || '/'
+                    domains.value = (s.domains || []).map((d: any) => ({ id: d.id, name: d.name, port: d.port }))
+                    const pv = (s.phpversion || '').replace('.', '')
+                    fcgiVersion.value = pv ? `php${pv}` : '0'
+                } catch (e: any) {
+                    toast(e?.message || '加载失败', 'err')
+                }
+            }
+
+            async function loadFiles() {
+                try {
+                    const d = await api(`/api/sites/${site.id}/files`)
+                    rewriteContent.value = d.rewrite || ''
+                    configContent.value = d.config || ''
+                } catch (e: any) {
+                    toast(e?.message || '加载失败', 'err')
+                }
+            }
+
+            async function loadLog(type: string) {
+                try {
+                    const d = await api(`/api/sites/${site.id}/logs?type=${type}`)
+                    logContent.value = d.content || ''
+                } catch (e: any) {
+                    logContent.value = ''
+                    toast(e?.message || '加载失败', 'err')
+                }
+            }
+
+            function switchLog(key: string) {
+                logActive.value = key as any
+                loadLog(key)
+            }
 
             function addDomains() {
                 const lines = domainText.value.split('\n').map(s => s.trim()).filter(Boolean)
                 if (lines.length === 0) return
                 for (const line of lines) {
-                    domains.value.push(parseDomain(++domainId, line))
+                    domains.value.push(parseDomain(line))
                 }
                 domainText.value = ''
             }
@@ -163,14 +210,6 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 const idx = domains.value.findIndex(d => d.id === id)
                 if (idx !== -1) domains.value.splice(idx, 1)
             }
-
-            const siteRoot = ref(DEFAULT_ROOT)
-            const runDir = ref('/')
-            const rewriteContent = ref('# 伪静态规则\n\nlocation / {\n    try_files $uri $uri/ /index.php?$query_string;\n}\n')
-            const configContent = ref('# 站点配置文件\n')
-            const logActive = ref<'access' | 'error'>('access')
-            const logContent = ref('')
-            const fcgiVersion = ref('php82')
 
             function onRunPicked(path: string) {
                 runDir.value = path.slice(siteRoot.value.length) || '/'
@@ -197,7 +236,8 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 domainText, domains, addDomains, removeDomain,
                 siteRoot, runDir, onRunPicked, saveSiteDir, saveRunDir,
                 rewriteContent, configContent, saveRewrite, saveConfig,
-                logActive, logContent, fcgiVersion,
+                logActive, logContent, switchLog, fcgiVersion,
+                loadSite, loadFiles, loadLog,
             }
         },
         style() {
@@ -231,11 +271,11 @@ interface DomainItem {
     port: number
 }
 
-function parseDomain(id: number, line: string): DomainItem {
+function parseDomain(line: string): DomainItem {
     const m = line.match(/^(.+?)(?::(\d+))?$/)
     const name = m ? m[1].trim() : line
     const port = m && m[2] ? parseInt(m[2], 10) : 80
-    return { id, name, port }
+    return { id: -Date.now(), name, port }
 }
 
 function buildUrl(name: string): string {
