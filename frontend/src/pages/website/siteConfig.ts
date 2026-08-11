@@ -106,6 +106,8 @@ export function openSiteConfig(site: { id: number; name: string }) {
             fastcgi: {
                 onLoad: (_ctx, state) => state.loadSite(),
                 render(h, state) {
+                    const options = state.phpVersions.value.map((v: string) =>
+                        h('option', { value: `php${v}` }, `PHP${v}`))
                     return h('div', { class: 'fcgi-row' }, [
                         h('span', { class: 'fcgi-label' }, 'PHP版本'),
                         h('select', {
@@ -114,8 +116,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                             onInput: (e: any) => { state.fcgiVersion.value = e.target.value },
                         }, [
                             h('option', { value: '0' }, '纯静态'),
-                            h('option', { value: 'php74' }, 'PHP74'),
-                            h('option', { value: 'php82' }, 'PHP82'),
+                            ...options,
                         ]),
                     ])
                 },
@@ -156,11 +157,15 @@ export function openSiteConfig(site: { id: number; name: string }) {
             const logActive = ref<'access' | 'error'>('access')
             const logContent = ref('')
             const fcgiVersion = ref('0')
+            const phpVersions = ref<string[]>([])
 
             const api = (url: string, opts: any = {}) => ctx.api(url, { method: 'GET', ...opts })
 
             async function loadSite() {
                 try {
+                    if (phpVersions.value.length === 0) {
+                        phpVersions.value = (await api('/api/system/php-versions')) || []
+                    }
                     const s = await api(`/api/sites/${site.id}`)
                     siteRoot.value = s.path || ''
                     runDir.value = s.run_dir || '/'
@@ -236,7 +241,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 domainText, domains, addDomains, removeDomain,
                 siteRoot, runDir, onRunPicked, saveSiteDir, saveRunDir,
                 rewriteContent, configContent, saveRewrite, saveConfig,
-                logActive, logContent, switchLog, fcgiVersion,
+                logActive, logContent, switchLog, fcgiVersion, phpVersions,
                 loadSite, loadFiles, loadLog,
             }
         },
