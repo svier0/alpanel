@@ -131,6 +131,7 @@ export function Plugin(config: PluginConfig) {
         '.table th,.table td{padding:8px 14px;border-bottom:1px solid #2a2a2a;font-size:14px}',
         '.table td{color:#aaa}',
         '.page{display:flex;flex-direction:column;flex:1;min-height:0}',
+        '.page>div{flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto}',
         '.plugin-editor{flex:1;min-height:120px;display:flex;flex-direction:column;overflow:hidden}',
         '.plugin-editor .cm-editor{flex:1;outline:none;height:auto}',
         '.plugin-editor .cm-scroller{font-family:monospace;line-height:1.5;overflow:auto;height:100%}',
