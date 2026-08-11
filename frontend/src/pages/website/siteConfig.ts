@@ -101,7 +101,22 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 },
             },
             ssl: { render: emptyRender },
-            fastcgi: { render: emptyRender },
+            fastcgi: {
+                render(h, state) {
+                    return h('div', { class: 'fcgi-row' }, [
+                        h('span', { class: 'fcgi-label' }, 'PHP版本'),
+                        h('select', {
+                            class: 'fcgi-select',
+                            value: state.fcgiVersion.value,
+                            onInput: (e: any) => { state.fcgiVersion.value = e.target.value },
+                        }, [
+                            h('option', { value: '0' }, '纯静态'),
+                            h('option', { value: 'php74' }, 'PHP74'),
+                            h('option', { value: 'php82' }, 'PHP82'),
+                        ]),
+                    ])
+                },
+            },
             proxy: { render: emptyRender },
             log: {
                 render(h, state) {
@@ -155,6 +170,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
             const configContent = ref('# 站点配置文件\n')
             const logActive = ref<'access' | 'error'>('access')
             const logContent = ref('')
+            const fcgiVersion = ref('php82')
 
             function onRunPicked(path: string) {
                 runDir.value = path.slice(siteRoot.value.length) || '/'
@@ -181,7 +197,7 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 domainText, domains, addDomains, removeDomain,
                 siteRoot, runDir, onRunPicked, saveSiteDir, saveRunDir,
                 rewriteContent, configContent, saveRewrite, saveConfig,
-                logActive, logContent,
+                logActive, logContent, fcgiVersion,
             }
         },
         style() {
@@ -200,6 +216,10 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 .sub-tab{padding:6px 16px;font-size:13px;color:#888;cursor:pointer;border-bottom:2px solid transparent}
                 .sub-tab:hover{color:#ccc}
                 .sub-tab.active{color:#fff;border-bottom-color:#409eff}
+                .fcgi-row{display:flex;align-items:center;gap:10px}
+                .fcgi-label{color:#aaa;font-size:13px;flex:0 0 auto}
+                .fcgi-select{padding:5px 10px;border:1px solid #555;background:#1a1a1a;color:#ccc;border-radius:3px;font-size:13px;outline:none;cursor:pointer}
+                .fcgi-select:focus{border-color:#409eff}
             `
         },
     }).show()
