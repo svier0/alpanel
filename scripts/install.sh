@@ -39,10 +39,14 @@ else
     echo "https://mirrors.aliyun.com/alpine/v3.21/community" >> /etc/apk/repositories
     GH_PROXY="https://gh-proxy.com/"
 fi
+if ! command -v curl >/dev/null 2>&1; then
+    echo "未检测到 curl，先安装..."
+    apk add curl 2>/dev/null || { apk update && apk add curl; }
+fi
 if [ "$(whoami)" != "root" ]; then
     echo "检查到当前非 root 权限进行面板安装"
     echo "请使用以下命令重新执行："
-    echo "sudo wget -O install.sh ${GH_PROXY}$DOWNLOAD_URL && sudo sh install.sh"
+    echo "sudo curl -fsSL -o install.sh ${GH_PROXY}$DOWNLOAD_URL && sudo sh install.sh"
     exit 1
 fi
 
@@ -58,7 +62,7 @@ download_file() {
     url="$1" dest="$2"
     for proxy in "https://gh-proxy.com/" "https://ghfast.top/" ""; do
         echo "下载: ${proxy}${url}"
-        if wget -O "$dest" "${proxy}${url}" >/dev/null 2>&1; then
+        if curl -fsSL --connect-timeout 10 -o "$dest" "${proxy}${url}" >/dev/null 2>&1; then
             echo "下载成功"
             return 0
         fi
