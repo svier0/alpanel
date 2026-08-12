@@ -39,8 +39,8 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
   ├── routes/settings_routes   — /api/settings
   ├── routes/file_routes       — /api/files/* (16个端点)
   ├── routes/plugin_routes     — /api/plugins/*（action/list/remote）
-  ├── routes/site_routes       — /api/sites/*（含 /api/sites/types）
-  ├── routes/system_routes     — /api/system/{users,info,stat,kill/{pid}}
+  ├── routes/site_routes       — /api/sites/{id}/files|logs（站点修改弹框各 tab 数据源）
+  ├── routes/system_routes     — /api/system/{users,info,stat,kill/{pid},php-versions}（php-versions 扫描已装 PHP 目录）
   └── frontend.rs              — 从文件系统 dist/ 目录读取静态文件，SPA 兜底
 ```
 
@@ -82,13 +82,22 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
 // 插件 JS DSL（由 new Function('Plugin', code) 执行）
 Plugin({
   plugin_name: 'nginx',
+  title: 'Nginx 插件',     // 弹窗标题，默认 plugin_name
   width: 800,          // 可选，数字=px，字符串原样；默认 620px
   height: 700,         // 默认 620px
+  layout: 'tabpages',  // 可选；'tabpages'=侧面tab+内容区多页结构（tabs/pages 生效），缺省 'none'=render
+  tabs: { fastcgi: 'FastCgi', log: '网站日志', ... },  // layout='tabpages' 时的 tab 键名→标题
+  pages: { fastcgi: { onLoad(ctx,state){...}, render(h,state){...} }, ... },  // 每 tab 的加载/渲染
   setup(ctx) { ... },  // Vue Composition API 风格，返回 state
-  render(h, state) { ... },  // 返回 VNode
+  render(h, state) { ... },  // 返回 VNode（layout='none' 时用）
   style() { return 'css string' },  // 自动以 .plugin-dlg 前缀 scope
 }).show()
 ```
+
+### tabpages 布局要点
+
+- `layout:'tabpages'` 时渲染为：左侧 `.side` tab 栏 + 右侧 `.content` 内容区，切换 tab 时触发对应 page 的 `onLoad(ctx, state)`（懒加载，切到才加载）再 `render(h, state)`；内置 TABPAGES_CSS 拼在插件 style 前一并 scope
+- 页面根 div 是 `.content` 的直接子元素，命中 `.page>div` flex 高度链规则（见下）
 
 ### ctx 上下文
 
@@ -97,12 +106,23 @@ Plugin({
 | `ctx.api(action, opts?)` | 调后端；`'status'` → `POST /api/plugins/action/{name}/status`；`'/api/xxx'` → 完整路径 |
 | `ctx.ref` / `ctx.reactive` / `ctx.computed` | Vue 3 响应式 API |
 | `ctx.onMounted(fn)` / `ctx.onUnmounted(fn)` | 生命周期钩子 |
-| `ctx.Editor` | CodeMirror 6 编辑器组件，`h(ctx.Editor, { modelValue, language, readonly, 'onUpdate:modelValue' })` |
+| `ctx.toast(msg, type?)` | 顶部通知，type=`'ok'`（绿）/`'err'`（红），3s 消失 |
+| `ctx.Editor` | CodeMirror 6 编辑器组件，`h(ctx.Editor, { modelValue, language, readonly, height, 'onUpdate:modelValue' })` |
 | `ctx.plugin_name` | 插件名 |
 
 ### 插件 CSS 自动 scope
 
 插件 `style()` 返回的 CSS 自动加 `.plugin-dlg` 前缀（如 `.app{...}` → `.plugin-dlg .app{...}`），弹窗根元素带 `class="plugin-dlg"`，避免样式泄露到页面其他元素。
+
+### 插件弹窗 flex 高度链
+
+tabpages 结构（`.app`/`.content`/`.page`）与编辑器滚动依赖一条标准 flex 高度链：
+
+- `.app{display:flex;flex:1;min-height:0}` → `.content{flex:1;...;display:flex;flex-direction:column}` → `.page{display:flex;flex-direction:column;flex:1;min-height:0}` → `.page>div{flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto}`
+- `.page>div` 直接子元素选择器是**双刃剑**：它让编辑器 `flex:1` 生效撑满剩余空间、`cm-scroller` 内部滚动，但也会把**页面根 div 的任何横向布局**强制改成竖排居中（`.fcgi-row` 曾中招）
+- 规避：页面内容若需横向 flex（如 label+select+button 一行），在页面根 div 内**再包一层普通 div**，使 `.page>div` 命中外层、内层保持自身布局
+- `ctx.Editor` 渲染为 `.plugin-editor`：默认固定 320px 内部滚动；传 `height`（数字=px/字符串原样）可覆盖；`.cm-editor{height:100%}` + `.cm-scroller{overflow-y:auto}` 使滚动条确定可用
+- 编辑器扩展：`indentUnit.of('    ')`（4 空格，CM6 默认 2 会导致缩进辅助线错位）+ `@replit/codemirror-indentation-markers` 缩进辅助线
 
 ### 后端 action 白名单
 
@@ -150,6 +170,14 @@ Plugin({
 - 状态列颜色：运行中绿色 `▶` / 已停止橙色 `⏸`
 - SSL 列：有天数蓝 link / 未部署橙 link
 - 根目录列：显示 `row.root`（后端 path 字段映射为 root），`<span class="link-cell" @click="goFile(row.root)">` → router.push 到 `/file?path=...`
+
+### 站点修改弹框（siteConfig.ts）
+
+- `openSiteConfig(site)` 用 `Plugin({ layout:'tabpages', width:800, height:620, tabs, pages })` 实现，tab 键名→标题：domain 域名管理 / directory 网站目录 / rewrite 伪静态 / config 配置文件 / ssl SSL证书 / fastcgi FastCgi / proxy 反向代理 / log 网站日志 / other 其它设置
+- 数据源：`/api/sites/{id}`（域名/网站目录/运行目录/PHP版本）、`/api/sites/{id}/files`（rewrite/config 内容）、`/api/sites/{id}/logs?type=access|error`（log tab，响应/错误日志子 tab）
+- FastCgi tab：PHP版本下拉由 `GET /api/system/php-versions` 动态生成（纯静态=0 + php{ver}），`saveFcgi()` PUT `{phpversion}`，后端 `7.4`→`php-74` 写 vhost 并 reload nginx
+- 运行目录：`onRunPicked` 存 `path.slice(siteRoot.length)` 相对路径，PUT `{php_run_path}` 保存；仅 PHP 站点生效（后端显式判断 project_type）
+- 伪静态/配置文件/日志编辑器用 `ctx.Editor` 传 `height`（rewrite/config=480，log=520），保存按钮在编辑器下方 `.row` 内（当前 saveRewrite/saveConfig 仅 toast 占位，未落盘）
 
 ## Database.vue 要点
 
@@ -271,13 +299,14 @@ MariaDB 是 MySQL 分支，程序内**一律称 MySQL**，`mariadb` 只作为上
 
 ```sql
 users    (id, username, password(md5(md5(pw)+salt)), login_ip, login_time, phone, email, salt)
-sites    (id, name, path, status, project_type, phpversion, project_cmd, project_port, run_user, is_onpower, ps, addtime)
+sites    (id, name, path, status, project_type, phpversion, php_run_path, project_cmd, project_port, run_user, is_onpower, ps, addtime)
 domain   (id, pid→sites.id, name, port, addtime)
 ```
 
 - `project_type`: PHP / Other / Proxy（前端由 `/api/sites/types` 动态获取；该接口每个类型带 `visibled` 字段控制 tab 是否显示，Proxy=0 暂未做）
 - `status`: 站点运行状态，`1`(运行中) / `0`(已停止)；新建默认 `0`（未生成 nginx 配置前不视为运行中）
 - `phpversion`: 普通项目 PHP 版本，存 `7.4`/`8.2` 等，空为静态
+- `php_run_path`: 运行目录（相对 site path，存 `/public` 等，默认空=网站根），仅 PHP 站点生效；`generate_site_vhost` 拼进 root，修改后重新生成 vhost 并 reload
 - 其它项目(Other)字段：`project_cmd`(执行命令)、`project_port`(运行端口)、`run_user`(运行用户，默认 www)、`is_onpower`(是否开机启动 1/0)
 
 ## 构建命令
