@@ -112,17 +112,19 @@ export function openSiteConfig(site: { id: number; name: string }) {
                 render(h, state) {
                     const options = state.phpVersions.value.map((v: string) =>
                         h('option', { value: `php${v}` }, `PHP${v}`))
-                    return h('div', { class: 'fcgi-row' }, [
-                        h('span', { class: 'fcgi-label' }, 'PHP版本'),
-                        h('select', {
-                            class: 'fcgi-select',
-                            value: state.fcgiVersion.value,
-                            onInput: (e: any) => { state.fcgiVersion.value = e.target.value },
-                        }, [
-                            h('option', { value: '0' }, '纯静态'),
-                            ...options,
+                    return h('div', [
+                        h('div', { class: 'fcgi-row' }, [
+                            h('span', { class: 'fcgi-label' }, 'PHP版本'),
+                            h('select', {
+                                class: 'fcgi-select',
+                                value: state.fcgiVersion.value,
+                                onInput: (e: any) => { state.fcgiVersion.value = e.target.value },
+                            }, [
+                                h('option', { value: '0' }, '纯静态'),
+                                ...options,
+                            ]),
+                            h('button', { class: 'btn', onClick: () => state.saveFcgi() }, '切换'),
                         ]),
-                        h('button', { class: 'btn', onClick: () => state.saveFcgi() }, '切换'),
                     ])
                 },
             },
