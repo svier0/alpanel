@@ -39,10 +39,6 @@ else
     echo "https://mirrors.aliyun.com/alpine/v3.21/community" >> /etc/apk/repositories
     GH_PROXY="https://gh-proxy.com/"
 fi
-if ! command -v curl >/dev/null 2>&1; then
-    echo "未检测到 curl，先安装..."
-    apk add curl 2>/dev/null || { apk update && apk add curl; }
-fi
 if [ "$(whoami)" != "root" ]; then
     echo "检查到当前非 root 权限进行面板安装"
     echo "请使用以下命令重新执行："
