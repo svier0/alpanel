@@ -198,7 +198,7 @@
                     <div class="ctx-item disabled">创建压缩</div>
                     <div v-if="ctxMenu.fileName?.endsWith('.tar.gz')" class="ctx-item" @click="openExtractDialog(ctxMenu.filePath!, ctxMenu.fileName!)">解压</div>
                     <div class="ctx-divider" />
-                    <div class="ctx-item disabled">属性</div>
+                    <div class="ctx-item" @click="ctxStat">属性</div>
                 </template>
             </div>
         </Teleport>
@@ -324,6 +324,63 @@
             </template>
         </el-dialog>
 
+        <el-dialog v-model="statDialog.visible" :title="`文件属性[${statDialog.name}]`" width="480px" append-to-body>
+            <div v-loading="statDialog.loading" class="stat-box">
+                <div class="stat-row">
+                    <span class="stat-label">文件类型</span>
+                    <span>{{ statDialog.file_type }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">位置</span>
+                    <span class="stat-value">{{ statLocation }}</span>
+                    <el-icon class="stat-copy" @click="copyText(statLocation)"><CopyDocument /></el-icon>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">路径</span>
+                    <span class="stat-value">{{ statDialog.path }}</span>
+                    <el-icon class="stat-copy" @click="copyText(statDialog.path)"><CopyDocument /></el-icon>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">大小</span>
+                    <span>{{ statDialog.size_str }}</span>
+                </div>
+                <template v-if="!statDialog.is_dir">
+                    <el-divider style="margin: 8px 0" />
+                    <div class="stat-row">
+                        <span class="stat-label">MD5</span>
+                        <span class="stat-value">{{ statDialog.md5 }}</span>
+                        <el-icon class="stat-copy" @click="copyText(statDialog.md5)"><CopyDocument /></el-icon>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">SHA1</span>
+                        <span class="stat-value">{{ statDialog.sha1 }}</span>
+                        <el-icon class="stat-copy" @click="copyText(statDialog.sha1)"><CopyDocument /></el-icon>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">SHA256</span>
+                        <span class="stat-value">{{ statDialog.sha256 }}</span>
+                        <el-icon class="stat-copy" @click="copyText(statDialog.sha256)"><CopyDocument /></el-icon>
+                    </div>
+                </template>
+                <el-divider style="margin: 8px 0" />
+                <div class="stat-row">
+                    <span class="stat-label">创建时间</span>
+                    <span>{{ formatTime(statDialog.created) }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">修改时间</span>
+                    <span>{{ formatTime(statDialog.modified) }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">访问时间</span>
+                    <span>{{ formatTime(statDialog.accessed) }}</span>
+                </div>
+            </div>
+            <template #footer>
+                <el-button @click="statDialog.visible = false">关闭</el-button>
+            </template>
+        </el-dialog>
+
         <DirPicker v-model="dirPickerVisible" :initial-path="dirPickerInitial" @confirm="dirPickerConfirm" />
 
         <FileEditorDialog v-model="editorDialog.visible" :root-path="editorDialog.rootPath" :initial-file="editorDialog.file" />
@@ -331,10 +388,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading, ArrowDown } from '@element-plus/icons-vue'
+import { FolderOpened, Document, Link, Search, Close, Plus, Back, RefreshRight, Loading, ArrowDown, CopyDocument } from '@element-plus/icons-vue'
 import { apiFetch, authHeaders, checkRes401 } from '@/utils/api'
 import FileEditorDialog from '@/components/FileEditorDialog.vue'
 import DirPicker from '@/components/DirPicker.vue'
@@ -875,6 +932,64 @@ async function handleChmod() {
         chmodDialog.loading = false
     }
 }
+
+const statDialog = reactive({
+    visible: false,
+    loading: false,
+    name: '',
+    path: '',
+    file_type: '',
+    size_str: '',
+    md5: '',
+    sha1: '',
+    sha256: '',
+    is_dir: false,
+    created: 0,
+    modified: 0,
+    accessed: 0,
+})
+
+function ctxStat() {
+    if (!ctxMenu.filePath) return
+    statDialog.visible = true
+    statDialog.loading = true
+    apiFetch(`/api/files/stat?path=${encodeURIComponent(ctxMenu.filePath)}`)
+        .then((data: any) => {
+            statDialog.name = data?.name || ''
+            statDialog.path = data?.path || ''
+            statDialog.file_type = data?.file_type || ''
+            statDialog.size_str = data?.size_str || ''
+            statDialog.md5 = data?.md5 || ''
+            statDialog.sha1 = data?.sha1 || ''
+            statDialog.sha256 = data?.sha256 || ''
+            statDialog.is_dir = !!data?.is_dir
+            statDialog.created = data?.created || 0
+            statDialog.modified = data?.modified || 0
+            statDialog.accessed = data?.accessed || 0
+        })
+        .catch((e: any) => {
+            ElMessage.error(e?.message || '获取文件属性失败')
+            statDialog.visible = false
+        })
+        .finally(() => {
+            statDialog.loading = false
+        })
+}
+
+function copyText(text: string) {
+    if (!text) return
+    navigator.clipboard.writeText(text).then(() => {
+        ElMessage.success('已复制')
+    }).catch(() => {
+        ElMessage.error('复制失败')
+    })
+}
+
+const statLocation = computed(() => {
+    const p = statDialog.path.replace(/\\/g, '/')
+    const idx = p.lastIndexOf('/')
+    return idx <= 0 ? '/' : p.substring(0, idx)
+})
 
 const dirPickerVisible = ref(false)
 const dirPickerInitial = ref('/')
@@ -1555,6 +1670,43 @@ function formatTime(ts: number): string {
 .perm-row {
     display: flex;
     gap: 16px;
+}
+
+.stat-box {
+    min-height: 120px;
+}
+
+.stat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+}
+
+.stat-label {
+    width: 70px;
+    flex-shrink: 0;
+    color: var(--el-text-color-secondary);
+}
+
+.stat-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: monospace;
+}
+
+.stat-copy {
+    cursor: pointer;
+    color: var(--el-text-color-secondary);
+    flex-shrink: 0;
+}
+
+.stat-copy:hover {
+    color: var(--el-color-primary);
 }
 </style>
 

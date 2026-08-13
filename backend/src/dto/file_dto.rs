@@ -120,3 +120,19 @@ pub struct FileChmodRequest {
     #[serde(default)]
     pub recursive: bool,
 }
+
+#[derive(Serialize)]
+pub struct FileStatResponse {
+    pub name: String,
+    pub path: String,
+    pub file_type: String,
+    pub size: u64,
+    pub size_str: String,
+    pub md5: String,
+    pub sha1: String,
+    pub sha256: String,
+    pub is_dir: bool,
+    pub created: u64,
+    pub modified: u64,
+    pub accessed: u64,
+}

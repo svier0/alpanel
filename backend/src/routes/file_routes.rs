@@ -19,4 +19,5 @@ pub fn routes() -> Router<()> {
         .route("/api/files/compress", post(file_handler::compress))
         .route("/api/files/extract", post(file_handler::extract))
         .route("/api/files/chmod", post(file_handler::chmod))
+        .route("/api/files/stat", get(file_handler::stat))
 }

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use crate::dto::file_dto::{
-    FileActionResponse, FileItem, FileListResponse, FileReadResponse,
+    FileActionResponse, FileItem, FileListResponse, FileReadResponse, FileStatResponse,
 };
 
 const FILES_PS_DIR: &str = "/www/server/panel/data/files_ps";
@@ -695,5 +695,99 @@ pub fn set_permission(
     Ok(FileActionResponse {
         success: true,
         message: "Permission updated".to_string(),
+    })
+}
+
+fn format_size_str(size: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+    if size < KB {
+        format!("{} B", size)
+    } else if size < MB {
+        format!("{:.1} KB", size as f64 / KB as f64)
+    } else if size < GB {
+        format!("{:.1} MB", size as f64 / MB as f64)
+    } else {
+        format!("{:.1} GB", size as f64 / GB as f64)
+    }
+}
+
+fn hash_file(path: &Path) -> AppResult<(String, String, String)> {
+    use sha1::{Digest as Sha1Digest, Sha1};
+    use sha2::Sha256;
+    let mut file = std::fs::File::open(path).map_err(|e| {
+        AppError::BadRequest(format!("Cannot open file: {}", e))
+    })?;
+    let mut md5_ctx = md5::Context::new();
+    let mut sha1_ctx = Sha1::new();
+    let mut sha256_ctx = Sha256::new();
+    let mut buf = vec![0u8; 1024 * 1024];
+    loop {
+        let n = std::io::Read::read(&mut file, &mut buf).map_err(|e| {
+            AppError::BadRequest(format!("Cannot read file: {}", e))
+        })?;
+        if n == 0 {
+            break;
+        }
+        let chunk = &buf[..n];
+        md5_ctx.consume(chunk);
+        sha1_ctx.update(chunk);
+        sha256_ctx.update(chunk);
+    }
+    let md5 = format!("{:x}", md5_ctx.compute());
+    let sha1 = format!("{:x}", sha1_ctx.finalize());
+    let sha256 = format!("{:x}", sha256_ctx.finalize());
+    Ok((md5, sha1, sha256))
+}
+
+pub fn file_stat(path_str: &str) -> AppResult<FileStatResponse> {
+    let path = sanitize_path(path_str)?;
+    if !path.exists() {
+        return Err(AppError::NotFound(format!("Path not found: {}", path_str)));
+    }
+
+    let metadata = path.metadata().map_err(|e| map_io_error(e, &path))?;
+    let is_dir = metadata.is_dir();
+    let size = metadata.len();
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| path_str.to_string());
+    let path_fwd = to_fwd(&path);
+
+    let ts = |t: Option<std::time::SystemTime>| -> u64 {
+        t.and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    };
+
+    let (md5, sha1, sha256) = if is_dir {
+        (String::new(), String::new(), String::new())
+    } else {
+        hash_file(&path).unwrap_or((String::new(), String::new(), String::new()))
+    };
+
+    let file_type = if is_dir {
+        "directory".to_string()
+    } else {
+        mime_guess::from_path(&path)
+            .first_or_octet_stream()
+            .to_string()
+    };
+
+    Ok(FileStatResponse {
+        name,
+        path: path_fwd.clone(),
+        file_type,
+        size,
+        size_str: format_size_str(size),
+        md5,
+        sha1,
+        sha256,
+        is_dir,
+        created: ts(metadata.created().ok()),
+        modified: ts(metadata.modified().ok()),
+        accessed: ts(metadata.accessed().ok()),
     })
 }

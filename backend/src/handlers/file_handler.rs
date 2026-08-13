@@ -7,7 +7,7 @@ use crate::dto::file_dto::{
     DirSizeQuery, DirSizeResponse, FileActionResponse, FileChmodRequest, FileCompressRequest,
     FileCopyRequest, FileCreateRequest, FileDeleteRequest, FileDownloadRequest, FileExtractRequest,
     FileListQuery, FileListResponse, FilePsRequest, FileReadQuery, FileReadResponse,
-    FileRenameRequest, FileWriteRequest,
+    FileRenameRequest, FileStatResponse, FileWriteRequest,
 };
 use crate::errors::{AppError, AppResult};
 use crate::middleware::auth::check_auth;
@@ -143,6 +143,25 @@ pub async fn chmod(
         body.recursive,
     )?;
     Ok(Json(res))
+}
+
+pub async fn stat(
+    headers: HeaderMap,
+    Query(query): Query<FileReadQuery>,
+) -> AppResult<Json<FileStatResponse>> {
+    check_auth(&headers)?;
+    let path = query.path.clone();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(60),
+        tokio::task::spawn_blocking(move || file_service::file_stat(&path)),
+    )
+    .await;
+    match result {
+        Ok(Ok(Ok(stat))) => Ok(Json(stat)),
+        Ok(Ok(Err(e))) => Err(e),
+        Ok(Err(_)) => Err(AppError::BadRequest("计算文件属性失败".to_string())),
+        Err(_) => Err(AppError::BadRequest("计算超时（60秒），文件过大".to_string())),
+    }
 }
 
 pub async fn stream_download(
