@@ -37,7 +37,7 @@ main.rs → routes::routes() (routes/mod.rs 里 merge 全部子路由).fallback(
   ├── .layer(AuthLayer)        — JWT 验证 middleware，check_auth() 被14处引用
   ├── routes/auth_routes       — /api/login, /api/verify
   ├── routes/settings_routes   — /api/settings
-  ├── routes/file_routes       — /api/files/* (16个端点)
+  ├── routes/file_routes       — /api/files/* (15个端点，含 chmod/stat)
   ├── routes/plugin_routes     — /api/plugins/*（action/list/remote）
   ├── routes/site_routes       — /api/sites/{id}/files|logs（站点修改弹框各 tab 数据源）
   ├── routes/system_routes     — /api/system/{users,info,stat,kill/{pid},php-versions}（php-versions 扫描已装 PHP 目录）
@@ -241,6 +241,20 @@ const pathInput = ref('/')      // 当前活跃标签的路径输入框
 | 空白 | 刷新、上传、新建文件/文件夹、URL下载、终端 |
 | 文件夹 | 打开、在新标签打开、权限、复制、剪切、粘贴、重命名、删除、创建压缩、属性 |
 | 文件 | 编辑、下载、权限、复制、剪切、粘贴、重命名、删除、创建压缩、解压(.tar.gz)、属性 |
+
+### 权限设置弹框（chmod）
+
+- 入口：右键"权限"（单文件/目录）或工具栏更多"权限"（批量多选）
+- 数据流：`POST /api/files/chmod`，body `{ paths: [], mode, owner?, recursive? }`；后端 `set_permission()` 批量 chmod（可 `-R`），owner 非空再 chown（可 `-R`）；mode 校验纯数字且 ≤ 0o7777
+- 前端：所有者/用户组/公共 三行勾选（读取/写入/执行）↔ 权限数字双向同步（`syncMode`/`syncChecks`）；所有者下拉数据来自 `/api/system/users`；"应用到子目录"仅目录显示
+- 权限位映射：owner = bits 8-6，group = bits 5-3，other = bits 2-0
+
+### 属性弹框（stat）
+
+- 入口：右键"属性"（文件/目录）；`GET /api/files/stat?path=...` → name/path/file_type/size/size_str/md5/sha1/sha256/is_dir/created/modified/accessed
+- 目录哈希后端返回固定字符串"目录不计算"；前端空值兜底 `-`
+- 哈希流式计算（1MB 缓冲）；handler 用 `spawn_blocking` + 60s 超时；后端依赖 sha1/sha2 crate（`sha1 = "0.10"`、`sha2 = "0.10"`）
+- 前端布局：位置/路径/哈希行带复制图标（CopyDocument），图标**内联紧贴文本末尾**（换行后跟随最后字符，非行右端）；哈希值允许换行（`word-break: break-all`）；弹框宽度 400px，不用 monospace 字体
 
 ### 在线编辑器（FileEditorDialog）
 
