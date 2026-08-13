@@ -347,17 +347,17 @@
                 <el-divider style="margin: 8px 0" />
                 <div class="stat-row">
                     <span class="stat-label">MD5</span>
-                    <span class="stat-value">{{ statDialog.md5 || '-' }}</span>
+                    <span class="stat-value stat-hash">{{ statDialog.md5 || '-' }}</span>
                     <el-icon class="stat-copy" @click="copyText(statDialog.md5)"><CopyDocument /></el-icon>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">SHA1</span>
-                    <span class="stat-value">{{ statDialog.sha1 || '-' }}</span>
+                    <span class="stat-value stat-hash">{{ statDialog.sha1 || '-' }}</span>
                     <el-icon class="stat-copy" @click="copyText(statDialog.sha1)"><CopyDocument /></el-icon>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">SHA256</span>
-                    <span class="stat-value">{{ statDialog.sha256 || '-' }}</span>
+                    <span class="stat-value stat-hash">{{ statDialog.sha256 || '-' }}</span>
                     <el-icon class="stat-copy" @click="copyText(statDialog.sha256)"><CopyDocument /></el-icon>
                 </div>
                 <el-divider style="margin: 8px 0" />
@@ -1695,6 +1695,12 @@ function formatTime(ts: number): string {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: monospace;
+}
+
+.stat-hash {
+    white-space: normal;
+    word-break: break-all;
+    overflow: visible;
 }
 
 .stat-copy {
