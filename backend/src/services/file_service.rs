@@ -629,3 +629,71 @@ pub fn extract_file(path: &str, dest: &str, password: Option<&str>) -> AppResult
         message: "Extracted".to_string(),
     })
 }
+
+pub fn set_permission(
+    paths: &[String],
+    mode: &str,
+    owner: Option<&str>,
+    recursive: bool,
+) -> AppResult<FileActionResponse> {
+    if !mode.chars().all(|c| c.is_ascii_digit()) || mode.is_empty() {
+        return Err(AppError::BadRequest("Invalid mode: must be numeric".to_string()));
+    }
+    let mode_num = mode.parse::<u32>().map_err(|_| {
+        AppError::BadRequest("Invalid mode: must be a number".to_string())
+    })?;
+    if mode_num > 0o7777 {
+        return Err(AppError::BadRequest("Invalid mode: out of range".to_string()));
+    }
+
+    for path_str in paths {
+        let path = sanitize_path(path_str)?;
+        if !path.exists() {
+            continue;
+        }
+        let path_fwd = to_fwd(&path);
+
+        let mut cmd = std::process::Command::new("chmod");
+        if recursive {
+            cmd.arg("-R");
+        }
+        cmd.arg(mode).arg(&path_fwd);
+        let output = cmd.output().map_err(|e| {
+            AppError::BadRequest(format!("chmod command failed: {}", e))
+        })?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AppError::BadRequest(format!(
+                "chmod failed for {}: {}",
+                path_str,
+                stderr.trim()
+            )));
+        }
+
+        if let Some(owner) = owner {
+            if !owner.is_empty() {
+                let mut cmd = std::process::Command::new("chown");
+                if recursive {
+                    cmd.arg("-R");
+                }
+                cmd.arg(owner).arg(&path_fwd);
+                let output = cmd.output().map_err(|e| {
+                    AppError::BadRequest(format!("chown command failed: {}", e))
+                })?;
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    return Err(AppError::BadRequest(format!(
+                        "chown failed for {}: {}",
+                        path_str,
+                        stderr.trim()
+                    )));
+                }
+            }
+        }
+    }
+
+    Ok(FileActionResponse {
+        success: true,
+        message: "Permission updated".to_string(),
+    })
+}

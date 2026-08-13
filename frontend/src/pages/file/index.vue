@@ -169,7 +169,7 @@
                     <div class="ctx-item" @click="navigateTab(ctxMenu.tab!, ctxMenu.filePath!)">打开</div>
                     <div class="ctx-item" @click="openInNewTab(ctxMenu.filePath!)">在新标签打开</div>
                     <div class="ctx-divider" />
-                    <div class="ctx-item disabled">权限</div>
+                    <div class="ctx-item" @click="ctxChmod">权限</div>
                     <div class="ctx-divider" />
                     <div class="ctx-item" @click="ctxCopy(ctxMenu.filePath!)">复制</div>
                     <div class="ctx-item" @click="ctxCut(ctxMenu.filePath!)">剪切</div>
@@ -186,7 +186,7 @@
                     <div class="ctx-item" @click="ctxOpenEditor">编辑</div>
                     <div class="ctx-item" @click="ctxDownload">下载</div>
                     <div class="ctx-divider" />
-                    <div class="ctx-item disabled">权限</div>
+                    <div class="ctx-item" @click="ctxChmod">权限</div>
                     <div class="ctx-divider" />
                     <div class="ctx-item" @click="ctxCopy(ctxMenu.filePath!)">复制</div>
                     <div class="ctx-item" @click="ctxCut(ctxMenu.filePath!)">剪切</div>
@@ -283,6 +283,47 @@
             </template>
         </el-dialog>
 
+        <el-dialog v-model="chmodDialog.visible" :title="chmodDialog.isBatch ? '设置权限-批量' : '设置权限'" width="420px" append-to-body>
+            <el-form label-width="70px">
+                <el-form-item label="所有者" style="margin-bottom: 10px">
+                    <div class="perm-row">
+                        <el-checkbox v-model="chmodDialog.owner.r" @change="syncMode">读取</el-checkbox>
+                        <el-checkbox v-model="chmodDialog.owner.w" @change="syncMode">写入</el-checkbox>
+                        <el-checkbox v-model="chmodDialog.owner.x" @change="syncMode">执行</el-checkbox>
+                    </div>
+                </el-form-item>
+                <el-form-item label="用户组" style="margin-bottom: 10px">
+                    <div class="perm-row">
+                        <el-checkbox v-model="chmodDialog.group.r" @change="syncMode">读取</el-checkbox>
+                        <el-checkbox v-model="chmodDialog.group.w" @change="syncMode">写入</el-checkbox>
+                        <el-checkbox v-model="chmodDialog.group.x" @change="syncMode">执行</el-checkbox>
+                    </div>
+                </el-form-item>
+                <el-form-item label="公共" style="margin-bottom: 10px">
+                    <div class="perm-row">
+                        <el-checkbox v-model="chmodDialog.other.r" @change="syncMode">读取</el-checkbox>
+                        <el-checkbox v-model="chmodDialog.other.w" @change="syncMode">写入</el-checkbox>
+                        <el-checkbox v-model="chmodDialog.other.x" @change="syncMode">执行</el-checkbox>
+                    </div>
+                </el-form-item>
+                <el-form-item label="权限">
+                    <el-input v-model="chmodDialog.mode" style="width: 90px" @input="syncChecks" />
+                </el-form-item>
+                <el-form-item label="所有者">
+                    <el-select v-model="chmodDialog.ownerName" style="width: 160px">
+                        <el-option v-for="u in userList" :key="u" :label="u" :value="u" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item v-if="chmodDialog.isDir" label="应用到">
+                    <el-checkbox v-model="chmodDialog.recursive">应用到子目录</el-checkbox>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="chmodDialog.visible = false">取消</el-button>
+                <el-button type="primary" @click="handleChmod" :loading="chmodDialog.loading">确定</el-button>
+            </template>
+        </el-dialog>
+
         <DirPicker v-model="dirPickerVisible" :initial-path="dirPickerInitial" @confirm="dirPickerConfirm" />
 
         <FileEditorDialog v-model="editorDialog.visible" :root-path="editorDialog.rootPath" :initial-file="editorDialog.file" />
@@ -306,6 +347,7 @@ interface FileItem {
     is_link: boolean
     link_target: string
     mode: string
+    owner: string
     modified: number
     ps: string
     _size?: number
@@ -532,7 +574,7 @@ function handleToolbar(cmd: string, tab: BrowserTab) {
     if (cmd === 'copy') toolbarCopy(tab)
     else if (cmd === 'cut') toolbarCut(tab)
     else if (cmd === 'compress') openCompressDialog(tab)
-    else if (cmd === 'chmod') ElMessage.info('权限功能开发中')
+    else if (cmd === 'chmod') openBatchChmod(tab)
     else if (cmd === 'delete') confirmDelete(tab)
 }
 
@@ -728,6 +770,111 @@ const extractDialog = reactive({
     password: '',
     loading: false,
 })
+
+interface PermBits { r: boolean; w: boolean; x: boolean }
+interface PermSet { owner: PermBits; group: PermBits; other: PermBits }
+
+const chmodDialog = reactive({
+    visible: false,
+    isBatch: false,
+    isDir: false,
+    recursive: false,
+    loading: false,
+    paths: [] as string[],
+    ownerName: 'root',
+    mode: '644',
+    owner: { r: true, w: true, x: false } as PermBits,
+    group: { r: true, w: true, x: false } as PermBits,
+    other: { r: true, w: true, x: false } as PermBits,
+})
+
+const userList = ref<string[]>([])
+
+function parseMode(mode: string): PermSet {
+    const m = parseInt(mode, 8) || 0
+    const bit = (shift: number) => ((m >> shift) & 1) === 1
+    return {
+        owner: { r: bit(8), w: bit(7), x: bit(6) },
+        group: { r: bit(5), w: bit(4), x: bit(3) },
+        other: { r: bit(2), w: bit(1), x: bit(0) },
+    }
+}
+
+function modeFromBits(ps: PermSet): string {
+    const v = (b: PermBits) => (b.r ? 4 : 0) + (b.w ? 2 : 0) + (b.x ? 1 : 0)
+    return '' + v(ps.owner) + v(ps.group) + v(ps.other)
+}
+
+function syncMode() {
+    chmodDialog.mode = modeFromBits(chmodDialog)
+}
+
+function syncChecks() {
+    const bits = parseMode(chmodDialog.mode)
+    chmodDialog.owner = bits.owner
+    chmodDialog.group = bits.group
+    chmodDialog.other = bits.other
+}
+
+function openChmod(paths: string[], isDir: boolean, isBatch: boolean, mode: string, ownerName: string) {
+    chmodDialog.paths = paths
+    chmodDialog.isDir = isDir
+    chmodDialog.isBatch = isBatch
+    chmodDialog.recursive = false
+    chmodDialog.mode = mode || '644'
+    chmodDialog.ownerName = ownerName || 'root'
+    chmodDialog.visible = true
+    syncChecks()
+    if (!userList.value.length) loadUsers()
+}
+
+async function loadUsers() {
+    try {
+        const data = await apiFetch('/api/system/users')
+        if (Array.isArray(data)) userList.value = data
+    } catch {}
+}
+
+function ctxChmod() {
+    if (!ctxMenu.filePath) return
+    openChmod([ctxMenu.filePath], ctxMenu.type === 'dir', false, ctxMenu.tab?.files.find(f => f.path === ctxMenu.filePath)?.mode || '644', ctxMenu.tab?.files.find(f => f.path === ctxMenu.filePath)?.owner || 'root')
+}
+
+function openBatchChmod(tab: BrowserTab) {
+    if (!tab.selectedRows.length) return
+    const anyDir = tab.selectedRows.some(r => r.is_dir)
+    openChmod(
+        tab.selectedRows.map(r => r.path),
+        anyDir,
+        true,
+        tab.selectedRows[0]?.mode || '644',
+        tab.selectedRows[0]?.owner || 'root',
+    )
+}
+
+async function handleChmod() {
+    if (!chmodDialog.paths.length) return
+    chmodDialog.loading = true
+    try {
+        await apiFetch('/api/files/chmod', {
+            method: 'POST',
+            body: JSON.stringify({
+                paths: chmodDialog.paths,
+                mode: chmodDialog.mode,
+                owner: chmodDialog.ownerName || undefined,
+                recursive: chmodDialog.recursive,
+            }),
+        })
+        ElMessage.success(chmodDialog.isBatch ? '批量修改权限完成' : '权限已修改')
+        chmodDialog.visible = false
+        const tab = tabs.value.find(t => t.id === activeTab.value && t.type === 'browser') as BrowserTab | undefined
+        if (tab) fetchTabList(tab)
+    } catch (e: any) {
+        ElMessage.error(e?.message || '修改权限失败')
+    } finally {
+        chmodDialog.loading = false
+    }
+}
 
 const dirPickerVisible = ref(false)
 const dirPickerInitial = ref('/')
@@ -1403,6 +1550,11 @@ function formatTime(ts: number): string {
 .ps-input :deep(.el-input__inner) {
     font-size: 12px;
     padding: 0;
+}
+
+.perm-row {
+    display: flex;
+    gap: 16px;
 }
 </style>
 

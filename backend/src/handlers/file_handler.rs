@@ -4,10 +4,10 @@ use axum::http::{HeaderMap, Response, StatusCode};
 use axum::{Json};
 
 use crate::dto::file_dto::{
-    DirSizeQuery, DirSizeResponse, FileActionResponse, FileCompressRequest, FileCopyRequest,
-    FileCreateRequest, FileDeleteRequest, FileDownloadRequest, FileExtractRequest, FileListQuery,
-    FileListResponse, FilePsRequest, FileReadQuery, FileReadResponse, FileRenameRequest,
-    FileWriteRequest,
+    DirSizeQuery, DirSizeResponse, FileActionResponse, FileChmodRequest, FileCompressRequest,
+    FileCopyRequest, FileCreateRequest, FileDeleteRequest, FileDownloadRequest, FileExtractRequest,
+    FileListQuery, FileListResponse, FilePsRequest, FileReadQuery, FileReadResponse,
+    FileRenameRequest, FileWriteRequest,
 };
 use crate::errors::{AppError, AppResult};
 use crate::middleware::auth::check_auth;
@@ -128,6 +128,20 @@ pub async fn extract(
 ) -> AppResult<Json<FileActionResponse>> {
     check_auth(&headers)?;
     let res = file_service::extract_file(&body.path, &body.dest, body.password.as_deref())?;
+    Ok(Json(res))
+}
+
+pub async fn chmod(
+    headers: HeaderMap,
+    Json(body): Json<FileChmodRequest>,
+) -> AppResult<Json<FileActionResponse>> {
+    check_auth(&headers)?;
+    let res = file_service::set_permission(
+        &body.paths,
+        &body.mode,
+        body.owner.as_deref(),
+        body.recursive,
+    )?;
     Ok(Json(res))
 }
 

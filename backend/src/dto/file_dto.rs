@@ -110,3 +110,13 @@ pub struct FileExtractRequest {
     pub dest: String,
     pub password: Option<String>,
 }
+
+#[derive(Deserialize)]
+pub struct FileChmodRequest {
+    pub paths: Vec<String>,
+    pub mode: String,
+    #[serde(default)]
+    pub owner: Option<String>,
+    #[serde(default)]
+    pub recursive: bool,
+}
