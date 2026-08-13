@@ -1691,7 +1691,6 @@ function formatTime(ts: number): string {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-family: monospace;
 }
 
 .stat-vc {
