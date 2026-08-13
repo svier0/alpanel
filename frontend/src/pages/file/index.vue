@@ -347,18 +347,15 @@
                 <el-divider style="margin: 8px 0" />
                 <div class="stat-row">
                     <span class="stat-label">MD5</span>
-                    <span class="stat-value stat-hash">{{ statDialog.md5 || '-' }}</span>
-                    <el-icon class="stat-copy" @click="copyText(statDialog.md5)"><CopyDocument /></el-icon>
+                    <span class="stat-vc"><span class="stat-value stat-hash">{{ statDialog.md5 || '-' }}</span><el-icon class="stat-copy" @click="copyText(statDialog.md5)"><CopyDocument /></el-icon></span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">SHA1</span>
-                    <span class="stat-value stat-hash">{{ statDialog.sha1 || '-' }}</span>
-                    <el-icon class="stat-copy" @click="copyText(statDialog.sha1)"><CopyDocument /></el-icon>
+                    <span class="stat-vc"><span class="stat-value stat-hash">{{ statDialog.sha1 || '-' }}</span><el-icon class="stat-copy" @click="copyText(statDialog.sha1)"><CopyDocument /></el-icon></span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">SHA256</span>
-                    <span class="stat-value stat-hash">{{ statDialog.sha256 || '-' }}</span>
-                    <el-icon class="stat-copy" @click="copyText(statDialog.sha256)"><CopyDocument /></el-icon>
+                    <span class="stat-vc"><span class="stat-value stat-hash">{{ statDialog.sha256 || '-' }}</span><el-icon class="stat-copy" @click="copyText(statDialog.sha256)"><CopyDocument /></el-icon></span>
                 </div>
                 <el-divider style="margin: 8px 0" />
                 <div class="stat-row">
@@ -1697,16 +1694,28 @@ function formatTime(ts: number): string {
     font-family: monospace;
 }
 
-.stat-hash {
+.stat-vc {
+    flex: 1;
+    min-width: 0;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.stat-vc .stat-value {
+    display: inline;
     white-space: normal;
     word-break: break-all;
     overflow: visible;
+    text-overflow: clip;
 }
 
 .stat-copy {
     cursor: pointer;
     color: var(--el-text-color-secondary);
     flex-shrink: 0;
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 4px;
 }
 
 .stat-copy:hover {
