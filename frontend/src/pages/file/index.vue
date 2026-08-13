@@ -324,7 +324,7 @@
             </template>
         </el-dialog>
 
-        <el-dialog v-model="statDialog.visible" :title="`文件属性[${statDialog.name}]`" width="480px" append-to-body>
+        <el-dialog v-model="statDialog.visible" :title="`文件属性[${statDialog.name}]`" width="375px" append-to-body>
             <div v-loading="statDialog.loading" class="stat-box">
                 <div class="stat-row">
                     <span class="stat-label">文件类型</span>
@@ -1689,7 +1689,7 @@ function formatTime(ts: number): string {
 }
 
 .stat-value {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
