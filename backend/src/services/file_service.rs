@@ -334,24 +334,48 @@ pub fn create_path(path_str: &str, file_type: &str) -> AppResult<FileActionRespo
     match file_type {
         "dir" => {
             std::fs::create_dir(&path).map_err(|e| map_io_error(e, &path))?;
-            Ok(FileActionResponse {
-                success: true,
-                message: "Directory created".to_string(),
-            })
         }
         "file" => {
             std::fs::File::create(&path).map_err(|e| map_io_error(e, &path))?;
-            Ok(FileActionResponse {
-                success: true,
-                message: "File created".to_string(),
-            })
         }
-        _ => Err(AppError::BadRequest(format!(
+        _ => return Err(AppError::BadRequest(format!(
             "Invalid type: {}, must be 'file' or 'dir'",
             file_type
         ))),
     }
+
+    // Follow the parent directory's owner/group
+    inherit_parent_owner(&path);
+
+    Ok(FileActionResponse {
+        success: true,
+        message: if file_type == "dir" {
+            "Directory created".to_string()
+        } else {
+            "File created".to_string()
+        },
+    })
 }
+
+#[cfg(unix)]
+fn inherit_parent_owner(path: &Path) {
+    use std::os::unix::fs::MetadataExt;
+
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    let Ok(meta) = std::fs::metadata(parent) else {
+        return;
+    };
+    let owner = format!("{}:{}", meta.uid(), meta.gid());
+    let _ = std::process::Command::new("chown")
+        .arg(&owner)
+        .arg(to_fwd(path))
+        .output();
+}
+
+#[cfg(not(unix))]
+fn inherit_parent_owner(_path: &Path) {}
 
 pub fn delete_path(path_str: &str) -> AppResult<FileActionResponse> {
     let path = sanitize_path(path_str)?;
