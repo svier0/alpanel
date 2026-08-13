@@ -180,7 +180,7 @@
                     <div class="ctx-divider" />
                     <div class="ctx-item disabled">创建压缩</div>
                     <div class="ctx-divider" />
-                    <div class="ctx-item disabled">属性</div>
+                    <div class="ctx-item" @click="ctxStat">属性</div>
                 </template>
                 <template v-else-if="ctxMenu.type === 'file'">
                     <div class="ctx-item" @click="ctxOpenEditor">编辑</div>
