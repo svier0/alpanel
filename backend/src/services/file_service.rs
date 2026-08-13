@@ -763,7 +763,11 @@ pub fn file_stat(path_str: &str) -> AppResult<FileStatResponse> {
     };
 
     let (md5, sha1, sha256) = if is_dir {
-        (String::new(), String::new(), String::new())
+        (
+            "目录不计算".to_string(),
+            "目录不计算".to_string(),
+            "目录不计算".to_string(),
+        )
     } else {
         hash_file(&path).unwrap_or((String::new(), String::new(), String::new()))
     };
