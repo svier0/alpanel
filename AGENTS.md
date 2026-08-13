@@ -324,11 +324,14 @@ domain   (id, pid→sites.id, name, port, addtime)
 - `panel/` 目录 git 规则：`dist/`、`alpanel`、运行时生成内容（data/db/*、data/files_ps/*、plugin/*、vhost/nginx/*、vhost/rewrite/*、vhost/ssl/*）被 .gitignore 忽略，空目录用 .gitkeep 保留；**vhost/template/ 模板入库**
 - **升级覆盖策略**：install.sh 单包下载后 `tar -xzf -C /www/server/panel/`，文件覆盖、已有目录内容保留（不删 `.env`/alpanel.db/已装插件/已生成配置）、缺失目录自动新建
 
-## install.sh 依赖
+## install.sh
 
-- `apk add sqlite jq vnstat`（root + Alpine 检查后执行）
+- 函数化结构，脚本顶层 `main "$@"` → `parse_args "$@"` 传递安装参数；支持 `--port`（1-65535 校验）、`--user`、`--pass`；未指定时 port 随机 10000-65535、pass 随机 16 位、user 默认 admin
+- `apk add curl sqlite openrc jq vnstat`（root + Alpine 检查后执行）；写 aliyun 镜像源仅在 `GH_PROXY` 非空（网络探测失败）时执行
+- 网络探测 `wget --spider google.com` 决定是否走 gh-proxy.com 代理；**下载用 curl**（`curl -fsSL --connect-timeout 10 -o`），因 busybox wget 对多 A 记录解析报 bad address
+- 公网 IP 探测：GH_PROXY 非空走 nslookup opendns，否则 `curl --connect-timeout 10 https://ifconfig.me`
 - vnstat OpenRC 服务名是 `vnstatd`（不是 `vnstat`），`rc-update add vnstatd default` + `rc-service vnstatd start`
-- 脚本带 `set -e`，wget 下载失败直接退出
+- 脚本带 `set -e`，下载/校验/解压失败均 `exit 1`
 
 ## 踩坑
 
