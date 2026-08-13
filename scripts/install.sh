@@ -116,6 +116,7 @@ download_file() {
 
 # 安装依赖
 install_dependency() {
+    echo "安装依赖"
     if [ -n "$GH_PROXY" ]; then
         echo "https://mirrors.aliyun.com/alpine/v3.21/main" > /etc/apk/repositories
         echo "https://mirrors.aliyun.com/alpine/v3.21/community" >> /etc/apk/repositories
@@ -128,6 +129,7 @@ install_dependency() {
 
 # 创建目录
 mkpaneldir() {
+    echo "创建面板安装目录"
     mkdir -p ${setup_path}
     mkdir -p ${setup_path}/wwwlogs
     mkdir -p ${setup_path}/wwwroot
